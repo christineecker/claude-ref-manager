@@ -281,9 +281,9 @@ pre.tree .m{color:var(--amber);font-weight:500}
     <dl class="cmd-list">
       <dt>/ref:init [path]</dt><dd>set the library root; recorded in <code>~/.config/ref-manager/config.json</code>, never hardcoded</dd>
       <dt>/ref:add &lt;pmid…&gt;</dt><dd>the only way in — resolve metadata, dedupe by PMID, allocate a citekey, abstract-tier extract</dd>
-      <dt>/ref:fetch &lt;pmid&gt;</dt><dd>optional full text: PMC JATS → Unpaywall PDF → publisher HTML → Papers fulltext; convert, extract figures/captions</dd>
-      <dt>/ref:attach &lt;pmid&gt; &lt;path&gt;</dt><dd>verify identity and preserve a local PDF as an immutable acquisition</dd>
-      <dt>/ref:extract &lt;pmid&gt;</dt><dd>full-tier extraction on demand, once adequate converted full text exists</dd>
+      <dt>/ref:fetch &lt;pmid…&gt;</dt><dd>optional full text for one or more PMIDs: PMC JATS → Unpaywall PDF → publisher HTML → Papers fulltext; convert, extract figures/captions; reports a per-PMID result</dd>
+      <dt>/ref:attach &lt;pmid&gt; &lt;path&gt; […]</dt><dd>verify identity and preserve one or more local PDFs as immutable acquisitions, each PMID paired with its own path</dd>
+      <dt>/ref:extract &lt;pmid…&gt;</dt><dd>full-tier extraction for one or more PMIDs, fanned out per paper; each commits independently once adequate converted full text exists</dd>
     </dl>
   </div>
 

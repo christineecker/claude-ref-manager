@@ -13,7 +13,7 @@ Status: **revised design; implement and validate the first working slice.** Data
 | D5 | **Papers.app: push + *selective* pull.** No bulk import. | The library starts empty and grows only by your explicit choice. Papers is a reading target, plus an opportunistic full-text and annotation source for papers you have already chosen to add. |
 | D6 | **Scale: 500–5k papers, ongoing multi-topic.** | FTS5 holds. OKF concept graph becomes the primary navigation surface, not a nicety. Extraction template must cover several study designs, not one. |
 | D8 | **Mixed field — template detected per paper.** | The extractor first classifies study type (RCT / cohort / case-control / meta-analysis / molecular / imaging / review), then applies the matching extraction template. No fixed-field assumption; `study_type` becomes a first-class queryable key. |
-| D9 | **Discovery is manual and explicit.** | `/ref:add <PMID>` and PubMed search are the ways in. No scheduled jobs, no background ingest. Standing queries exist but are re-run manually (`/ref:update-queries`), never on a schedule. Clipping in the browser still files a paper in Papers for reading; it enters the repo only when you add it. |
+| D9 | **Discovery is manual and explicit.** | `/ref:add <PMID...>` and PubMed search are the ways in. No scheduled jobs, no background ingest. Standing queries exist but are re-run manually (`/ref:update-queries`), never on a schedule. Clipping in the browser still files a paper in Papers for reading; it enters the repo only when you add it. |
 | D10 | **Citations: BibTeX + CSL-JSON stored; style chosen at output; default APA 7.** | `meta.json` is the bibliographic authority; CSL-JSON is its generated interchange representation and feeds BibTeX export. Rendering via CSL style files at export time, so any style works without re-ingesting. |
 | D11 | **PubMed only in v1.** | Every paper must resolve to a PMID. No non-PubMed source ingestion in v1; a local PDF may be attached to an existing PMID. Keep typed source references extensible for future DOI-only or other records; do not require PMID identifiers on projects, studies, methods, or datasets. |
 | D12 | **Library starts empty.** Papers are added deliberately, one decision at a time. | No seeding, no backfill. Growth is curated rather than inherited, so every record in the repo is there because you put it there. |
@@ -209,12 +209,12 @@ Report snapshots retain selected records and metadata/evidence/correction versio
     [3] EXTRACT    abstract evidence when available; provenance-backed claims
     [4] COMMIT    validated generation -> metadata/passages/claims FTS -> citation export
             |
-            +-- /ref:fetch (optional)
+            +-- /ref:fetch <pmid...> (optional)
             |     Papers text when integration is available -> reusable PMC JATS
             |     -> Unpaywall PDF -> publisher HTML -> retain abstract-only availability
             |     preserve raw input -> convert -> available figures/captions + diagnostics
             |
-            +-- /ref:extract (on demand, requires adequate converted full text)
+            +-- /ref:extract <pmid...> (on demand, requires adequate converted full text)
                   full claim extraction + selective cached figure interpretation
                   -> commit new generation -> refresh index and affected graph edges
             |
@@ -225,6 +225,8 @@ Report snapshots retain selected records and metadata/evidence/correction versio
 Acquisition failures do not prevent metadata/abstract ingestion. Conversion success alone does not promote the extraction tier. Agent outputs are nondeterministic: persist and validate them before commit. Graph construction is core, built after comparison and writing workflows, and shares the provenance schema established in phase 0.
 
 ### 4a. Claim and relation contract
+
+`/ref:extract <pmid...>` accepts multiple PMIDs and fans out one `ref-extractor` agent invocation per PMID (§3, `agents/ref-extractor.md`); each PMID commits its own generation independently under its per-PMID lock, so one paper's extraction failure or missing full text does not block the others. Report a per-PMID result rather than a single pass/fail for the batch.
 
 Each claim has a stable `claim_id`, PMID, generation ID, evidence tier, source hash, section/page/table/figure locator, and supporting evidence span. Retain IDs for unchanged claims across reruns; materially changed claims receive new IDs with supersession links. Record schema, extractor, model, and prompt versions.
 
@@ -265,7 +267,7 @@ Both commands consume structured graph evidence; `/ref:hypothesize` also needs t
 
 ## 6. Full-text acquisition — scope and limits
 
-`/ref:attach <pmid> <path>` supports a PDF the user has already acquired. Match embedded identifiers and bibliographic metadata to the existing record; refuse silent attachment on conflict, and request resolution for ambiguous identity. Store verified bytes under `raw/<sha256>/source.pdf` with attachment provenance, then use the same conversion and promotion pipeline. Duplicate content is a no-op. This works before Papers integration and does not add identifier-less records.
+`/ref:attach <pmid> <path> [<pmid> <path> ...]` supports one or more PDFs the user has already acquired, each PMID paired with its own path. Match embedded identifiers and bibliographic metadata to the existing record; refuse silent attachment on conflict, and request resolution for ambiguous identity. Store verified bytes under `raw/<sha256>/source.pdf` with attachment provenance, then use the same conversion and promotion pipeline. Duplicate content is a no-op. Process each pair independently so one conflict or failure does not block the rest of the batch. This works before Papers integration and does not add identifier-less records.
 
 Clean and legal, in priority order:
 
@@ -301,6 +303,7 @@ Interaction points, all initiated by you:
 - **Batch export** — `/ref:export --papers` takes explicitly selected PMIDs or a project selection and emits `exports/papers/<batch>/references.bib`, available PDFs under readable citekey filenames, and a manifest listing included/missing PDFs and source hashes. Copies leave originals unchanged. Import the bibliography and PDFs through Papers' import UI; verify matching and duplicates. Claims, graph records, and Markdown notes are not transferred by this export. No live database writes or automatic import are required.
 - **Push** — `/ref:open <pmid>`: `open -a Papers <pdf>` sends a PDF ref-manager acquired into Papers for reading and annotating.
 - **Opportunistic full text** — during `/ref:fetch` for a paper you added, check whether Papers already holds it (match on PMID, else DOI) and reuse its extracted `fulltext` instead of re-downloading. Preserve the text snapshot and item/hash provenance; report missing figures and source locators. Skip when absent, and continue acquisition when richer source material is needed.
+- **Batch fetch** — `/ref:fetch <pmid...>` accepts multiple PMIDs; process each independently under its own per-PMID lock, so one acquisition failure or missing full text does not block the rest of the batch. Report a per-PMID result (acquired / abstract-only / failed), not a single pass/fail for the whole call.
 - **Annotation pull** — `/ref:pull-annotations <pmid>`: bring your highlights and margin notes for *that* paper into its record. Annotations persist in `annotations.json` and appear under **Your annotations** in the composed display. `/ref:note` writes `notes.md`. Neither is overwritten by generated views or blended with extracted evidence.
 
 Snapshot and access contract:
@@ -317,8 +320,8 @@ Snapshot and access contract:
 | 0 | Scaffold/init/status; authority, project, researcher/authorship, grant/funding, claim/correction and study schemas; atomic commits, migrations, locks, rebuild contract | Empty library works; interrupted commit recovers; typed identities do not require PMID for non-paper entities |
 | 1 | `/ref:add`, `/ref:project`, `/ref:queue`, `/ref:note`, `/ref:person`, `/ref:grant`; ordered authors, indexed grants, stable citekeys and initial status checks | Fixtures cover missing abstracts, duplicate adds and citekey collisions; one paper belongs to two projects with independent relevance/screening/reading states; raw author order and grant strings survive ingest |
 | 2 | Passage and personal-note search; `/ref:export --bib/--csl`, `/ref:cite`; PubMed discovery, saved query runs and project screening; `/ref:discover`, `/ref:publications`, basic `/ref:report` | Search finds evidence and personal comments with distinct labels; citation exports render correctly; manual rerun preserves history and requires explicit selection to add; index rebuild preserves results; same-name candidates remain unresolved, sole authors count once, incomplete lists do not yield confident roles, and frozen reports reproduce |
-| 3 | `/ref:attach`, `/ref:fetch`, source preservation and conversion, funding/acknowledgement and contribution-statement extraction; `/ref:open`, `/ref:export --papers` | Local PDF identity conflicts are caught; incomplete conversion remains visible; retries preserve evidence; export includes selected references and available PDFs without altering originals; funding locators resolve even without full claim promotion; missing acknowledgement sources remain unknown |
-| 4 | `/ref:extract`, `/ref:verify`; full extraction, selective vision, correction overlays including author/grant evidence review; targeted Papers snapshot/annotation pull | Claims resolve to sources; rejected claims leave default synthesis; corrections survive unchanged reruns and become pending on changed evidence; notes survive promotion; snapshot and repeat annotation pulls are consistent; grant aliases preserve distinct awards, shared-role flags require explicit statements, and report counts respect reviewed evidence |
+| 3 | `/ref:attach`, `/ref:fetch`, source preservation and conversion, funding/acknowledgement and contribution-statement extraction; `/ref:open`, `/ref:export --papers` | Local PDF identity conflicts are caught; incomplete conversion remains visible; retries preserve evidence; export includes selected references and available PDFs without altering originals; funding locators resolve even without full claim promotion; missing acknowledgement sources remain unknown; a multi-PMID `/ref:fetch`/`/ref:attach` call reports per-PMID results and one failure does not block the rest |
+| 4 | `/ref:extract`, `/ref:verify`; full extraction, selective vision, correction overlays including author/grant evidence review; targeted Papers snapshot/annotation pull | Claims resolve to sources; rejected claims leave default synthesis; corrections survive unchanged reruns and become pending on changed evidence; notes survive promotion; snapshot and repeat annotation pulls are consistent; grant aliases preserve distinct awards, shared-role flags require explicit statements, and report counts respect reviewed evidence; a multi-PMID `/ref:extract` call commits each paper's generation independently and one paper's failure does not block the others |
 | 5 | `/ref:compare`, `/ref:methods`; study/dataset grouping and basic evidence tables | Table cells resolve to evidence; missing values are explicit; multiple papers from one study are grouped without treating all dataset reuse as the same study; methods retain source/context |
 | 6 | Project-scoped `/ref:ask`, saved `/ref:brief`; passage diversification and citation validation | Expected-evidence recall and assertion support are measured; project filters work; evidence tiers/status are visible; explicit brief refresh shows changes and preserves user edits |
 | 7 | `/ref:check-citations`; argument support, selected bibliography/evidence export | Test paragraph includes supported, overstated, conflicting, and unsupported assertions; findings link to evidence and do not rewrite user text automatically |

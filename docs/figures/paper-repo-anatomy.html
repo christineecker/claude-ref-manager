@@ -1,0 +1,357 @@
+<title>Paper Directory Anatomy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#FAF8F3;
+  --ink:#26231C;
+  --muted:#7C766A;
+  --line:#DDD8CC;
+  --accent:#0E7C7B;
+  --accent-soft:rgba(14,124,123,.10);
+  --amber:#B5761F;
+  --amber-soft:rgba(181,118,31,.12);
+  --card:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#1E1C18;
+    --ink:#E9E5DC;
+    --muted:#9A9488;
+    --line:#3A362E;
+    --accent:#4FB3B0;
+    --accent-soft:rgba(79,179,176,.14);
+    --amber:#E3A756;
+    --amber-soft:rgba(227,167,86,.16);
+    --card:#26231E;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#1E1C18;
+  --ink:#E9E5DC;
+  --muted:#9A9488;
+  --line:#3A362E;
+  --accent:#4FB3B0;
+  --accent-soft:rgba(79,179,176,.14);
+  --amber:#E3A756;
+  --amber-soft:rgba(227,167,86,.16);
+  --card:#26231E;
+}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  line-height:1.55;
+  margin:0;
+  padding:3rem 1.5rem 4rem;
+}
+main{max-width:64rem;margin:0 auto;display:flex;flex-direction:column;gap:2.5rem}
+header p.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 .5rem;
+}
+h1{font-size:2rem;font-weight:600;margin:0 0 .5rem;text-wrap:balance}
+header p.lede{color:var(--muted);max-width:42rem;margin:0}
+figure{margin:0}
+.svg-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:1.25rem}
+svg{display:block;min-width:900px;max-width:100%;height:auto;color:var(--ink)}
+figcaption{color:var(--muted);font-size:.875rem;margin-top:.75rem;max-width:46rem}
+h2{font-size:1.1rem;font-weight:600;margin:0 0 .75rem}
+pre.tree{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:.8125rem;line-height:1.6;
+  background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:1.25rem 1.5rem;overflow-x:auto;margin:0;color:var(--ink);
+}
+pre.tree .c{color:var(--muted)}
+pre.tree .a{color:var(--accent);font-weight:500}
+pre.tree .m{color:var(--amber);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:1.25rem;font-size:.8125rem;color:var(--muted);margin-top:.75rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.sw{width:1.1rem;height:.7rem;border-radius:2px;display:inline-block;border:1.5px solid currentColor}
+.sw.solid{border-color:var(--accent);background:var(--accent-soft)}
+.sw.dash{border-style:dashed}
+.sw.faded{opacity:.4}
+.manuscript-key{
+  display:grid;grid-template-columns:auto 1fr;gap:.6rem 1rem;
+  margin-top:1.25rem;padding:1rem 1.25rem;border:1px solid var(--amber);
+  border-radius:8px;background:var(--amber-soft);
+}
+.manuscript-key .pin{
+  width:1.5rem;height:1.5rem;border-radius:50%;background:var(--amber);color:var(--card);
+  display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:600;
+  font-family:"IBM Plex Mono",monospace;
+}
+.manuscript-key .txt code{font-family:"IBM Plex Mono",monospace;font-size:.8125rem;color:var(--ink)}
+.manuscript-key .txt span{display:block;color:var(--muted);font-size:.8125rem;margin-top:.1rem}
+
+.cmd-groups{display:flex;flex-direction:column;gap:1.5rem}
+.cmd-group h3{
+  font-family:"IBM Plex Mono",monospace;font-size:.75rem;font-weight:500;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--accent);
+  margin:0 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--line);
+}
+.cmd-list{display:grid;grid-template-columns:max-content 1fr;gap:.5rem 1.25rem}
+.cmd-list dt{
+  font-family:"IBM Plex Mono",monospace;font-size:.8125rem;font-weight:500;
+  color:var(--ink);white-space:nowrap;margin:0;
+}
+.cmd-list dd{margin:0;color:var(--muted);font-size:.8125rem;line-height:1.5}
+</style>
+
+<main>
+<header>
+  <p class="eyebrow">ref-manager · PLAN.md §3</p>
+  <h1>Paper Directory Anatomy</h1>
+  <p class="lede">Every paper lives in one PMID-keyed directory. Raw snapshots are immutable; extractions are versioned generations behind an atomic pointer; user notes and review overlays sit outside the regeneration path entirely. Amber pins mark where the actual manuscript content — original PDF, extracted text, extracted figures — physically lives.</p>
+</header>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 780" role="img" aria-label="Data flow inside papers/<pmid>: immutable raw snapshots (including the original PDF) are converted and extracted into versioned generations, which hold the extracted full text in source.md and extracted figures in the figures directory; current.json atomically points to the active validated generation; user-owned notes and annotations are never edited by regeneration; authorship, funding, and corrections records overlay claims and author data without rewriting raw extraction; committed generations feed the rebuildable SQLite index.">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+    </marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+    </marker>
+  </defs>
+
+  <!-- paper dir boundary -->
+  <rect x="14" y="14" width="912" height="580" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="32" y="40" font-family="IBM Plex Mono,monospace" font-size="13" fill="currentColor" font-weight="500">papers/&lt;pmid&gt;/</text>
+
+  <!-- meta.json -->
+  <rect x="32" y="60" width="200" height="58" rx="6" fill="none" stroke="currentColor"/>
+  <text x="44" y="84" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">meta.json</text>
+  <text x="44" y="102" font-size="11" fill="currentColor" fill-opacity=".65">identity: PMID · stable citekey</text>
+
+  <!-- raw -->
+  <rect x="32" y="150" width="200" height="150" rx="6" fill="none" stroke="currentColor"/>
+  <text x="44" y="174" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">raw/&lt;sha256&gt;/</text>
+  <text x="44" y="194" font-size="11" fill="currentColor" fill-opacity=".65">immutable snapshots</text>
+
+  <rect x="44" y="204" width="152" height="24" rx="4" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="52" y="220" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">PDF</text>
+  <circle cx="222" cy="216" r="10" fill="var(--amber)"/>
+  <text x="222" y="220" font-size="10.5" fill="var(--card)" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">A</text>
+
+  <text x="44" y="248" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".75">JATS · HTML · metadata</text>
+  <text x="44" y="272" font-size="11" fill="currentColor" fill-opacity=".6">never rewritten; evidence</text>
+  <text x="44" y="288" font-size="11" fill="currentColor" fill-opacity=".6">for every claim</text>
+
+  <!-- acquisitions -->
+  <rect x="32" y="330" width="200" height="52" rx="6" fill="none" stroke="currentColor"/>
+  <text x="44" y="352" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">acquisitions.json</text>
+  <text x="44" y="370" font-size="11" fill="currentColor" fill-opacity=".65">origin · hash · availability</text>
+
+  <!-- convert/extract arrow -->
+  <line x1="232" y1="212" x2="360" y2="212" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="296" y="196" font-size="11" fill="currentColor" fill-opacity=".7" text-anchor="middle">convert + extract</text>
+  <text x="296" y="234" font-size="11" fill="currentColor" fill-opacity=".7" text-anchor="middle">cached by hash</text>
+
+  <!-- generations stack -->
+  <text x="376" y="70" font-size="11" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">GENERATIONS — VERSIONED, DERIVED</text>
+
+  <g opacity=".4">
+    <rect x="372" y="84" width="248" height="46" rx="6" fill="none" stroke="currentColor"/>
+    <text x="386" y="104" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">generations/a41f/</text>
+    <text x="386" y="121" font-size="11" fill="currentColor">superseded — retained for reproducibility</text>
+  </g>
+
+  <rect x="372" y="150" width="248" height="170" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="386" y="172" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">generations/c7e2/</text>
+  <text x="386" y="190" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".85">manifest.json</text>
+
+  <rect x="382" y="200" width="150" height="24" rx="4" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="390" y="216" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">source.md</text>
+  <circle cx="558" cy="212" r="10" fill="var(--amber)"/>
+  <text x="558" y="216" font-size="10.5" fill="var(--card)" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">B</text>
+
+  <text x="386" y="244" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".85">claims.json</text>
+
+  <rect x="382" y="254" width="150" height="24" rx="4" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="390" y="270" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">figures/</text>
+  <circle cx="558" cy="266" r="10" fill="var(--amber)"/>
+  <text x="558" y="270" font-size="10.5" fill="var(--card)" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">C</text>
+
+  <text x="386" y="296" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".85">figures.json · paper.md</text>
+  <text x="386" y="314" font-size="10.5" fill="var(--accent)" font-weight="500">active — validated; sets extraction_tier</text>
+
+  <g stroke-dasharray="5 4">
+    <rect x="372" y="336" width="248" height="46" rx="6" fill="none" stroke="currentColor"/>
+  </g>
+  <text x="386" y="356" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" fill-opacity=".75">generations/f09d/</text>
+  <text x="386" y="373" font-size="11" fill="currentColor" fill-opacity=".6">staging — invisible until validated</text>
+
+  <!-- current.json -->
+  <rect x="716" y="196" width="180" height="56" rx="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="730" y="219" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">current.json</text>
+  <text x="730" y="237" font-size="11" fill="currentColor" fill-opacity=".65">atomic pointer</text>
+
+  <line x1="716" y1="222" x2="628" y2="216" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrA)"/>
+  <text x="672" y="204" font-size="11" fill="var(--accent)" text-anchor="middle" font-weight="500">points to</text>
+
+  <path d="M 780 252 Q 740 300 628 360" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrA)"/>
+  <text x="742" y="300" font-size="11" fill="var(--accent)">validate → atomic swap</text>
+
+  <!-- user-owned -->
+  <rect x="716" y="330" width="180" height="92" rx="6" fill="none" stroke="currentColor" stroke-dasharray="2 3"/>
+  <text x="730" y="352" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">USER-OWNED</text>
+  <text x="730" y="372" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">notes.md</text>
+  <text x="730" y="390" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">annotations.json</text>
+  <text x="730" y="410" font-size="11" fill="currentColor" fill-opacity=".65">regeneration never edits</text>
+
+  <!-- state.json -->
+  <rect x="372" y="396" width="248" height="36" rx="6" fill="none" stroke="currentColor" stroke-opacity=".6"/>
+  <text x="386" y="418" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" fill-opacity=".8">state.json</text>
+  <text x="470" y="418" font-size="11" fill="currentColor" fill-opacity=".6">resumable stage checkpoints</text>
+
+  <!-- review & observation overlays -->
+  <rect x="716" y="446" width="180" height="126" rx="6" fill="none" stroke="currentColor" stroke-dasharray="2 3"/>
+  <text x="730" y="468" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">REVIEW &amp; OBSERVATION</text>
+  <text x="730" y="488" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">authorship.json</text>
+  <text x="730" y="506" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">funding.json</text>
+  <text x="730" y="524" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">corrections.json</text>
+  <text x="730" y="546" font-size="11" fill="currentColor" fill-opacity=".65">overlays only — never</text>
+  <text x="730" y="562" font-size="11" fill="currentColor" fill-opacity=".65">rewrites raw extraction</text>
+
+  <path d="M 716 505 Q 660 400 620 260" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+  <text x="628" y="410" font-size="11" fill="currentColor" fill-opacity=".7">accept/edit/reject applies</text>
+  <text x="628" y="426" font-size="11" fill="currentColor" fill-opacity=".7">to claims.json at read time</text>
+
+  <text x="32" y="618" font-size="11" fill="currentColor" fill-opacity=".55">library level, outside the paper dir ↓</text>
+
+  <!-- index below boundary -->
+  <line x1="496" y1="594" x2="496" y2="680" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="508" y="650" font-size="11" fill="currentColor" fill-opacity=".7">committed generation → FTS5,</text>
+  <text x="508" y="666" font-size="11" fill="currentColor" fill-opacity=".7">in one transaction</text>
+
+  <rect x="372" y="682" width="248" height="52" rx="6" fill="none" stroke="currentColor"/>
+  <text x="386" y="704" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">index/catalog.sqlite</text>
+  <text x="386" y="722" font-size="11" fill="currentColor" fill-opacity=".65">rebuildable via /ref:index --rebuild</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>active validated generation</span>
+  <span><span class="sw dash"></span>staging / pending validation</span>
+  <span><span class="sw faded"></span>superseded, retained</span>
+</div>
+<div class="manuscript-key">
+  <span class="pin">A</span>
+  <span class="txt"><code>raw/&lt;sha256&gt;/&lt;file&gt;.pdf</code><span>original manuscript as fetched — byte-identical, never modified</span></span>
+  <span class="pin">B</span>
+  <span class="txt"><code>generations/&lt;id&gt;/source.md</code><span>extracted full text of the active generation, with source-locator mapping back to the raw PDF/JATS</span></span>
+  <span class="pin">C</span>
+  <span class="txt"><code>generations/&lt;id&gt;/figures/</code><span>extracted figure images; captions, locators, and hashes live alongside in <code>figures.json</code></span></span>
+</div>
+<figcaption>Writes flow one way: the immutable PDF in <code>raw/</code> (A) is converted and extracted into a staging generation, producing extracted text in <code>source.md</code> (B) and extracted figures (C); only after validation does <code>current.json</code> swap atomically, and only committed generations reach the index. <code>corrections.json</code> holds accept/edit/reject decisions on claims and author matches — applied as a read-time overlay, never a rewrite of raw extraction.</figcaption>
+</figure>
+
+<section>
+<h2>Full layout</h2>
+<pre class="tree">&lt;LIBRARY&gt;/papers/&lt;pmid&gt;/       <span class="c"># pure PMID dir — D11: every paper has a PMID</span>
+  meta.json                    <span class="c"># bibliographic authority, stable citekey, status + checked_at</span>
+  acquisitions.json            <span class="c"># origin, URL/item ID, fetched_at, media type, hash, availability</span>
+  raw/&lt;sha256&gt;/                <span class="c"># immutable snapshots: metadata response, JATS, HTML, Papers text</span>
+    <span class="m">*.pdf                       # (A) original manuscript, byte-identical as fetched</span>
+  <span class="a">current.json                 # atomic pointer → active validated generation</span>
+  generations/&lt;id&gt;/            <span class="c"># versioned derived records</span>
+    manifest.json              <span class="c"># input hashes, schema/tool/model/prompt versions, completeness</span>
+    <span class="m">source.md                   # (B) extracted full text + source-locator mapping</span>
+    claims.json                <span class="c"># extraction records, provenance, evidence tier</span>
+    <span class="m">figures/                    # (C) extracted figure images</span>
+    figures.json               <span class="c"># figure IDs, captions, locators, hashes, optional vision interpretation</span>
+    paper.md                   <span class="c"># generated OKF Reference view</span>
+  notes.md                     <span class="c"># user-authored; extraction never touches</span>
+  annotations.json             <span class="c"># imported annotations, keyed by stable source IDs</span>
+  authorship.json              <span class="c"># ordered authors, list completeness, identity links, role evidence</span>
+  funding.json                 <span class="c"># funding observations, grant links, locators and review states</span>
+  corrections.json             <span class="c"># accept/edit/reject overlays on claims, mappings, identity, funding</span>
+  state.json                   <span class="c"># resumable stage checkpoints + errors</span></pre>
+</section>
+
+<section>
+<h2>Planned commands</h2>
+<div class="cmd-groups">
+
+  <div class="cmd-group">
+    <h3>Bring papers in</h3>
+    <dl class="cmd-list">
+      <dt>/ref:init [path]</dt><dd>set the library root; recorded in <code>~/.config/ref-manager/config.json</code>, never hardcoded</dd>
+      <dt>/ref:add &lt;pmid…&gt;</dt><dd>the only way in — resolve metadata, dedupe by PMID, allocate a citekey, abstract-tier extract</dd>
+      <dt>/ref:fetch &lt;pmid&gt;</dt><dd>optional full text: PMC JATS → Unpaywall PDF → publisher HTML → Papers fulltext; convert, extract figures/captions</dd>
+      <dt>/ref:attach &lt;pmid&gt; &lt;path&gt;</dt><dd>verify identity and preserve a local PDF as an immutable acquisition</dd>
+      <dt>/ref:extract &lt;pmid&gt;</dt><dd>full-tier extraction on demand, once adequate converted full text exists</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3>Find</h3>
+    <dl class="cmd-list">
+      <dt>/ref:search &lt;query&gt;</dt><dd>lexical FTS5 search over indexed passages; <code>--scope notes</code> searches notes, annotations, and project comments, labeled as personal content</dd>
+      <dt>/ref:ask &lt;question&gt;</dt><dd>expand terms (MeSH, synonyms), retrieve passage + graph evidence, answer with <code>[^pmid]</code> citations</dd>
+      <dt>/ref:search-pubmed &lt;question&gt;</dt><dd>parse into PICO, run PubMed, log include/exclude screening decisions</dd>
+      <dt>/ref:update-queries</dt><dd>manually rerun saved <code>queries/*.yaml</code>, dedupe against prior hits — never scheduled</dd>
+      <dt>/ref:related &lt;pmid&gt;</dt><dd>snowball — backward references from full text, forward citations via ELink</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3>Organize &amp; review</h3>
+    <dl class="cmd-list">
+      <dt>/ref:project</dt><dd>manage questions, chapter/experiment scope, membership, relevance, and project-specific screening</dd>
+      <dt>/ref:queue</dt><dd>track reading state — to_screen / to_read / reading / read — and priority, separate from extraction tier</dd>
+      <dt>/ref:verify</dt><dd>accept, edit, or reject claims, concept mappings, identity matches, and grant links as evidence-backed overlays</dd>
+      <dt>/ref:audit</dt><dd>re-check retraction/errata status across every PMID in the library</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3>Write &amp; compare</h3>
+    <dl class="cmd-list">
+      <dt>/ref:summarize &lt;pmid|topic&gt;</dt><dd>per-paper or per-topic summary</dd>
+      <dt>/ref:review [topic]</dt><dd>evidence table with GRADE-style certainty and risk-of-bias appraisal (full tier)</dd>
+      <dt>/ref:compare --project &lt;slug&gt;</dt><dd>project-scoped, editable evidence matrix with source-linked cells and study-level grouping</dd>
+      <dt>/ref:methods &lt;topic&gt;</dt><dd>retrieve protocols, datasets, software, instruments, and analysis choices with evidence locators</dd>
+      <dt>/ref:check-citations &lt;text&gt;</dt><dd>check a paragraph's assertions against evidence; flag unsupported wording or conflicting results</dd>
+      <dt>/ref:brief</dt><dd>save an answer, evidence snapshot, and open questions as a versioned research brief</dd>
+      <dt>/ref:cite &lt;citekey&gt;</dt><dd>inline <code>@citekey</code> while writing</dd>
+      <dt>/ref:export --bib / --csl / --papers</dt><dd>emit BibTeX or CSL-JSON; <code>--papers</code> packages references plus available PDFs</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3>Explore the graph</h3>
+    <dl class="cmd-list">
+      <dt>/ref:gaps [topic]</dt><dd>structural graph query — single-study claims, unresolved contradictions, untested concept pairs</dd>
+      <dt>/ref:hypothesize</dt><dd>Swanson ABC traversal over the concept graph; candidates re-checked against PubMed</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3>People, grants &amp; reports</h3>
+    <dl class="cmd-list">
+      <dt>/ref:person</dt><dd>manage name variants, ORCID, affiliation history, and confirmed publication matches</dd>
+      <dt>/ref:publications --person &lt;id&gt; --role &lt;role&gt;</dt><dd>filter ordered author lists by independently evidenced shared/corresponding roles</dd>
+      <dt>/ref:grant</dt><dd>manage funders, awards, approved aliases, aims, and evidence-backed publication links</dd>
+      <dt>/ref:discover --person / --grant &lt;id&gt;</dt><dd>run an explicit PubMed search and queue portfolio candidates for confirmation</dd>
+      <dt>/ref:report --person &lt;id&gt; --from &lt;date&gt; --to &lt;date&gt;</dt><dd>export publication lists by period, role, lab, or grant, with evidence and unresolved-match appendices</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3>Maintain</h3>
+    <dl class="cmd-list">
+      <dt>/ref:note &lt;pmid&gt;</dt><dd>write free-text thoughts to <code>notes.md</code>, kept distinct from model extraction</dd>
+      <dt>/ref:open &lt;pmid&gt;</dt><dd>push the acquired PDF into Papers.app for reading and annotating</dd>
+      <dt>/ref:pull-annotations &lt;pmid&gt;</dt><dd>import Papers highlights and margin notes into <code>annotations.json</code></dd>
+      <dt>/ref:index [--rebuild]</dt><dd>reconstruct <code>catalog.sqlite</code> from committed records; incomplete staging is ignored</dd>
+      <dt>/ref:status</dt><dd>report library location, config, and pending/failed stage state</dd>
+    </dl>
+  </div>
+
+</div>
+</section>
+</main>

@@ -342,7 +342,7 @@ Frontal effect only; check whether the adolescent cohort replicates it.</span></
 <p>Run <code>/ref:status</code> again and it reports <code>papers indexed: 3</code> and <code>projects: 1</code>. The figure shows which parts of the library each step wrote to. Folders these steps didn't use are faded.</p>
 <figure>
 <div class="svg-wrap">
-<svg viewBox="0 0 940 470" role="img" aria-label="Library root after the getting-started steps. Step 1, init, wrote the config file outside the library and created the folder skeleton. Steps 3, 5, 6 and 9 wrote inside papers/&lt;pmid&gt;: step 3 meta.json, authorship.json, funding.json and raw response.json; step 5 raw source and versions/&lt;id&gt;/source.md; step 6 versions/&lt;id&gt;/claims.json, claim_registry.json and current.json; step 9 notes.md. Step 4 wrote projects/thesis-ch3/project.yaml and papers.yaml. Step 3 also wrote index/citekeys.json; step 7 built index/catalog.sqlite. Step 8 wrote exports/thesis-ch3-v1 with references.bib, references.csl.json and manifest.json. people, labs, grants, reports, studies, graph, okf and queries stayed empty.">
+<svg viewBox="0 0 940 470" role="img" aria-label="Library root after the getting-started steps. Step 1, init, wrote the config file outside the library and created only papers/, index/ and exports/ -- every other folder is created lazily by the command that first writes into it. Steps 3, 5, 6 and 9 wrote inside papers/&lt;pmid&gt;: step 3 meta.json, authorship.json, funding.json and raw response.json; step 5 raw source and versions/&lt;id&gt;/source.md; step 6 versions/&lt;id&gt;/claims.json, claim_registry.json and current.json; step 9 notes.md. Step 4 created and wrote projects/thesis-ch3/project.yaml and papers.yaml. Step 3 also wrote index/citekeys.json; step 7 built index/catalog.sqlite. Step 8 created and wrote exports/thesis-ch3-v1 with references.bib, references.csl.json and manifest.json. people, labs, grants, reports, studies, graph, okf and queries were never created -- none of these steps used them.">
   <defs>
     <marker id="gsArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
   </defs>
@@ -357,7 +357,7 @@ Frontal effect only; check whether the adolescent cohort replicates it.</span></
   <!-- library boundary -->
   <rect x="14" y="100" width="912" height="356" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
   <text x="32" y="126" font-family="IBM Plex Mono,monospace" font-size="13" fill="currentColor" font-weight="500">~/Research/library/</text>
-  <text x="196" y="126" font-size="11" fill="currentColor" fill-opacity=".6">skeleton created by step 1</text>
+  <text x="196" y="126" font-size="11" fill="currentColor" fill-opacity=".6">papers/, index/, exports/ created by step 1 -- rest created lazily</text>
 
   <!-- papers -->
   <rect x="32" y="142" width="420" height="296" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
@@ -407,7 +407,7 @@ Frontal effect only; check whether the adolescent cohort replicates it.</span></
   <!-- untouched -->
   <g opacity=".42" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
     <rect x="476" y="342" width="434" height="96" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
-    <text x="490" y="366" font-family="IBM Plex Sans,sans-serif" font-size="11">still empty after these steps</text>
+    <text x="490" y="366" font-family="IBM Plex Sans,sans-serif" font-size="11">not created -- these steps never used them</text>
     <text x="490" y="390">people/  labs/  grants/  reports/</text>
     <text x="490" y="412">studies/  graph/  okf/  queries/</text>
   </g>
@@ -416,7 +416,7 @@ Frontal effect only; check whether the adolescent cohort replicates it.</span></
 <div class="legend">
   <span><span class="sw solid"></span>written by a step (number shown)</span>
   <span><span class="sw amber"></span>your own content</span>
-  <span><span class="sw dash faded"></span>not used yet</span>
+  <span><span class="sw dash faded"></span>not created yet</span>
 </div>
 <figcaption>Files are the source of truth. <code>index/catalog.sqlite</code> is a projection that <code>/ref:index --rebuild</code> recreates. Downloaded sources in <code>raw/</code> are never edited, and every conversion or extraction is saved as a new version next to them.</figcaption>
 </figure>

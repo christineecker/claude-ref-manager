@@ -17,10 +17,14 @@ from lib_schema import validate_config
 
 CONFIG_PATH = Path.home() / ".config" / "ref-manager" / "config.json"
 
+# Core dirs only -- everything else (projects, people, labs, grants, reports,
+# studies, graph, okf, queries) is created lazily by the command that first
+# writes into it (every writer goes through atomic_write_json/_text, which
+# mkdir(parents=True)'s its own parent, or mkdir's explicitly -- see
+# project.py:create, report.py, okf_emit.py, graph_people.py).
 LIBRARY_DIRS = [
-    "papers", "projects", "people", "labs", "grants", "reports",
-    "studies", "graph", "okf", "index", "index/.locks", "index/aliases",
-    "queries", "exports", "exports/papers",
+    "papers", "index", "index/.locks", "index/aliases",
+    "exports", "exports/papers",
 ]
 
 

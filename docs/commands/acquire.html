@@ -183,7 +183,7 @@
   <h4>What happens</h4>
   <ol>
     <li>Refuses if <code>~/.config/ref-manager/config.json</code> already exists and <code>--force</code> was not given, naming the configured library.</li>
-    <li>Creates the library directories (<code>papers</code>, <code>projects</code>, <code>people</code>, <code>labs</code>, <code>grants</code>, <code>reports</code>, <code>studies</code>, <code>graph</code>, <code>okf</code>, <code>index</code>, <code>queries</code>, <code>exports</code> and a few subfolders) and a <code>log.md</code>. Existing directories are left alone.</li>
+    <li>Creates the core library directories (<code>papers</code>, <code>index</code>, <code>exports</code> and a few subfolders) and a <code>log.md</code>. Everything else (<code>projects</code>, <code>people</code>, <code>labs</code>, <code>grants</code>, <code>reports</code>, <code>studies</code>, <code>graph</code>, <code>okf</code>, <code>queries</code>) is created lazily the first time a command writes into it. Existing directories are left alone.</li>
     <li>Writes <code>{"library_root": …}</code> to the config file atomically.</li>
   </ol>
   <p>After this, no other command needs a <code>--repo</code> argument: they all resolve the active library from the config file, and fail loudly, pointing back here, if it is missing.</p>

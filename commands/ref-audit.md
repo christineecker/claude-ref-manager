@@ -60,10 +60,16 @@ actually available — see the caveat above):
 1-2. Same as above.
 3. For each PMID, first check `meta.json`/`convert_article_ids` for a PMCID.
    No PMCID → `{"pmid": ..., "no_pmcid": true}`. Otherwise, look up the real
-   citing-article count from whatever source is actually wired in, recording
-   the exact query and the literal coverage statement "citing articles
-   indexed in PMC; not a total citation count" (D25). A failed lookup →
-   `{"pmid": ..., "error": "..."}` — never a fabricated zero.
+   citing-article count from whatever source is actually wired in and wrap it
+   under the literal key `"observation"` — this is the one field name
+   `audit.py` actually reads for a successful result, verified live:
+   ```json
+   {"pmid": "...", "observation": {"source": "pmc_elink", "query": "<exact query>",
+     "count": <int>, "coverage": "citing articles indexed in PMC; not a total citation count"}}
+   ```
+   A failed lookup → `{"pmid": ..., "error": "..."}` — never a fabricated zero.
+   A record with none of `observation`/`no_pmcid`/`error` is refused by the
+   script as malformed input, not silently treated as a failed lookup.
 4. Write results, then print and run:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/audit.py" citations --repo <library_root> --results-file <temp-file> [selector args]

@@ -147,6 +147,36 @@ class TestCitationObservations(TempLibrary):
         latest = audit.latest_real_observation(self.library_root, "201")
         self.assertEqual(latest["count"], 9)
 
+    def test_cli_main_rejects_result_with_no_recognized_key(self):
+        # Regression: found live -- a real observation submitted under the
+        # wrong key (e.g. "result", mirroring the retraction mode's own
+        # field name) silently fell through to a "check_failed" entry via
+        # r.get("observation"), indistinguishable from a genuinely failed
+        # lookup. The CLI layer (main(), not audit_citation_observation()
+        # directly) must refuse this loudly instead.
+        import io
+        import contextlib
+        import sys as _sys
+
+        self.add_paper("209")
+        results_file = self.tmp / "bad-results.json"
+        results_file.write_text(json.dumps([
+            {"pmid": "209", "result": {"source": "pmc_elink", "query": "x", "count": 3, "coverage": "c"}},
+        ]))
+        argv = ["audit.py", "citations", "--repo", str(self.library_root), "--results-file", str(results_file)]
+        old_argv = _sys.argv
+        _sys.argv = argv
+        stderr = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(stderr):
+                rc = audit.main()
+        finally:
+            _sys.argv = old_argv
+        self.assertNotEqual(rc, 0)
+        self.assertIn("malformed", stderr.getvalue())
+        citations_path = self.library_root / "papers/209/citations.json"
+        self.assertFalse(citations_path.exists())
+
     def test_no_pmcid_is_distinct_marker_not_silence(self):
         self.add_paper("202")
         rec = audit.audit_citation_observation(self.library_root, "202", None, True, None)

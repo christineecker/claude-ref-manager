@@ -249,6 +249,16 @@ def main() -> int:
             out = []
             for r in results:
                 pmid = str(r["pmid"])
+                # Found live: a per-PMID record with none of these three
+                # keys silently fell through to a "check_failed" entry --
+                # indistinguishable from a real failed lookup, masking what
+                # should be a caller/schema error instead. Refuse it loudly.
+                if "observation" not in r and "no_pmcid" not in r and "error" not in r:
+                    raise SchemaError(
+                        f"citations result for pmid {pmid!r} has none of "
+                        "'observation'/'no_pmcid'/'error' -- malformed input, "
+                        "not a real failed lookup"
+                    )
                 rec = audit_citation_observation(
                     library_root, pmid, r.get("observation"),
                     r.get("no_pmcid", False), r.get("error"),

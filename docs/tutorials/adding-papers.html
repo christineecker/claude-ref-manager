@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Adding papers · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Four ways to find papers, one way in</h1>
+  <p class="lede">Whatever route surfaces a PMID — a citation you already have, a PICO question, a snowball from a key paper, or a researcher's back-catalog — <code>/ref:add</code> is always the explicit, deliberate step that actually creates a record (D12). This tutorial walks all four routes. Commands used: <code>/ref:add</code>, <code>/ref:search-pubmed</code>, <code>/ref:update-queries</code>, <code>/ref:related</code>, <code>/ref:person</code>, and <code>/ref:discover</code>.</p>
+</header>
+
+<section>
+<h2>The journey</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 290" role="img" aria-label="Four routes converge on one step. Known PMID, PICO search via search-pubmed, snowball via related, and portfolio discovery via person and discover all produce a list of candidate PMIDs. Every route still ends at ref:add, the only step that writes papers/pmid/meta.json.">
+  <defs>
+    <marker id="apArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="apArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500" fill="currentColor">
+    <rect x="14" y="26" width="200" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="26" y="50">1 KNOWN PMID</text>
+    <text x="26" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">a citation, a colleague's</text>
+    <text x="26" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">list, a reference manager</text>
+
+    <rect x="248" y="26" width="200" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="260" y="50">2 PICO SEARCH</text>
+    <text x="260" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">search-pubmed</text>
+    <text x="260" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">update-queries</text>
+
+    <rect x="482" y="26" width="200" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="494" y="50">3 SNOWBALL</text>
+    <text x="494" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">related --direction</text>
+    <text x="494" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">backward | forward</text>
+
+    <rect x="716" y="26" width="210" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="728" y="50">4 PORTFOLIO</text>
+    <text x="728" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">person + discover</text>
+    <text x="728" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">then confirm</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="114" y1="96" x2="114" y2="150"/>
+    <line x1="348" y1="96" x2="348" y2="150"/>
+    <line x1="582" y1="96" x2="582" y2="150"/>
+    <line x1="821" y1="96" x2="821" y2="150"/>
+    <line x1="114" y1="150" x2="821" y2="150"/>
+    <line x1="467" y1="150" x2="467" y2="180" marker-end="url(#apArr)"/>
+  </g>
+
+  <rect x="342" y="184" width="250" height="70" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="356" y="212" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="600" fill="currentColor">/ref:add &lt;pmid...&gt;</text>
+  <text x="356" y="232" font-size="11" fill-opacity=".75">the only step that creates</text>
+  <text x="356" y="246" font-size="11" fill-opacity=".75">papers/&lt;pmid&gt;/meta.json</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw dash"></span>you already hold the PMID</span>
+  <span><span class="sw solid"></span>the plugin helps you find candidate PMIDs</span>
+</div>
+<figcaption>Routes 2–4 only ever <em>surface candidates</em> — a saved search run, a snowball row, a discovery candidate. None of them writes a paper record. <code>/ref:add</code> is the single, explicit gate every PMID passes through (D12), so duplicate detection, citekey allocation and the "metadata-only is not a failure" rule live in exactly one place.</figcaption>
+</figure>
+<p class="muted">The example PMIDs, <code>99000101</code>…<code>99000108</code>, are placeholders outside PubMed's real range. Blocks labelled <em>output from a scratch library</em> were produced by running the plugin's scripts against a throwaway library, standing in by hand for the PubMed MCP calls. Blocks labelled <em>illustrative output</em> need the network or a live MCP tool and follow the output format in the script source.</p>
+</section>
+
+<section>
+<h2>Route 1 — you already have the PMID</h2>
+<p>Most of the time you already know what you want: a citation from a paper you're reading, a list a colleague emailed, an export from another reference manager. <code>/ref:add</code> takes one or more PMIDs directly — this is the base case every other route eventually feeds into.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000101 99000102 99000103</span>
+<span class="o">99000101: added (citekey=alvarez2023predictive)
+99000102: added (citekey=nakamura2024surface)
+99000103: added (citekey=okoye2022transcriptomic) — no abstract available — metadata-only record, not fabricated (§3a)</span></pre>
+<div class="note"><strong>A file of PMIDs works the same way.</strong> There's no separate flag for it — <code>/ref:add</code> only takes PMIDs as arguments, so if a colleague sent you <code>pmids.txt</code> (one per line), have Claude read the file and pass its contents as the argument list: <code>/ref:add $(cat pmids.txt)</code>, or just paste the list. Every PMID still gets its own independent <code>added</code> / <code>already_present</code> / <code>failed</code> line.</div>
+<div class="note warn"><strong>No abstract is not a failure.</strong> Some records genuinely have none. <code>added</code> with a metadata-only note is the honest outcome — never a silently fabricated abstract.</div>
+</section>
+
+<section>
+<h2>Route 2 — turn a PICO question into a saved search</h2>
+<p>Give Claude a plain research question. It drafts a PICO-framed boolean PubMed query (MeSH + free text) using its own clinical/scientific judgment, runs it, and freezes the exact expression, source and result PMIDs as an immutable run — <code>/ref:search-pubmed</code> itself never touches PubMed or parses PICO; it only persists what it's handed.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-pubmed "Does surface-based transcriptomic decoding predict receptor density?" --slug transcriptomic-decoding --create</span>
+<span class="c"># Claude drafts this expression, runs it, then saves the run:</span>
+<span class="o">{
+  "run_id": "run-2a9f0c6be142",
+  "query": "(\"transcriptome\"[MeSH] OR transcriptomic) AND (\"receptors, neurotransmitter\"[MeSH] OR receptor density) AND (predict* OR decod*)",
+  "source": "pubmed",
+  "retrieved_at": "2026-09-16T09:04:11.000000+00:00",
+  "pmids": ["99000104", "99000105", "99000106"]
+}</span></pre>
+<p>The saved run is a list of PMIDs, nothing more — it doesn't add anything to the library by itself. Read the run's PMIDs and hand them to <code>/ref:add</code>:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000104 99000105 99000106</span>
+<span class="o">99000104: added (citekey=lindqvist2024receptor)
+99000105: added (citekey=chen2025decoding)
+99000106: already_present</span></pre>
+<div class="note"><strong>Re-run it later without re-deriving it.</strong> <code>/ref:update-queries transcriptomic-decoding</code> re-runs the exact stored expression — it never re-derives a new query from your original question — appends a new immutable run, and reports <code>added</code>/<code>removed</code> PMIDs since the last run. Add whatever's new the same way, through <code>/ref:add</code>.</div>
+</section>
+
+<section>
+<h2>Route 3 — snowball from a paper you already have</h2>
+<p><code>/ref:related &lt;pmid&gt;</code> follows a known paper two directions: <strong>backward</strong> extracts its reference list from already-committed full text (no network call), and <strong>forward</strong> asks PubMed's <code>find_related_articles</code> for similar papers. Read this carefully before quoting it as a citation graph — see the note below.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 99000104 --direction backward</span>
+<span class="o">{
+  "available": true,
+  "count": 2,
+  "candidates": [
+    { "candidate": "Smith J, et al. Receptor mapping in cortex. J Neurosci 2021.",
+      "resolved": false, "direction": "backward", "method": "reference_list" },
+    { "candidate": "Diaz R, et al. Transcriptomic gradients revisited. Nat Commun 2020.",
+      "resolved": false, "direction": "backward", "method": "reference_list" }
+  ]
+}</span></pre>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 99000104 --direction forward</span>
+<span class="o">{
+  "count": 2, "zero_results": false, "note": null,
+  "rows": [
+    { "candidate": "99000107", "resolved": true, "direction": "forward",
+      "method": "find_related_articles:pubmed_pubmed", "already_in_library": false },
+    { "candidate": "99000105", "resolved": true, "direction": "forward",
+      "method": "find_related_articles:pubmed_pubmed", "already_in_library": true }
+  ]
+}</span></pre>
+<div class="note warn"><strong><code>pubmed_pubmed</code> is similarity, not "cited by."</strong> The live PubMed MCP tool has no true citation-graph link type — the default is word-weighted title/abstract/MeSH similarity. Every forward row records exactly which <code>link_type</code> produced it, so this is never presented as citation data it isn't. Backward candidates are raw reference-list text, not resolved PMIDs; most don't carry one. Look one up yourself if it's worth the effort — don't auto-resolve an entire reference list.</div>
+<p>Either direction only <em>surfaces</em> candidates — <code>already_in_library: false</code> is the signal to act on:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000107</span>
+<span class="o">99000107: added (citekey=park2024receptor)</span></pre>
+</section>
+
+<section>
+<h2>Route 4 — a researcher's back-catalog</h2>
+<p>Confirm a person's identity first — name similarity alone never establishes it (§3d). Then <code>/ref:discover</code> builds an author-search query from their name variants and ORCID, runs it, and stores the hits as <em>candidates</em> on that person's record, never as library additions.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person create ecker-c --name "Ecker, Christine" --orcid 0000-0000-0000-0001</span>
+<span class="o">{ "slug": "ecker-c", "name_variants": ["Ecker, Christine"], "orcid": "0000-0000-0000-0001",
+  "confirmed_publications": [], "candidate_publications": [], "rejected_publications": [] }</span>
+<span class="p">›</span> <span class="cmd">/ref:discover --person ecker-c</span>
+<span class="o">{
+  "slug": "ecker-c",
+  "discovery_runs": [{ "query": "Ecker C[Author] AND 0000-0000-0000-0001[Author - Identifier]",
+                        "retrieved_at": "2026-09-16T09:11:03.000000+00:00", "candidate_count": 2 }],
+  "candidate_publications": [
+    { "pmid": "99000108", "title": "Cortical thickness trajectories in a longitudinal cohort" },
+    { "pmid": "99000105", "title": "Transcriptomic decoding of surface-based imaging phenotypes" }
+  ]
+}</span></pre>
+<p>A candidate isn't this person's confirmed publication until you link a specific author-list position — the evidenced identity match §3c requires:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person confirm-publication ecker-c --pmid 99000108 --author-index 3</span>
+<span class="o">{ "slug": "ecker-c", "confirmed_publications": [{ "pmid": "99000108", "author_index": 3 }],
+  "candidate_publications": [ … 99000105 still pending … ] }</span></pre>
+<p>Confirming an identity match still doesn't create a paper record — that's still <code>/ref:add</code>:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000108</span>
+<span class="o">99000108: added (citekey=ecker2026cortical)</span></pre>
+<div class="note"><strong>A rejection sticks.</strong> If a candidate is a false match (a different, same-named author), <code>/ref:person reject-publication ecker-c --pmid &lt;id&gt;</code> records that permanently — rejected PMIDs are never re-suggested by a later <code>/ref:discover</code> run.</div>
+</section>
+
+<section>
+<h2>What you now have</h2>
+<pre class="tree">&lt;LIBRARY&gt;/
+  papers/99000101/ … 99000108/
+    meta.json                        <span class="c"># every route above ends here, via /ref:add</span>
+  queries/
+    transcriptomic-decoding.yaml     <span class="c"># immutable runs from /ref:search-pubmed + /ref:update-queries</span>
+  papers/99000104/
+    related.json                    <span class="c"># backward + forward candidates, upserted not overwritten</span>
+  people/
+    ecker-c.json                     <span class="c"># confirmed / candidate / rejected publication state</span></pre>
+<p>Once papers are in, get their full text with the <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a> tutorial steps in <a href="systematic-review.html">Systematic review</a>, or jump straight to <a href="thesis-chapter.html">Thesis chapter</a> for the read-screen-extract-synthesize path. Command reference: <a href="../commands/acquire.html#add"><code>/ref:add</code></a>, <a href="../commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a>, <a href="../commands/find.html#update-queries"><code>/ref:update-queries</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>, <a href="../commands/people.html#discover"><code>/ref:discover</code></a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="index.html"><small>Previous</small>Tutorials</a>
+  <a href="thesis-chapter.html" style="text-align:right"><small>Next</small>Thesis chapter</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

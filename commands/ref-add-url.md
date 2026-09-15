@@ -28,24 +28,32 @@ Steps:
      then repeat the DOI/PMID/PMCID resolution.
    - If zero or multiple candidates remain, show the URL, extracted title/DOI
      clues, and ask the user to pick/provide a PMID or skip.
-4. Confirm against PubMed before adding:
+4. Before calling PubMed MCP, check whether the resolved clue already matches
+   a paper in the library, so a re-pasted URL doesn't burn a network call:
+   ```
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_intake.py" classify --repo <library_root> <resolved-pmid-or-doi>
+   ```
+   If the result carries `"status": "already_imported"`, skip PubMed lookup
+   and `/ref:add` for that URL; report `already imported as <existing_pmid>`
+   instead of re-adding or treating it as an error.
+6. Confirm against PubMed before adding:
    - Call PubMed MCP `get_article_metadata` once for all resolved PMIDs.
    - If URL/page DOI exists, it should match PubMed DOI when PubMed has one.
    - If page title exists, it should be compatible with PubMed title. Ambiguous
      or weak matches require user confirmation.
-5. Normalize PubMed metadata into the standard `/ref:add` envelope, write it to
+7. Normalize PubMed metadata into the standard `/ref:add` envelope, write it to
    a temp file, then run:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/add.py" add --repo <library_root> --metadata-file <temp-file>
    ```
-6. Unless `--no-fetch` was passed, fetch full text for successfully
+8. Unless `--no-fetch` was passed, fetch full text for successfully
    added/already-present PMIDs using the same `/ref:fetch` priority ladder:
    PMC E-utilities JATS, PubMed MCP plain text, Unpaywall, publisher HTML,
    otherwise abstract-only.
-7. Print all stage output verbatim under headers:
+9. Print all stage output verbatim under headers:
    ```text
    identify:
-   <url>: doi|pmid|pmcid|page_meta|manual -> <pmid>
+   <url>: doi|pmid|pmcid|page_meta|manual -> <pmid> [already imported as <pmid>]
 
    add:
    ...

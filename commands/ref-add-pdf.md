@@ -25,18 +25,27 @@ Steps:
    - Else if only `pmcid` was found, use PubMed/PMC lookup via PubMed MCP to
      resolve it to a PMID if available; otherwise ask the user.
    - Else show the title guess and ask for a PMID, or skip that PDF.
-4. Call PubMed MCP `get_article_metadata` once for all resolved PMIDs and
-   normalize the returned articles into the same metadata envelope used by
-   `/ref:add`.
-5. Write the metadata array to a temp file, then run:
+4. Before calling PubMed MCP, check whether the resolved clue already matches
+   a paper in the library, so re-adding the same PDF doesn't burn a network call:
+   ```
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_intake.py" classify --repo <library_root> <resolved-pmid-or-doi>
+   ```
+   If the result carries `"status": "already_imported"`, skip PubMed lookup
+   and `/ref:add` for that PDF, but still proceed to attach it (step 6) to the
+   `existing_pmid` — report `already imported as <existing_pmid>, attaching`
+   rather than treating it as an error.
+5. Call PubMed MCP `get_article_metadata` once for all newly-resolved PMIDs
+   (skip any already flagged `already_imported` in step 4) and normalize the
+   returned articles into the same metadata envelope used by `/ref:add`.
+6. Write the metadata array to a temp file, then run:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/add.py" add --repo <library_root> --metadata-file <temp-file>
    ```
-6. Attach each PDF to its resolved PMID with the normal attachment pipeline:
+7. Attach each PDF to its resolved PMID with the normal attachment pipeline:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/attach.py" --repo <library_root> [--force] <pmid1> <path1> [<pmid2> <path2> ...]
    ```
-7. Print all script output verbatim. Per PDF, report the clue used
+8. Print all script output verbatim. Per PDF, report the clue used
    (`pmid`, `doi`, `pmcid`, or `manual`) and whether the add/attach step
    succeeded. One PDF's failed identification or refused attachment never blocks
    the rest.

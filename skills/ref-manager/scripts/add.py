@@ -183,10 +183,21 @@ def main() -> int:
 
     library_root = Path(args.repo).expanduser().resolve()
     if not library_root.is_dir():
-        print(f"error: no library at {library_root}", file=sys.stderr)
+        print(
+            f"error: no library at {library_root}. Run /ref:init {library_root} first.",
+            file=sys.stderr,
+        )
         return 1
 
-    records = json.loads(Path(args.metadata_file).read_text())
+    metadata_path = Path(args.metadata_file)
+    if not metadata_path.is_file():
+        print(f"error: metadata file not found: {metadata_path}", file=sys.stderr)
+        return 1
+    try:
+        records = json.loads(metadata_path.read_text())
+    except json.JSONDecodeError as e:
+        print(f"error: metadata file is not valid JSON ({metadata_path}): {e}", file=sys.stderr)
+        return 1
     if not isinstance(records, list):
         records = [records]
 

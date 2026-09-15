@@ -45,8 +45,19 @@ def init_library(path: Path, force: bool = False) -> dict:
         )
 
     library_root = path.expanduser().resolve()
-    for rel in LIBRARY_DIRS:
-        (library_root / rel).mkdir(parents=True, exist_ok=True)
+    if library_root.exists() and not library_root.is_dir():
+        raise SystemExit(
+            f"error: {library_root} already exists and is not a directory. "
+            "Choose a different path."
+        )
+    try:
+        for rel in LIBRARY_DIRS:
+            (library_root / rel).mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError) as e:
+        raise SystemExit(
+            f"error: could not create library at {library_root}: {e}. "
+            "Check the path is writable, then retry."
+        )
     log = library_root / "log.md"
     if not log.exists():
         log.write_text("# ref-manager log\n")
@@ -66,6 +77,13 @@ def main() -> int:
     config = init_library(Path(args.path), force=args.force)
     print(f"library initialized at {config['library_root']}")
     print(f"config written to {CONFIG_PATH}")
+    print()
+    print("Next steps:")
+    print("  /ref:add <pmid>   add your first paper")
+    print("  /ref:status       check library health")
+    print("  /ref:project      create a project to organize papers")
+    print()
+    print("Example: /ref:add 12345678")
     return 0
 
 

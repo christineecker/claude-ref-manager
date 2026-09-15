@@ -79,7 +79,7 @@
 
     <rect x="14" y="292" width="170" height="64" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
     <text x="28" y="316" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:status</text>
-    <text x="28" y="336" fill-opacity=".7">read-only counts</text>
+    <text x="28" y="336" fill-opacity=".7">read-only health check</text>
   </g>
 
   <!-- middle: library -->
@@ -260,16 +260,17 @@
 <!-- ================= status ================= -->
 <article class="cmd" id="status">
   <div class="cmd-head"><h3>/ref:status</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
-  <p class="summary">Show which library is configured, catalog counts, extraction-tier breakdown, source completeness, project summaries, and a few recent papers. Read-only.</p>
+  <p class="summary">One-line health state, what needs attention, and what to run next — then catalog counts, extraction-tier breakdown, source completeness, project summaries, and a few recent papers. Read-only.</p>
   <div class="synopsis">/ref:status</div>
   <h4>Arguments</h4>
   <p class="writes">None.</p>
   <h4>What happens</h4>
   <ol>
     <li>Reads the config file. If none exists, it errors and points you at <a href="acquire.html#init"><code>/ref:init</code></a>; it never guesses a path.</li>
-    <li>Prints the library root, and errors if that directory no longer exists.</li>
-    <li>Prints the number of papers in the catalog (or a hint to run <code>/ref:index --rebuild</code> if the catalog hasn't been built), an extraction-tier breakdown, and source/completeness counts.</li>
-    <li>Prints per-project summaries and, where useful, a short list of recent papers.</li>
+    <li>Prints the library root, and errors — naming the exact fix command — if that directory no longer exists.</li>
+    <li>Leads with <code>status: &lt;state&gt;</code> — <code>healthy</code>, <code>empty</code>, <code>not indexed</code>, <code>needs metadata</code>, <code>needs full text</code>, or <code>no active project</code> — derived from the same counts printed below it, not a separate check.</li>
+    <li>Prints a <code>needs attention</code> list and up to three <code>suggested next actions</code> (real commands, e.g. <code>/ref:index --rebuild</code>, <code>/ref:fetch</code>, <code>/ref:project create &lt;slug&gt;</code>) whenever the library isn't fully healthy.</li>
+    <li>Prints papers-by-extraction-tier, source/completeness counts, per-project summaries, and a short list of recent papers.</li>
     <li>Each recent paper carries a concise source badge — <code>full-text</code>, <code>pdf-backed</code>, <code>oa-pending</code>, <code>abstract-only</code>, or <code>metadata-only</code> — so you can see acquisition state at a glance without opening records. Claude keeps this compact; the goal is quick orientation, not a substitute for full search.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
@@ -277,19 +278,34 @@
   <h4>Example</h4>
   <p class="term-label">output from a scratch library (paths shortened)</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:status</span>
-<span class="o">library: /private/tmp/…/scratch/lib</span>
-<span class="o">catalog: not built yet (run /ref:index --rebuild)</span>
-<span class="o">projects: 0</span>
-<span class="p">›</span> <span class="cmd">/ref:index --rebuild</span>
-<span class="p">›</span> <span class="cmd">/ref:status</span>
-<span class="o">library: /private/tmp/…/scratch/lib</span>
-<span class="o">papers indexed: 2
-by extraction tier: {"abstract": 1, "full": 1, "unavailable": 0}
-by source completeness: {"full-text": 1, "abstract-only": 1}</span>
-<span class="o">projects: 0</span>
-<span class="o">recent papers:
-  10000001 rivera2019cortical (full-text)
-  10000002 chen2019editorial (abstract-only)</span></pre>
+<span class="o">status: not indexed
+library: /private/tmp/…/scratch/lib
+papers: 2 (0 indexed)  projects: 0
+
+needs attention:
+  - catalog not fully indexed (0/2 papers)
+  - 1 paper(s) without full text (abstract-only or metadata-only)
+  - no active project
+
+suggested next actions:
+  - /ref:index --rebuild
+  - /ref:fetch to acquire full text for open-access papers
+  - /ref:project create &lt;slug&gt; to start organizing papers
+
+papers by extraction tier:
+  full: 1
+  abstract: 1
+  unavailable: 0
+papers by source/completeness:
+  full_text: 1
+  pdf_backed: 0
+  oa_pending: 0
+  abstract_only: 1
+  metadata_only: 0
+projects with questions: 0
+recent papers: 2
+  - 10000001: [full-text] … (rivera2019cortical, 2019) […]
+  - 10000002: [abstract-only] … (chen2019editorial, 2019) […]</span></pre>
   <h4>Under the hood</h4>
   <p class="writes"><code>status.py</code> (no arguments).</p>
   <h4>See also</h4>

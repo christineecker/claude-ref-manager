@@ -28,6 +28,40 @@ from lib_schema import validate_project, SchemaError
 
 READING_STATES = ("to_screen", "to_read", "reading", "read")
 
+# Starter templates (UX_BACKLOG.md "Project starter templates") -- each
+# `next_steps` entry is copied verbatim from that command's own doc
+# (docs/tutorials/systematic-review.html, docs/tutorials/thesis-chapter.html),
+# not invented here. A template only stamps which workflow this project
+# follows and prints its proven command sequence after `create`; it never
+# pre-fills scope/questions with placeholder research content -- that's
+# always the user's own topic, not the tool's to guess.
+TEMPLATES = {
+    "systematic-review": {
+        "description": "saved search -> screen -> full text -> PRISMA flow -> appraised review",
+        "next_steps": [
+            '/ref:search-pubmed "<question>" --slug <query-slug> --create',
+            "/ref:add <pmid...>",
+            "/ref:project add-paper <slug> <pmid>",
+            '/ref:screen --project <slug> --pmid <pmid> --decision included|excluded --reason "<text>"',
+            "/ref:fetch <pmid...>",
+            "/ref:review --prisma --project <slug> --query <query-slug>",
+            "/ref:review --project <slug> --screened included --batch <label>",
+        ],
+    },
+    "thesis-chapter": {
+        "description": "one research question, ~20 papers, extracted claims verified into a defensible paragraph",
+        "next_steps": [
+            '/ref:project add-question <slug> --id q1 --text "<your research question>"',
+            "/ref:add <pmid...>",
+            "/ref:project add-paper <slug> <pmid>",
+            "/ref:extract <pmid...>",
+            "/ref:verify claim <pmid> <claim_id> accept|edit|reject",
+            "/ref:compare --project <slug> --batch <label>",
+            '/ref:ask "<question>" --project <slug>',
+        ],
+    },
+}
+
 
 def _project_dir(library_root: Path, slug: str) -> Path:
     return library_root / "projects" / slug
@@ -70,11 +104,15 @@ def _paper_source_counts(library_root: Path, papers: list[dict]) -> dict[str, in
     return counts
 
 
-def create(library_root: Path, slug: str, scope: str | None) -> dict:
+def create(library_root: Path, slug: str, scope: str | None, *, template: str | None = None) -> dict:
+    if template is not None and template not in TEMPLATES:
+        raise SchemaError(f"template must be one of {sorted(TEMPLATES)}, got {template!r}")
     allocate_slug(library_root, "project", slug)  # validates + refuses collision
     pdir = _project_dir(library_root, slug)
     pdir.mkdir(parents=True)
     project = {"slug": slug, "scope": scope, "questions": []}
+    if template is not None:
+        project["template"] = template
     validate_project(project)
     atomic_write_json(pdir / "project.yaml", project)
     atomic_write_json(pdir / "papers.yaml", {"papers": []})
@@ -179,10 +217,11 @@ def list_projects(library_root: Path) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["create", "add-question", "add-paper", "show", "list"])
-    ap.add_argument("--repo", required=True)
+    ap.add_argument("action", choices=["create", "add-question", "add-paper", "show", "list", "templates"])
+    ap.add_argument("--repo")
     ap.add_argument("--slug")
     ap.add_argument("--scope")
+    ap.add_argument("--template", choices=sorted(TEMPLATES))
     ap.add_argument("--question-id")
     ap.add_argument("--text")
     ap.add_argument("--pmid")
@@ -191,6 +230,15 @@ def main() -> int:
     ap.add_argument("--reading-status")
     args = ap.parse_args()
 
+    if args.action == "templates":
+        print(json.dumps(
+            {name: t["description"] for name, t in TEMPLATES.items()}, indent=2,
+        ))
+        return 0
+
+    if not args.repo:
+        print("error: --repo is required", file=sys.stderr)
+        return 1
     library_root = Path(args.repo).expanduser().resolve()
     if not library_root.is_dir():
         print(f"error: no library at {library_root}", file=sys.stderr)
@@ -198,7 +246,14 @@ def main() -> int:
 
     try:
         if args.action == "create":
-            result = create(library_root, args.slug, args.scope)
+            result = create(library_root, args.slug, args.scope, template=args.template)
+            if args.template:
+                result = {
+                    **result,
+                    "next_steps": [
+                        step.replace("<slug>", args.slug) for step in TEMPLATES[args.template]["next_steps"]
+                    ],
+                }
         elif args.action == "add-question":
             result = add_question(library_root, args.slug, args.question_id, args.text)
         elif args.action == "add-paper":

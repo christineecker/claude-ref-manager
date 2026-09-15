@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-15 · [`7eb9b16`](https://github.com/christineecker/claude-ref-manager/commit/7eb9b16) docs: update adding-papers tutorial for new intake commands
 - 2026-09-15 · [`eda8686`](https://github.com/christineecker/claude-ref-manager/commit/eda8686) docs: sync command reference with phase 5/6 changes
 - 2026-09-15 · [`eae23af`](https://github.com/christineecker/claude-ref-manager/commit/eae23af) Implement phases 5 and 6 provenance and identity updates
 - 2026-09-15 · [`4130e2f`](https://github.com/christineecker/claude-ref-manager/commit/4130e2f) Add /ref:add-url command with local URL identify helper
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`1d587eb`](https://github.com/christineecker/claude-ref-manager/commit/1d587eb) docs: README with install instructions and auto-updating change log; add plugin marketplace manifest
 - 2026-09-15 · [`25fea0e`](https://github.com/christineecker/claude-ref-manager/commit/25fea0e) docs: replace app icon with teal reader mascot; add .nojekyll for GitHub Pages
 - 2026-09-15 · [`c35cdc5`](https://github.com/christineecker/claude-ref-manager/commit/c35cdc5) docs: add HTML documentation site and app icon for phases 0–11
-- 2026-09-15 · [`f51a462`](https://github.com/christineecker/claude-ref-manager/commit/f51a462) docs: add PLAN-v2 knowledge layer plan and overview figure
 <!-- changelog:end -->

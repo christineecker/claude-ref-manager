@@ -63,23 +63,44 @@ def validate_screening_record(obj: dict) -> None:
     # search_run is optional (screening outside a saved query is legal, §5a)
 
 
+CLAIM_NORMALIZED_FIELDS = (
+    "population", "intervention", "comparator", "outcome", "timepoint",
+    "direction", "effect_value", "effect_measure", "uncertainty_interval",
+    "study_design", "cohort_identity", "adjustment_context",
+)
+
+STUDY_TYPES = (
+    "rct", "cohort", "case_control", "meta_analysis", "molecular",
+    "imaging", "review", "mixed", "unknown",
+)
+
+
 def validate_claim(obj: dict) -> None:
     """versions/<id>/claims.json entry (§4a)."""
     for f in ("claim_id", "pmid", "version_id", "evidence_tier", "source_hash", "locator"):
         _require(obj, f, str)
     _require(obj, "evidence_span", str)
+    _require(obj, "study_type", str)
+    if obj["study_type"] not in STUDY_TYPES:
+        raise SchemaError(f"study_type: unexpected value {obj['study_type']!r}")
     # normalized fields stay explicitly unknown (§4a), not absent:
-    for f in (
-        "population", "intervention", "comparator", "outcome", "timepoint",
-        "direction", "effect_value", "effect_measure", "uncertainty_interval",
-        "study_design", "cohort_identity", "adjustment_context",
-    ):
+    for f in CLAIM_NORMALIZED_FIELDS:
         if f not in obj:
             raise SchemaError(f"missing required (possibly 'unknown') field {f!r}")
 
 
 def validate_correction(obj: dict) -> None:
-    """corrections.json overlay entry (§3b)."""
+    """corrections.json overlay entry (§3b). target_type distinguishes what
+    kind of thing is under review -- claim / concept mapping / person
+    identity / grant link / author contribution statement -- all sharing
+    this one overlay shape per §3c's closing line ('the same persistent-
+    overlay rules as claim correction')."""
+    _require(obj, "correction_id", str)
+    _require(obj, "target_type", str)
+    if obj["target_type"] not in (
+        "claim", "concept_mapping", "person_identity", "grant_link", "author_contribution",
+    ):
+        raise SchemaError(f"target_type: unexpected value {obj['target_type']!r}")
     _require(obj, "target_id", str)  # claim_id / concept mapping id / etc.
     _require(obj, "decision", str)
     if obj["decision"] not in ("accept", "edit", "reject"):
@@ -87,6 +108,9 @@ def validate_correction(obj: dict) -> None:
     _require(obj, "reviewer", str)
     _require(obj, "timestamp", str)
     _require(obj, "evidence_locator", str)
+    _require(obj, "status", str)
+    if obj["status"] not in ("active", "pending_review"):
+        raise SchemaError(f"status: unexpected value {obj['status']!r}")
 
 
 def validate_study(obj: dict) -> None:

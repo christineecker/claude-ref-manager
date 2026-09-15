@@ -139,3 +139,40 @@ def validate_grant(obj: dict) -> None:
     _require(obj, "funder", str)
     _require(obj, "award_number", str)
     _require(obj, "approved_aliases", list)
+
+
+CITATION_CHECK_VERDICTS = ("supported", "overstated", "conflicting", "insufficient", "unavailable")
+
+
+def validate_citation_check_finding(obj: dict) -> None:
+    """One entry of a /ref:check-citations report's findings.json (§5a).
+
+    `verdict` boundaries (not pinned by PLAN.md beyond naming the four
+    categories "supporting, conflicting, insufficient, or unavailable" plus
+    "overstatement" as a separate thing to flag -- reconciled here as five
+    verdicts since overstatement is itself a verdict an assertion earns,
+    not just an annotation on top of "supported"):
+      - supported:    evidence directly backs the assertion as stated
+      - overstated:   evidence exists and is relevant, but is weaker/more
+                       hedged than the assertion claims (e.g. assertion says
+                       "proves"/"causes", evidence says "associated with")
+      - conflicting:  evidence contradicts the assertion
+      - insufficient: relevant evidence exists but doesn't clearly resolve
+                       the assertion either way
+      - unavailable:  no relevant evidence among the retrieved candidates
+    `evidence` is required (non-empty) for every verdict except
+    "unavailable", where it must be empty -- there is nothing to point to.
+    """
+    _require(obj, "assertion_text", str)
+    _require(obj, "verdict", str)
+    if obj["verdict"] not in CITATION_CHECK_VERDICTS:
+        raise SchemaError(f"verdict: unexpected value {obj['verdict']!r}")
+    _require(obj, "evidence", list)
+    if obj["verdict"] == "unavailable":
+        if obj["evidence"]:
+            raise SchemaError("verdict 'unavailable' must have empty evidence")
+    elif not obj["evidence"]:
+        raise SchemaError(f"verdict {obj['verdict']!r} requires at least one evidence reference")
+    for ev in obj["evidence"]:
+        _require(ev, "pmid", str)
+    # existing_citation_pmid / citation_mismatch / note are optional

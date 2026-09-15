@@ -81,6 +81,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-15 · [`5133704`](https://github.com/christineecker/claude-ref-manager/commit/5133704) Add PubMed query workflow wrappers
 - 2026-09-15 · [`e453797`](https://github.com/christineecker/claude-ref-manager/commit/e453797) Add PDF identification wrapper
 - 2026-09-15 · [`7e65c5f`](https://github.com/christineecker/claude-ref-manager/commit/7e65c5f) Add reader rendering and PMC PDF fetch
 - 2026-09-15 · [`5ac4b9d`](https://github.com/christineecker/claude-ref-manager/commit/5ac4b9d) Add add-fetch wrapper and improve fetch assets
@@ -95,5 +96,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`3a2f0b0`](https://github.com/christineecker/claude-ref-manager/commit/3a2f0b0) fix: /ref:audit --citations rejects malformed input instead of silently recording check_failed
 - 2026-09-15 · [`4c5d8de`](https://github.com/christineecker/claude-ref-manager/commit/4c5d8de) Phase 11: /ref:audit, citation observations, cache invalidation, /ref:report --citations
 - 2026-09-15 · [`03aec9e`](https://github.com/christineecker/claude-ref-manager/commit/03aec9e) fix: /ref:summarize's candidate-building step is a real CLI path, not a fragile inline snippet
-- 2026-09-15 · [`41487c0`](https://github.com/christineecker/claude-ref-manager/commit/41487c0) Phase 10: /ref:summarize, advanced /ref:review (GRADE, RoB2/NOS/AMSTAR-2)
 <!-- changelog:end -->

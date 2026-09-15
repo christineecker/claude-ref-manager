@@ -160,12 +160,17 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     add_selector_args(ap)
     ap.add_argument("--repo", required=True)
-    ap.add_argument("--batch", required=True)
+    ap.add_argument("--batch")  # not required for --dump-candidates
     ap.add_argument("--refresh", action="store_true")
     ap.add_argument("--answer-file")
     ap.add_argument("--coverage-note")
     ap.add_argument("--unresolved", nargs="*", default=None)
     ap.add_argument("--show", action="store_true")
+    ap.add_argument("--dump-candidates", action="store_true",
+                     help="resolve the selector and print the candidate evidence list "
+                          "for the ref-synthesizer subagent, without requiring an "
+                          "--answer-file (there's no answer yet at this point -- the "
+                          "calling agent needs candidates BEFORE it can produce one)")
     args = ap.parse_args()
 
     library_root = Path(args.repo).expanduser().resolve()
@@ -174,7 +179,14 @@ def main() -> int:
         return 1
 
     try:
-        if args.show:
+        if args.dump_candidates:
+            resolution = resolve_from_args(library_root, args)
+            result = {"resolution": resolution,
+                      "candidates": build_candidates(library_root, resolution["pmids"])}
+        elif not args.batch:
+            print("error: --batch required (unless --dump-candidates)", file=sys.stderr)
+            return 1
+        elif args.show:
             result = show_summary(library_root, args.batch, args.project)
         else:
             manifest_exists = (_batch_dir(library_root, args.batch, args.project) / "manifest.json").exists()

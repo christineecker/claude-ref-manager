@@ -14,21 +14,22 @@ inputs is idempotent (byte-identical output) -- callers pass `now` explicitly
 so repeat runs in a test don't diverge on wall-clock time; production callers
 omit it and get datetime.now(timezone.utc).
 
-Reads (best-effort -- this agent built the OKF/people-graph half of phase 8
-concurrently with another agent building graph/concepts.jsonl and
-graph/relations.jsonl; if those files don't exist yet in a given library,
-this degrades to "no relations data available" rather than crashing):
+Reads (built concurrently with graph/concepts.jsonl's and
+graph/relations.jsonl's actual writer -- concept.py/relation.py; if those
+files don't exist yet in a given library, this degrades to "no relations
+data available" rather than crashing). Confirmed against concept.py's and
+lib_schema.py's validate_concept/validate_relation docstrings post-merge:
 
   graph/concepts.jsonl   {"concept_id", "name", "aliases": [...],
-                          "provenance": [...]}  (assumed shape, per PLAN.md
-                          §3: "stable concept IDs, names, aliases and
-                          normalization provenance" -- field names are a
-                          best guess, reconcile against the concurrent
-                          agent's actual writer)
+                          "alias_provenance": {...}}
   graph/relations.jsonl  {"relation_id", "type", "subject_concept_id",
-                          "object_concept_id", "supporting_claim_ids": [...],
+                          "object_concept_id",
+                          "supporting_claims": [{"pmid", "claim_id"}, ...],
                           "source_version_ids": [...], "review_state",
-                          "stale": bool}  (assumed shape, same caveat)
+                          "stale": bool}
+  (this module only reads concept_id/name/aliases and
+  subject_concept_id/object_concept_id/type/review_state -- it never reads
+  supporting_claims, so the earlier field-name guess never caused a bug)
 
   papers/<pmid>/meta.json, authorship.json, funding.json
   people/<slug>.json, grants/<slug>.json
@@ -98,7 +99,11 @@ def _write_concept(okf_root: Path, concept: dict, relations: list[dict] | None, 
         "type": "Concept",
         "title": concept.get("name", cid),
         "description": f"Scientific concept: {concept.get('name', cid)}",
-        "tags": concept.get("aliases", []),
+        # "concept" always present so tags is never empty -- the _fm()
+        # writer drops empty-list fields entirely, and okf:validate --strict
+        # flags an absent recommended field (found live: a concept with no
+        # aliases yet had no tags key at all).
+        "tags": ["concept", *concept.get("aliases", [])],
         "generated": {"by": ACTOR, "at": now},
     }
     body = [f"# {concept.get('name', cid)}", ""]

@@ -23,8 +23,10 @@ import attach  # noqa: E402
 import attach_figures  # noqa: E402
 import convert  # noqa: E402
 import fetch  # noqa: E402
+import fetch_pmc_pdf  # noqa: E402
 import funding_extract  # noqa: E402
 import init_repo  # noqa: E402
+import read_article  # noqa: E402
 from lib_atomic import atomic_write_bytes, atomic_write_json  # noqa: E402
 
 JATS_FIXTURE = (FIXTURES / "sample.jats.xml").read_text()
@@ -368,6 +370,133 @@ class TestAttach(TempLibrary):
         by_pmid = {o["pmid"]: o for o in outcomes}
         self.assertEqual(by_pmid["9999999"]["result"], "failed")
         self.assertEqual(by_pmid["3001"]["result"], "attached")
+
+
+class TestFetchPmcPdf(TempLibrary):
+    def test_no_pmcid_is_normal_result(self):
+        self.add_paper("3101", pmcid=None)
+        result = fetch_pmc_pdf.fetch_pmc_pdf_one(self.library_root, "3101")
+        self.assertEqual(result["result"], "no_pmcid")
+
+    def test_pmc_pdf_download_attaches_through_attach_pipeline(self):
+        self.add_paper("3102", doi="10.1080/realdoi", pmcid="PMC123")
+        fake_pdf = b"%PDF-1.4 fake pmc pdf"
+        with (
+            mock.patch("fetch_pmc_pdf._oa_pdf_link", return_value=("ftp://example.test/paper.pdf", [])),
+            mock.patch("fetch_pmc_pdf._urlopen_bytes", return_value=fake_pdf),
+            mock.patch("attach._pdf_head_text", return_value="... 10.1080/realdoi ..."),
+        ):
+            result = fetch_pmc_pdf.fetch_pmc_pdf_one(self.library_root, "3102")
+
+        self.assertEqual(result["result"], "attached")
+        self.assertEqual(result["source"], "pmc_oa_pdf")
+        self.assertEqual(result["pmcid"], "PMC123")
+        paper_dir = self.library_root / "papers" / "3102"
+        raw_pdf = next((paper_dir / "raw").glob("*/source.pdf"))
+        self.assertEqual(raw_pdf.read_bytes(), fake_pdf)
+        attachment = json.loads((raw_pdf.parent / "attachment.json").read_text())
+        self.assertEqual(attachment["attached_from"], "pmc_oa:ftp://example.test/paper.pdf")
+
+    def test_oa_pdf_link_extracts_pdf_href(self):
+        xml = b"""<?xml version="1.0"?>
+        <OA><records><record id="PMC123">
+          <link format="tgz" href="ftp://example.test/package.tgz"/>
+          <link format="pdf" href="/ftp://example.test/paper.pdf"/>
+        </record></records></OA>"""
+        with mock.patch("fetch_pmc_pdf._urlopen_bytes", return_value=xml):
+            href, diagnostics = fetch_pmc_pdf._oa_pdf_link("PMC123")
+        self.assertEqual(href, "ftp://example.test/paper.pdf")
+        self.assertEqual(diagnostics, [])
+
+    def test_no_pdf_reports_jats_full_text_when_available(self):
+        self.add_paper("3103", pmcid="PMC12442529")
+        with (
+            mock.patch("fetch_pmc_pdf._oa_pdf_link", return_value=(None, ["PMC OA PDF unavailable"])),
+            mock.patch("fetch_pmc_pdf._pmc_jats_available", return_value=(True, None)),
+        ):
+            result = fetch_pmc_pdf.fetch_pmc_pdf_one(self.library_root, "3103")
+
+        self.assertEqual(result["result"], "no_pdf")
+        self.assertTrue(result["full_text_available"])
+        self.assertEqual(result["full_text_source"], "pmc_jats")
+        self.assertIn("/ref:fetch", result["note"])
+
+    def test_pmc_jats_available_recognizes_efetch_article_xml(self):
+        xml = b"<?xml version='1.0'?><pmc-articleset><article/></pmc-articleset>"
+        with mock.patch("fetch_pmc_pdf._urlopen_bytes", return_value=xml):
+            available, diagnostic = fetch_pmc_pdf._pmc_jats_available("PMC123")
+        self.assertTrue(available)
+        self.assertIsNone(diagnostic)
+
+
+class TestReadArticle(TempLibrary):
+    def test_render_current_source_with_downloaded_figures(self):
+        self.add_paper("3201", title="Readable paper", pmcid="PMC3201")
+        paper_dir = self.library_root / "papers" / "3201"
+        vdir = paper_dir / "versions" / "v-read"
+        (vdir / "figures").mkdir(parents=True)
+        atomic_write_json(paper_dir / "current.json", {"version": "v-read"})
+        atomic_write_bytes(vdir / "source.md", b"# Introduction\n\nA useful result.\n")
+        atomic_write_bytes(vdir / "figures" / "fig1.jpg", b"fake image bytes")
+        atomic_write_json(vdir / "figures.json", [{
+            "id": "fig1", "label": "Figure 1", "caption": "A useful picture.",
+            "source_locator": "fig1.jpg", "sha256": "abc", "asset_available": True,
+        }])
+
+        result = read_article.render_one(self.library_root, "3201")
+
+        self.assertEqual(result["result"], "rendered")
+        self.assertEqual(result["figures"], 1)
+        self.assertEqual(result["images_available"], 1)
+        html = (paper_dir / "reader" / "article.html").read_text()
+        self.assertIn("Readable paper", html)
+        self.assertIn("<h1>Readable paper</h1>", html)
+        self.assertIn("<h1>Introduction</h1>", html)
+        self.assertIn("../versions/v-read/figures/fig1.jpg", html)
+        self.assertIn("A useful picture.", html)
+        manifest = json.loads((paper_dir / "reader" / "manifest.json").read_text())
+        self.assertEqual(manifest["version"], "v-read")
+
+    def test_render_reports_no_full_text_without_source_md(self):
+        self.add_paper("3202")
+        paper_dir = self.library_root / "papers" / "3202"
+        (paper_dir / "versions" / "v-claims").mkdir(parents=True)
+        atomic_write_json(paper_dir / "current.json", {"version": "v-claims"})
+
+        result = read_article.render_one(self.library_root, "3202")
+
+        self.assertEqual(result["result"], "no_full_text")
+        self.assertIn("source.md", result["reason"])
+
+    def test_quarto_source_rewrites_inline_figure_paths(self):
+        figures = [{
+            "id": "fig1", "label": "Figure 1", "caption": "Caption",
+            "source_locator": "AUR-18-1861-g002.jpg",
+            "sha256": "abc", "asset_available": True,
+        }]
+        source = (
+            '<figure id="fig1"><p><img src="AUR-18-1861-g002.jpg" /></p></figure>\n'
+            "![same](AUR-18-1861-g002.jpg)\n"
+        )
+
+        qmd, rewrites = read_article._quarto_source(
+            {"pmid": "3203", "title": "T"}, "v-read", source, figures,
+        )
+
+        self.assertEqual(rewrites, 2)
+        self.assertIn('../versions/v-read/figures/AUR-18-1861-g002.jpg', qmd)
+        self.assertNotIn('src="AUR-18-1861-g002.jpg"', qmd)
+        self.assertNotIn('](AUR-18-1861-g002.jpg)', qmd)
+
+    def test_table_image_refs_are_inserted_after_live_tables(self):
+        html = "<html><body><table><tr><td>A</td></tr></table><p>after</p></body></html>"
+
+        updated, inserted = read_article._insert_table_image_refs(html, ["tables/table-1.png"])
+
+        self.assertEqual(inserted, 1)
+        self.assertIn("<table><tr><td>A</td></tr></table>", updated)
+        self.assertIn('<figure class="table-snapshot"><img src="tables/table-1.png"', updated)
+        self.assertLess(updated.index("</table>"), updated.index("table-snapshot"))
 
 
 # ---- interrupted staged commit recovers (§3a) ----

@@ -32,7 +32,9 @@
     <li><a href="#add"><code>/ref:add</code></a></li>
     <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
+    <li><a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></li>
     <li><a href="#attach"><code>/ref:attach</code></a></li>
+    <li><a href="#read"><code>/ref:read</code></a></li>
     <li><a href="#extract"><code>/ref:extract</code></a></li>
     <li><a href="#describe-figure"><code>/ref:describe-figure</code></a></li>
   </ol>
@@ -304,6 +306,35 @@
   <p class="writes"><a href="#attach"><code>/ref:attach</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a> · <a href="../workflows.html">Workflows</a></p>
 </article>
 
+<!-- ================= fetch-pdf ================= -->
+<article class="cmd" id="fetch-pdf">
+  <div class="cmd-head"><h3>/ref:fetch-pdf</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PMC OA</span></div></div>
+  <p class="summary">Download free PMC Open Access PDFs for papers already in the library and attach them through the normal PDF pipeline.</p>
+  <div class="synopsis">/ref:fetch-pdf &lt;pmid…&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. Each must already have <code>papers/&lt;pmid&gt;/meta.json</code> and a PMCID.</dd>
+    <dt>--force</dt><dd>Attach even if the PDF identity check fails; otherwise the result is <code>refused</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads each paper's PMCID from <code>meta.json</code>.</li>
+    <li>Uses the documented PMC OA Web Service to discover a downloadable PDF link. A PMCID is necessary but not sufficient; some PMC records have public HTML/JATS full text but no OA PDF link.</li>
+    <li>Downloads PDF bytes and passes them through the same identity check, raw hash storage, conversion, and version commit path as <a href="#attach"><code>/ref:attach</code></a>.</li>
+  </ol>
+  <p>This command does not scrape the PMC PDF viewer and does not bypass access controls. When a PDF is unavailable but PMC E-utilities JATS is available, it reports that distinction and points back to <a href="#fetch"><code>/ref:fetch</code></a>. For structured text and figure locators, <code>/ref:fetch</code> remains the better default because it prefers PMC JATS XML.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>meta.json</code>. Writes <code>raw/&lt;sha256&gt;/source.pdf</code>, <code>raw/&lt;sha256&gt;/attachment.json</code>, <code>versions/&lt;v&gt;/manifest.json</code> and <code>current.json</code>; updates <code>meta.json</code> when conversion succeeds.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:fetch-pdf 40665956</span>
+<span class="o">40665956: no_pdf -- PMC OA lookup failed (...): HTTP Error 404: Not Found -- PMC JATS full text is available; use /ref:fetch for structured full text and figures</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>fetch_pmc_pdf.py --repo &lt;library_root&gt; [--force] &lt;pmid…&gt;</code>, then <code>attach.py</code>'s shared PDF byte attachment path.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#attach"><code>/ref:attach</code></a> · <a href="write.html#export-papers"><code>/ref:export-papers</code></a></p>
+</article>
+
 <!-- ================= attach ================= -->
 <article class="cmd" id="attach">
   <div class="cmd-head"><h3>/ref:attach</h3><div class="chips"><span class="tag phase">phase 3</span></div></div>
@@ -338,6 +369,40 @@
   <p class="writes"><code>attach.py --repo &lt;library_root&gt; [--force] &lt;pmid1&gt; &lt;path1&gt; [&lt;pmid2&gt; &lt;path2&gt; …]</code>; conversion via <code>convert.py</code> (anydoc). Uses <code>pdftotext</code> (poppler) for the identity check.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a> · <a href="write.html#export-papers"><code>/ref:export-papers</code></a> · <a href="../tutorials/papers-handoff.html">Papers handoff tutorial</a></p>
+</article>
+
+<!-- ================= read ================= -->
+<article class="cmd" id="read">
+  <div class="cmd-head"><h3>/ref:read</h3><div class="chips"><span class="tag phase">phase 3</span></div></div>
+  <p class="summary">Render a local reading copy from the current converted full text and any downloaded figure images.</p>
+  <div class="synopsis">/ref:read &lt;pmid…&gt; [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs. Each paper must already exist and have a current version with <code>source.md</code>.</dd>
+    <dt>--engine simple|quarto</dt><dd>Renderer. <code>simple</code> writes HTML directly; <code>quarto</code> writes <code>article.qmd</code> and renders through Quarto.</dd>
+    <dt>--format html|pdf|both</dt><dd>Output format for <code>--engine quarto</code>. The simple renderer supports HTML only.</dd>
+    <dt>--table-images</dt><dd>With Quarto HTML output, snapshot each rendered table to <code>reader/tables/table-&lt;n&gt;.png</code> and insert the image below the live table.</dd>
+    <dt>--open</dt><dd>Open the primary rendered file after rendering.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, and, when present, <code>versions/&lt;v&gt;/figures.json</code>.</li>
+    <li>Writes <code>papers/&lt;pmid&gt;/reader/article.html</code> with article metadata, converted text, and local figure links. In Quarto mode it also writes <code>article.qmd</code> and can produce <code>article.pdf</code>.</li>
+    <li>Rewrites inline figure references from converted JATS/Pandoc output to point at downloaded assets in <code>versions/&lt;v&gt;/figures/</code>; missing images do not fail the render.</li>
+    <li>When <code>--table-images</code> is set, keeps live/searchable HTML tables and adds PNG snapshots under them for stable visual reading.</li>
+  </ol>
+  <p>This is a reading reconstruction, not the publisher PDF layout. It is best for PMC JATS or attached-PDF conversions when you want a quick local page to read without importing into Papers.app.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>meta.json</code>, <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, and optional <code>figures.json</code>. Writes <code>reader/article.html</code>, <code>reader/manifest.json</code>, and in Quarto mode <code>reader/article.qmd</code> plus requested rendered outputs. With <code>--table-images</code>, also writes <code>reader/tables/*.png</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">render and open a paper with all figure assets</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:read 40665956 --engine quarto --format both --table-images --open</span>
+<span class="o">40665956: rendered -- /Users/.../papers/40665956/reader/article.html (figures=3, images=3/3) inline_figures_rewritten=3 table_images=3</span>
+<span class="o">  output: /Users/.../papers/40665956/reader/article.pdf</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>read_article.py --repo &lt;library_root&gt; [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open] &lt;pmid…&gt;</code>. No network, no subagent, no publisher scraping.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#attach"><code>/ref:attach</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a></p>
 </article>
 
 <!-- ================= extract ================= -->

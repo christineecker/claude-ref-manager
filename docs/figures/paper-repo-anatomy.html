@@ -117,7 +117,7 @@ table.sel tr.base td:first-child{font-weight:500}
 
 <main>
 <header>
-  <p class="eyebrow">ref-manager · PLAN.md §3</p>
+  <p class="eyebrow">ref-manager · PLAN.md §3, §5c, §7a–b</p>
   <h1>Paper Directory Anatomy</h1>
   <p class="lede">Every paper lives in one PMID-keyed directory. Raw snapshots are immutable; derived records are versioned behind an atomic pointer; user notes and review overlays sit outside the regeneration path entirely. Amber pins mark where the actual manuscript content — original PDF, extracted text, extracted figures — physically lives.</p>
 </header>
@@ -291,6 +291,121 @@ table.sel tr.base td:first-child{font-weight:500}
 </section>
 
 <section>
+<h2>Papers handoff</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 470" role="img" aria-label="The ReadCube Papers handoff: the library exports a BibTeX batch, PDF copies, and a manifest into a folder you import from Papers; the item note and tags travel outbound inside the bib entry and local-url attaches each PDF; full text, annotations, and notes flow back inbound through fetch and pull-annotations; highlights are never pushed outbound because they are anchored to Papers' own copy of the file.">
+  <defs>
+    <marker id="hArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+    </marker>
+    <marker id="hArrAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/>
+    </marker>
+  </defs>
+
+  <!-- ============ library column ============ -->
+  <rect x="14" y="44" width="258" height="286" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="30" y="68" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">&lt;LIBRARY&gt;/ — the authority</text>
+
+  <rect x="30" y="84" width="226" height="46" rx="6" fill="none" stroke="currentColor"/>
+  <text x="42" y="104" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">meta.json</text>
+  <text x="42" y="121" font-size="11" fill="currentColor" fill-opacity=".65">citekey · PMID · DOI · PMCID</text>
+
+  <rect x="30" y="140" width="226" height="46" rx="6" fill="none" stroke="currentColor"/>
+  <text x="42" y="160" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">raw/&lt;sha256&gt;/*.pdf</text>
+  <text x="42" y="177" font-size="11" fill="currentColor" fill-opacity=".65">copied, never moved</text>
+
+  <rect x="30" y="196" width="226" height="46" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="42" y="216" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">notes.md</text>
+  <text x="42" y="233" font-size="11" fill="currentColor" fill-opacity=".7">user content — first export only</text>
+
+  <rect x="30" y="252" width="226" height="46" rx="6" fill="none" stroke="currentColor"/>
+  <text x="42" y="272" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">project membership</text>
+  <text x="42" y="289" font-size="11" fill="currentColor" fill-opacity=".65">→ tags (--tags-from project)</text>
+
+  <!-- ============ export batch ============ -->
+  <rect x="342" y="44" width="256" height="286" rx="10" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  <text x="358" y="68" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">exports/papers/&lt;batch&gt;/</text>
+
+  <rect x="358" y="84" width="224" height="72" rx="6" fill="var(--card)" stroke="currentColor"/>
+  <text x="370" y="104" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">references.bib</text>
+  <text x="370" y="121" font-size="11" fill="currentColor" fill-opacity=".65">Papers' own dialect</text>
+  <text x="370" y="138" font-size="11" fill="currentColor" fill-opacity=".65">note · keywords · local-url</text>
+
+  <rect x="358" y="166" width="224" height="60" rx="6" fill="var(--card)" stroke="currentColor"/>
+  <text x="370" y="186" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">&lt;citekey&gt;.pdf</text>
+  <text x="370" y="203" font-size="11" fill="currentColor" fill-opacity=".65">or &lt;Author&gt;/&lt;Journal&gt;-&lt;Year&gt;.pdf</text>
+  <text x="370" y="219" font-size="11" fill="currentColor" fill-opacity=".65">attached via local-url</text>
+
+  <rect x="358" y="236" width="224" height="72" rx="6" fill="var(--card)" stroke="currentColor"/>
+  <text x="370" y="256" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">manifest.json</text>
+  <text x="370" y="273" font-size="11" fill="currentColor" fill-opacity=".65">frozen selector + PMIDs</text>
+  <text x="370" y="290" font-size="11" fill="currentColor" fill-opacity=".65">file hashes · pushed-note hash</text>
+
+  <!-- ============ Papers.app ============ -->
+  <rect x="668" y="44" width="258" height="286" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="684" y="68" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">Papers.app — read-only</text>
+
+  <rect x="684" y="84" width="226" height="46" rx="6" fill="none" stroke="currentColor"/>
+  <text x="696" y="104" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">$.article · $.ext_ids</text>
+  <text x="696" y="121" font-size="11" fill="currentColor" fill-opacity=".65">matched on PMID, else DOI</text>
+
+  <rect x="684" y="140" width="226" height="46" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="696" y="160" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">$.user_data.notes</text>
+  <text x="696" y="177" font-size="11" fill="currentColor" fill-opacity=".7">the Notes column · 76 items</text>
+
+  <rect x="684" y="196" width="226" height="46" rx="6" fill="none" stroke="currentColor"/>
+  <text x="696" y="216" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">$.user_data.tags</text>
+  <text x="696" y="233" font-size="11" fill="currentColor" fill-opacity=".65">JSON array · 29 items</text>
+
+  <rect x="684" y="252" width="226" height="46" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="696" y="272" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">$.user_data.annotations</text>
+  <text x="696" y="289" font-size="11" fill="currentColor" fill-opacity=".65">sha256 + page rects · 324 / 5</text>
+
+  <!-- ============ outbound arrows ============ -->
+  <line x1="272" y1="150" x2="336" y2="150" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#hArr)"/>
+  <text x="304" y="136" font-size="11" fill="var(--accent)" text-anchor="middle">export</text>
+
+  <line x1="604" y1="150" x2="662" y2="150" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#hArr)"/>
+  <text x="633" y="136" font-size="11" fill="var(--accent)" text-anchor="middle">you import</text>
+  <text x="633" y="168" font-size="11" fill="currentColor" fill-opacity=".55" text-anchor="middle">app UI</text>
+
+  <!-- blocked: highlights outbound -->
+  <line x1="680" y1="275" x2="604" y2="275" stroke="currentColor" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <g stroke="var(--amber)" stroke-width="2">
+    <line x1="636" y1="267" x2="650" y2="283"/>
+    <line x1="650" y1="267" x2="636" y2="283"/>
+  </g>
+  <text x="643" y="306" font-size="11" fill="var(--amber)" text-anchor="middle">highlights never pushed</text>
+
+  <!-- ============ inbound lane ============ -->
+  <path d="M797 330 L797 392 L143 392 L143 330" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#hArrAmber)"/>
+  <rect x="352" y="374" width="236" height="36" rx="6" fill="var(--ground)" stroke="var(--amber)"/>
+  <text x="470" y="397" font-size="11.5" fill="currentColor" text-anchor="middle" font-family="IBM Plex Mono,monospace">/ref:fetch · /ref:pull-annotations</text>
+  <text x="470" y="432" font-size="11" fill="currentColor" fill-opacity=".6" text-anchor="middle">full text, highlights, and margin notes travel inbound only — read from a consistent snapshot, never written</text>
+</svg>
+</div>
+<figcaption>Two directions, deliberately asymmetric. Outbound is files only: a BibTeX batch in the app's own dialect plus PDF copies, imported by you through its UI — the live database is never written (§7). Inbound is where user content comes from, which is why an outbound note push is allowed only on a paper's first export and refused afterwards unless forced (D28). Highlights have no outbound path at all: they are anchored to a file hash and page rectangles that are only valid against Papers' own copy.</figcaption>
+</figure>
+
+<p class="sel-note">What each field maps to, read off Papers' own export matched against its live library:</p>
+<div class="sel-wrap">
+<table class="sel">
+  <thead><tr><th>Library</th><th>BibTeX field</th><th>Papers</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>meta.json</td><td>title, author, journal, volume, number, pages, issn, year, doi, pmid, pmcid</td><td>$.article · $.ext_ids</td></tr>
+    <tr><td>raw/&lt;sha256&gt;/*.pdf</td><td>local-url = {file://localhost/…}</td><td>attached file</td></tr>
+    <tr><td>notes.md <span style="opacity:.7">(--notes)</span></td><td>note</td><td>$.user_data.notes</td></tr>
+    <tr><td>project / tags <span style="opacity:.7">(--tags)</span></td><td>keywords</td><td>$.user_data.tags</td></tr>
+    <tr><td>— never written</td><td>rating</td><td>$.user_data.rating</td></tr>
+    <tr><td>annotations.json</td><td>no channel</td><td>$.user_data.annotations <span style="opacity:.7">(inbound only)</span></td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section>
 <h2>Selecting papers</h2>
 <p class="sel-note">One grammar, shared by every command that works on a set — <code>compare</code>, <code>summarize</code>, <code>review</code>, <code>ask</code>, <code>export</code>, and the batch acquisition commands. There is no free-text <code>topic</code> argument: it would re-resolve on every run, so a saved artifact could silently change membership underneath its conclusions.</p>
 <div class="sel-wrap">
@@ -309,6 +424,7 @@ table.sel tr.base td:first-child{font-weight:500}
   </tbody>
 </table>
 </div>
+<p class="sel-note"><strong>ID formats (§3d).</strong> Anything you type is a lowercase slug — <code>a–z</code>, <code>0–9</code>, hyphen, 1–64 chars — minted by you, with duplicates refused rather than silently suffixed. <code>--question</code> is scoped to its project; every other typed ID is library-global. IDs the system references instead (version, claim, table, brief, report) are opaque, never typed, and always surfaced by a listing command. External codes — MeSH, ORCID, DOI, award numbers — are aliases, never identities; PMID is the one deliberate exception, since v1 ingests nothing without one.</p>
 <p class="sel-note">Selectors combine with AND, and <code>--tier</code> / <code>--exclude</code> refine any of them. Before expensive work runs, the set resolves to an explicit PMID list reported with counts by extraction tier, verification state, and retraction status. That list is then frozen into the artifact manifest alongside the selector expression, so explicit refresh reports added, removed, and changed-evidence papers rather than quietly substituting a different set.</p>
 </section>
 
@@ -359,7 +475,7 @@ table.sel tr.base td:first-child{font-weight:500}
       <dt>/ref:check-citations &lt;text&gt;</dt><dd>check a paragraph's assertions against evidence; flag unsupported wording or conflicting results</dd>
       <dt>/ref:brief</dt><dd>save an answer, evidence snapshot, and open questions as a versioned research brief</dd>
       <dt>/ref:cite &lt;citekey&gt;</dt><dd>inline <code>@citekey</code> while writing</dd>
-      <dt>/ref:export --bib / --csl / --papers</dt><dd>emit BibTeX or CSL-JSON; <code>--papers</code> packages references plus available PDFs</dd>
+      <dt>/ref:export --bib / --csl / --papers</dt><dd>emit BibTeX or CSL-JSON; <code>--papers &lt;selector&gt;</code> writes a Papers-dialect batch plus PDF copies into the folder the app imports from, optionally carrying <code>notes.md</code> and tags (<code>--notes</code>, <code>--tags</code>)</dd>
     </dl>
   </div>
 
@@ -389,7 +505,7 @@ table.sel tr.base td:first-child{font-weight:500}
     <dl class="cmd-list">
       <dt>/ref:note &lt;pmid&gt;</dt><dd>write free-text thoughts to <code>notes.md</code>, kept distinct from model extraction</dd>
       <dt>/ref:open &lt;pmid&gt;</dt><dd>push the acquired PDF into Papers.app for reading and annotating</dd>
-      <dt>/ref:pull-annotations &lt;pmid&gt;</dt><dd>import Papers highlights and margin notes into <code>annotations.json</code></dd>
+      <dt>/ref:pull-annotations &lt;pmid&gt;</dt><dd>import Papers highlights and margin notes into <code>annotations.json</code> — the inbound direction for user content; highlights never travel back out</dd>
       <dt>/ref:index [--rebuild]</dt><dd>reconstruct <code>catalog.sqlite</code> from committed records; incomplete staging is ignored</dd>
       <dt>/ref:status</dt><dd>report library location, config, and pending/failed stage state</dd>
     </dl>

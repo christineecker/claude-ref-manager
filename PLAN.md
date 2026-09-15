@@ -29,8 +29,10 @@ Status: **revised design; implement and validate the first working slice.** Data
 | D22 | **Study-aware evidence and writing before discovery.** | Model studies, cohorts/datasets, and methods separately from publications. Build comparison tables, reproducible briefs, and paragraph citation checks before hypothesis exploration. |
 | D23 | **PI reporting uses structured, auditable records.** | Researcher identity, ordered authorship, grants, and publication–grant links support deterministic filters and counts. Model extraction proposes evidence-backed matches; ambiguous matches require review. |
 | D24 | **Reporting scope and evidence are explicit.** | Curated reading collections are not complete publication portfolios. Author/grant discovery is manual and selected additions remain explicit. Reports snapshot coverage, date/counting rules, evidence, and unresolved records. |
-| D26 | **One selector grammar; no free-text topic argument.** Every set-valued command selects papers the same way, and the resolved PMID list is frozen into the artifact (§5c). | A bare topic would re-resolve on each run, so a saved comparison would silently change membership underneath its conclusions. Durable subjects are project questions or graph concepts; free text goes through `--search` and is resolved once. Selection reports tier, verification, and retraction counts before expensive work runs. |
 | D25 | **Citation counts are dated observations from a named source, never "the" citation count.** | PMC cited-by (ELink, the adapter `/ref:related` already needs) is systematically incomplete against Scopus/Web of Science and must be labelled as such at every display. Counts persist per paper as observations with source, query, and retrieval date — never in `meta.json`, which holds only facts that do not change under the library's feet. No derived index (h-index, field-normalized score) is computed from an incomplete source. |
+| D26 | **One selector grammar; no free-text topic argument.** Every set-valued command selects papers the same way, and the resolved PMID list is frozen into the artifact (§5c). | A bare topic would re-resolve on each run, so a saved comparison would silently change membership underneath its conclusions. Durable subjects are project questions or graph concepts; free text goes through `--search` and is resolved once. Selection reports tier, verification, and retraction counts before expensive work runs. |
+| D27 | **Two ID classes: typed slugs and opaque tokens (§3d).** | IDs you type into a selector are user-minted slugs with refused collisions and explicit renames; IDs the system references are opaque and never constructed by a caller. External codes (MeSH, ORCID, DOI, award numbers) are aliases, never primary keys. Formats are fixed in phase 0, since changing one later migrates every record that references it. |
+| D28 | **The Papers handoff is a one-way file export, and only the item note travels with it.** `/ref:export --papers` writes a BibTeX batch plus PDF copies into a folder Papers imports from (§7a); `note`/`keywords` carry `notes.md` and tags into `$.user_data` (§7b); highlights never travel outbound. | The live database stays read-only (§7), so the app's own export dialect — including `local-url` PDF attachment — is the contract to reproduce. Since annotations and notes flow *in* via `/ref:pull-annotations`, an outbound note push may only happen on a paper's first export; afterwards it is refused unless forced, and the export manifest records the pushed-note hash that makes that check possible. |
 
 ---
 
@@ -52,7 +54,7 @@ Status: **revised design; implement and validate the first working slice.** Data
 | Summaries / reviews | `/ref:summarize` writes prose across a selected set; `/ref:review` adds GRADE certainty and risk-of-bias appraisal at full tier; both take the §5c selectors (D15) |
 | Report a systematic search | `/ref:review --prisma` renders a PRISMA 2020 flow record — identified, screened, excluded with reasons, sought, retrieved, included — from saved query runs, project screening decisions, and acquisition availability (D15) |
 | Library hygiene | `/ref:audit` — re-check retraction/errata status for all PMIDs; `/ref:note <pmid>` — your own free-text thoughts, kept distinct from model extraction |
-| Read in ReadCube Papers | push PDF into Papers; selectively pull full text and annotations for chosen PMIDs |
+| Read in ReadCube Papers | push PDF into Papers; selectively pull full text and annotations for chosen PMIDs; notes and annotations flow inbound only (§7b) |
 | Organize research | `/ref:project` manages questions, chapter/experiment scope, memberships, relevance notes, and project-specific screening |
 | Manage reading | `/ref:queue` tracks to-screen / to-read / reading / read, priority, and why saved; separate from extraction tier |
 | Attach acquired PDFs | `/ref:attach <pmid> <path>` verifies identity and preserves a local PDF as an immutable acquisition |
@@ -63,7 +65,7 @@ Status: **revised design; implement and validate the first working slice.** Data
 | Reuse methods | `/ref:methods` retrieves protocols, datasets, software, instruments, controls, and analysis choices with evidence locators |
 | Support writing | `/ref:check-citations` checks a paragraph's assertions against supplied/library evidence; flags unsupported wording and conflicting results |
 | Save research briefs | `/ref:brief` saves answers, evidence snapshots, user revisions, and unresolved questions; explicit refresh shows evidence changes |
-| Export to Papers | `/ref:export --papers` packages selected references as BibTeX plus available PDFs with readable filenames |
+| Export to Papers | `/ref:export --papers <selector>` writes Papers' own BibTeX dialect plus PDF copies into a folder the app imports from, `local-url` attaching each PDF; `--notes`/`--tags` carry `notes.md` and tags into the app's Notes and Tags fields; duplicates checked against a read-only snapshot; foreign files never overwritten (§7a, §7b, D28) |
 | Identify researchers | `/ref:person` manages name variants, ORCID, affiliation history, and confirmed publication matches |
 | Query authorship | `/ref:publications --person <id> --role <role>` filters complete ordered author lists with independently evidenced shared/corresponding roles |
 | Track grants | `/ref:grant` manages funders, awards, approved aliases, aims, and evidence-backed publication links |
@@ -165,7 +167,11 @@ Library (data; root chosen at `/ref:init`, recorded in `~/.config/ref-manager/co
     catalog.sqlite    # rebuildable papers/passages/claims/concepts/relations + FTS5
   queries/<slug>.yaml # saved searches, exact query/date and immutable run histories
   exports/            # generated CSL-JSON and BibTeX
-    papers/<batch>/   # references.bib, manifest.json, pdfs/<citekey>.pdf
+    papers/<batch>/   # references.bib in Papers' dialect + manifest.json
+                      #   --layout flat   -> <citekey>.pdf  (self-contained batch)
+                      #   --layout papers -> <LastAuthor>/<Journal>-<Year>.pdf, mirroring
+                      #     the app's own export convention when writing into the
+                      #     configured papers_export_dir (D2 config key, §7a)
   log.md              # operation summaries; checkpoints are machine-readable
 ```
 
@@ -174,6 +180,7 @@ Library (data; root chosen at `/ref:init`, recorded in `~/.config/ref-manager/co
 - `meta.json` owns bibliographic metadata and citekeys. Allocate a collision suffix under a library-level lock; existing citekeys never change during metadata refresh. PMID is the identity key; DOI/title/hash matches only flag inconsistencies and must not silently merge different PMIDs.
 - Raw acquisitions are immutable evidence snapshots. Conversions and extractions are versioned derived records retained for reproducibility. `extraction_tier` is derived from the active validated version; availability and extraction completion are separate states. Missing abstracts produce metadata-only records with an explicit unavailable status, not fabricated claims.
 - `notes.md` and `annotations.json` are authoritative user content. Display them alongside generated paper views; regeneration never edits them. Annotation pulls upsert by stable source IDs, preserve provenance, and report source edits/deletions without erasing local notes.
+- Export batches are derived artifacts, but their manifests are authoritative for what left the library: each records the frozen selector resolution, the destination path and file hash written per paper, and the hash of any note pushed into Papers. A destination path absent from every manifest is foreign content and is never overwritten or deleted, and a paper already carrying a pushed-note hash refuses a second note push (D28, §7b).
 - Structured claim, concept, and relation files back explicit SQLite tables and generated OKF views. Each edge names supporting claims and source version IDs. Reviewed edge decisions persist in relation records. Re-extraction invalidates affected evidence links and triggers an incremental graph refresh.
 - Serialize mutations per PMID; use a library lock for citekey allocation and graph commits. Write each version into a staging directory, validate it, then atomically replace `current.json`. Write authoritative JSON updates with temporary files and atomic replacement. Record pending/running/complete/failed stage states and diagnostics.
 - SQLite updates occur in transactions after file commits. There is no cross-filesystem/SQLite transaction: track indexed version IDs, detect mismatches on startup, and reconcile before retrieval. `/ref:index --rebuild` reconstructs the catalog from committed records; incomplete staging directories are ignored. Graph views carry version IDs and are refreshed or reported unavailable when stale.
@@ -214,6 +221,35 @@ Preserve distinct funding observations: `explicit_acknowledgement_verified`, `in
 
 Report snapshots retain selected records and metadata/evidence/correction versions, unresolved candidates, unavailable acknowledgement coverage, and the data cutoff. Frozen reports are reproducible; refresh produces a new version with a change summary. By default label scope “confirmed publications in this library,” with PubMed-only coverage and whether portfolio completeness has been reviewed. No report may imply that the curated reading collection is a complete career or lab bibliography. `/ref:verify` reviews identity, grant, and author-role evidence using the same persistent-overlay rules as claim correction.
 
+
+### 3d. Identifier contract
+
+Every stable ID in this plan falls into one of two classes, and the class determines its shape, who mints it, and what happens on collision. The split already exists implicitly — `raw/<sha256>/` is the machine pattern, the citekey is the human one — and is stated here as a rule because these IDs are written into committed records that reference each other.
+
+**Human-facing IDs are user-minted slugs.** Lowercase `a–z`, `0–9`, and hyphen; 1–64 characters; no leading or trailing hyphen. That charset is safe both as a path segment and as an unquoted CLI token, which matters because these are the IDs you type into a selector (§5c).
+
+| ID | Where | Scope |
+|---|---|---|
+| project | `projects/<slug>/` | library |
+| question | `project.yaml` | **within its project** |
+| study, dataset, method | `studies/*.jsonl` | library |
+| concept | `graph/concepts.jsonl` | library |
+| person, lab, grant | `people/`, `labs/`, `grants/` | library |
+| saved query | `queries/<slug>.yaml` | library |
+
+Question IDs are unique only within their project, so `--question` requires `--project` unless exactly one project is in scope. Every other user-minted ID is library-global.
+
+Collisions are **refused**, naming the conflicting record, rather than silently suffixed — unlike a citekey, you can simply choose another name. The citekey is the deliberate exception (D14, §3a): it is minted automatically at ingest where there is nobody to ask, so it takes a collision suffix under the library lock instead.
+
+Renaming is an explicit operation, never a hand edit: it rewrites references under the library lock and records the former ID as an alias, so existing artifacts keep resolving. Concepts additionally accumulate aliases from normalization, which is why their primary key is a slug you choose rather than a code.
+
+**Machine-facing IDs are opaque.** Version IDs (`versions/<id>/`), `claim_id`, table/brief/PRISMA/report IDs, and content hashes are generated at commit, short, and never typed. They are stable once committed, because manifests and relation records reference them — but nothing outside the library may parse or construct one. Each is surfaced by a listing command or by the manifest that cites it.
+
+**External codes are never primary keys, with one deliberate exception.** MeSH and UMLS codes, ORCID, DOI, and funder award numbers are recorded as aliases or attributes, never as the identity of a record, because they can be absent, ambiguous, or revised — so a MeSH descriptor resolves to a concept slug through the alias table rather than becoming the concept's ID, and ORCID is retained "when supplied" (§3c) beside a slug that always exists. The exception is PMID, which D11 makes the identity key for papers because v1 ingests nothing that lacks one; DOI in the same record only flags inconsistencies and never merges papers (§3a). That exception is exactly why D11 also requires typed source references to stay extensible: a future non-PubMed record will need an identity that PMID cannot supply.
+
+**Every typed ID must be discoverable.** Projects, people, and grants list through their own management commands; studies, datasets, and methods through `/ref:methods` and comparison output; concepts through the `okf` plugin's `search_concepts` (§2). No selector may require an ID that has no way to be found.
+
+Phase 0 fixes these formats as part of the schema deliverable. Changing one afterwards means migrating every committed record that references it, which is why it is decided before the first paper is ingested rather than discovered at phase 8.
 
 ## 4. Pipeline
 
@@ -298,7 +334,7 @@ Every command that operates on a set of papers — `/ref:compare`, `/ref:summari
 | `--concept <id>` | a graph concept, resolved through its alias table | phase 8 |
 | `--from-file <path>` | a PMID list from a file, for sets too large to type | phase 1 |
 
-Selectors combine with AND: `--project thesis-ch3 --screened included --tier full` is the systematic-review set; `--study nhanes-2019` is everything from one cohort; a bare PMID list is an ad-hoc look at a handful of papers without creating a project first. `--tier abstract|full|any` and `--exclude <pmid...>` refine any of them. An empty resolution is an error naming the selector that matched nothing, not an empty synthesis.
+IDs used in these selectors follow §3d: typed IDs are lowercase slugs, and `--question` is scoped to its project. Selectors combine with AND: `--project thesis-ch3 --screened included --tier full` is the systematic-review set; `--study nhanes-2019` is everything from one cohort; a bare PMID list is an ad-hoc look at a handful of papers without creating a project first. `--tier abstract|full|any` and `--exclude <pmid...>` refine any of them. An empty resolution is an error naming the selector that matched nothing, not an empty synthesis.
 
 **Resolve, report, then work.** Every selector resolves to an explicit PMID list before any expensive retrieval or model call, and that list is reported with counts by extraction tier, human verification state, and retraction/errata status. A comparison across twenty abstract-only papers is a categorically weaker artifact than one across twenty full-tier papers; surfacing that at selection makes it a decision rather than a footnote discovered afterwards. Commands that would exceed a configured paper or token budget say so and stop instead of silently truncating.
 
@@ -347,11 +383,11 @@ collections, lists, actions_queue, sync_meta
 
 Interaction points, all initiated by you:
 
-- **Batch export** — `/ref:export --papers` takes explicitly selected PMIDs or a project selection and emits `exports/papers/<batch>/references.bib`, available PDFs under readable citekey filenames, and a manifest listing included/missing PDFs and source hashes. Copies leave originals unchanged. Import the bibliography and PDFs through Papers' import UI; verify matching and duplicates. Claims, graph records, and Markdown notes are not transferred by this export. No live database writes or automatic import are required.
+- **Batch export** (spec: §7a) — `/ref:export --papers` takes explicitly selected PMIDs or a project selection and emits `exports/papers/<batch>/references.bib`, available PDFs under readable citekey filenames, and a manifest listing included/missing PDFs and source hashes. Copies leave originals unchanged. Import the bibliography and PDFs through Papers' import UI; verify matching and duplicates. Claims, graph records, and Markdown notes are not transferred by this export. No live database writes or automatic import are required.
 - **Push** — `/ref:open <pmid>`: `open -a Papers <pdf>` sends a PDF ref-manager acquired into Papers for reading and annotating.
 - **Opportunistic full text** — during `/ref:fetch` for a paper you added, check whether Papers already holds it (match on PMID, else DOI) and reuse its extracted `fulltext` instead of re-downloading. Preserve the text snapshot and item/hash provenance; report missing figures and source locators. Skip when absent, and continue acquisition when richer source material is needed.
 - **Batch fetch** — `/ref:fetch <pmid...>` accepts multiple PMIDs; process each independently under its own per-PMID lock, so one acquisition failure or missing full text does not block the rest of the batch. Report a per-PMID result (acquired / abstract-only / failed), not a single pass/fail for the whole call.
-- **Annotation pull** — `/ref:pull-annotations <pmid>`: bring your highlights and margin notes for *that* paper into its record. Annotations persist in `annotations.json` and appear under **Your annotations** in the composed display. `/ref:note` writes `notes.md`. Neither is overwritten by generated views or blended with extracted evidence.
+- **Annotation pull** (storage and direction: §7b) — `/ref:pull-annotations <pmid>`: bring your highlights and margin notes for *that* paper into its record. Annotations persist in `annotations.json` and appear under **Your annotations** in the composed display. `/ref:note` writes `notes.md`. Neither is overwritten by generated views or blended with extracted evidence.
 
 Snapshot and access contract:
 
@@ -360,14 +396,83 @@ Snapshot and access contract:
 - The schema is undocumented and vendor-owned. Every read validates the paths it expects and warns-and-skips per field rather than failing the run.
 
 
+### 7a. `/ref:export --papers` — the Papers handoff
+
+Papers is the reading frontend; the repo stays the authority. The handoff is therefore a **one-way, file-based export into a folder Papers imports from**, never a write into the live database (§7 forbids that, and `actions_queue` makes it dangerous). Papers pulls, ref-manager pushes files.
+
+The export format is not invented: the folder at `~/Library/Mobile Documents/com~apple~CloudDocs/PapersReadCube/` is Papers' *own* export output, and its shape is the specification this command reproduces — PDFs laid out as `<LastAuthor>/<Journal>-<Year>.pdf` beside `.bib` files whose entries carry `local-url` pointers to those PDFs. Matching the dialect the app itself emits is the cheapest way to be confident the import round-trips.
+
+**Command.**
+
+```
+/ref:export --papers <selector> [--to <dir>] [--layout papers|flat] [--pdfs copy|link|none]
+                                [--notes[=force]] [--tags <a,b>|--tags-from project]
+                                [--skip-known|--force] [--collection <name>] [--dry-run] [--refresh]
+```
+
+`--notes` and `--tags` carry user content into the app's own fields; their contract is §7b.
+
+`<selector>` is the §5c grammar, unchanged — `<pmid...>`, `--project`, `--screened included`, `--query`, `--search`, `--from-file`, refined by `--tier` and `--exclude`. It resolves, reports tier/verification/retraction counts, and freezes into the batch manifest before a single file is copied. There is no bare topic argument and no "export everything": an export is a set you chose.
+
+**Destination.** `--to` defaults to `papers_export_dir` recorded by `/ref:init`. With no configured directory the command writes a self-contained batch under `exports/papers/<batch>/` and says so, rather than guessing a path inside iCloud.
+
+**Layout.** `--layout papers` (default when exporting into the configured Papers folder) mirrors the app's convention `<LastAuthor>/<Journal>-<Year>.pdf`, sanitizing path separators and colons and suffixing `-2`, `-3` on collision, so the batch blends into the folder already there. `--layout flat` (default for `exports/papers/<batch>/`) writes `<citekey>.pdf`, which keeps a batch readable and self-describing. Either way the citekey stays the repo's `authorYearFirstword` (D14) — Papers matches on DOI/PMID, not on the key, so there is no reason to adopt its `Author.Year` style and lose stability.
+
+**Emitted files.**
+
+| File | Contents |
+|---|---|
+| `references.bib` | one entry per resolved PMID, in Papers' dialect |
+| PDFs | copies of acquired full text, under the chosen layout; originals in `raw/` are never moved or altered |
+| `manifest.json` | selector expression, resolved PMIDs, citekeys, per-paper PDF path and source hash, PDF-missing list, entry-field omissions, destination, timestamp |
+
+**BibTeX contract**, taken from the observed export: `@article` for journal articles with a typed fallback for others; `title` and `abstract` double-braced to protect capitalization; `author = {Last, First and Last, First}` preserving ingest order (§3c); `journal`, `volume`, `number`, `pages` with an en-dash range as `--`, `issn`, `year`; `doi`, `pmid`, and `pmcid` when known, since those are what Papers deduplicates and enriches on; UTF-8 written literally (the observed file carries `Schulte-Rüther` and `Arnatkevičiūtė` unescaped) with BibTeX-special characters escaped; and `local-url = {file://localhost/<percent-encoded absolute path>}` when a PDF is included, which is the mechanism that attaches the file on import. `--pdfs none` omits `local-url` and produces a metadata-only bibliography.
+
+**What is not exported.** Claims, evidence tiers, the concept graph, and `notes.md` do not cross. Annotations especially do not: §7 makes Papers the annotation *source* and `/ref:pull-annotations` the direction of travel, so pushing them back would create a two-master loop. `--collection <name>` only records an intended collection name in the manifest and in a per-batch subfolder; ref-manager does not create collections in the app.
+
+**Duplicate handling.** Importing a paper Papers already holds creates a duplicate. With the read-only snapshot available (§7), the command checks each resolved PMID (else DOI) against the live library and reports already-present papers; `--skip-known` omits them from the batch, `--force` exports anyway. When no snapshot can be taken, it warns that duplicate detection is unavailable and continues — integration is optional at runtime (§8) and must not block the export.
+
+**Re-export and foreign files.** The batch manifest makes re-export idempotent: an unchanged source hash reuses the existing path instead of re-copying, changed metadata rewrites only its bib entry, and `--refresh` re-resolves the selector and reports added, removed, and changed-evidence papers exactly as saved artifacts do (§5c). Any path in the destination that is not recorded in a ref-manager manifest is **foreign and never overwritten or deleted** — the configured folder already holds PDFs Papers itself wrote. `--dry-run` prints the resolved set, target paths, foreign-path conflicts, and missing PDFs without touching the filesystem.
+
+**Import step, done by you.** Papers imports the `.bib` through its own UI; ref-manager does not drive the app beyond `/ref:open` (§7). The command prints the destination path and the import instruction, then stops. Whether Papers also ingests BibTeX dropped into a watched folder is unverified and must not be assumed by the design.
+
+**Gate (phase 3).** Round-trip a three-paper batch into a scratch Papers library and confirm PMID, DOI, title, ordered authors, journal/year, and the attached PDF all arrive. Fixtures: a unicode author name; a title containing `&` and `%`; an abstract-tier paper with no PDF (entry exported, `local-url` absent, manifest lists it as missing); two papers producing the same `<Journal>-<Year>.pdf` name under one author; a re-export with one changed metadata field and one unchanged PDF; a destination containing a foreign PDF at a colliding path; and a run with the live database unreadable, which must still export.
+
+
+### 7b. Where Papers keeps notes, and what ref-manager may push into them
+
+Everything the app calls "notes" lives inside the one SQLite library (`~/Library/Application Support/Papers/<uuid>.db`), in each item's `json` blob — nothing is written into the PDF files, and nothing appears in the iCloud export folder, which carries only PDFs and `.bib`. Confirmed against a read-only snapshot of the live library (1080 items):
+
+| Kind | Path | Shape | Observed |
+|---|---|---|---|
+| Item note (the **Notes** column) | `$.user_data.notes` | plain text, one per item | 76 items |
+| Highlights and margin notes | `$.user_data.annotations[]` | `{id, type: highlight\|note, sha256, page_start, rects\|position, text, note, has_note, color_id, created, modified, user_*}` | 324 highlights, 5 notes |
+| Tags | `$.user_data.tags` | JSON array of strings | 29 items |
+| Rating, star, colour, read state | `$.user_data.rating\|star\|color\|unread\|last_read` | scalars | 19 / 18 / 8 / all |
+
+Two consequences for the design. Annotations are anchored to a **file** (`sha256`) plus page rectangles, not to the bibliographic record — so they only make sense against the exact PDF Papers holds. And all of it is user-generated content sitting in a vendor-owned, cloud-synced store, which is why §7 makes this the pull direction: `/ref:pull-annotations` reads `$.user_data.annotations`, `/ref:note` owns `notes.md`, and the two are never blended.
+
+**What the export channel can carry.** Papers' own BibTeX export round-trips three user fields, verified by matching its output against the live database: `note = {...}` ↔ `$.user_data.notes`, `keywords = {a,b}` ↔ `$.user_data.tags`, and `rating = {5}` ↔ `$.user_data.rating`. So the item note *is* exportable from ref-manager, on the same import path as the metadata:
+
+- `--notes` emits `notes.md` as `note = {...}`, newlines preserved as the observed export does, BibTeX-special characters escaped. Off by default.
+- `--tags <a,b>` or `--tags-from project` emits `keywords`, so an imported batch arrives already filed under the project it came from.
+- Rating is never written: it is a reading judgement made in Papers, and the repo has no authority over it.
+
+**One-way, and first-import only.** `notes.md` may itself have been *derived* from a Papers note by `/ref:pull-annotations`; re-exporting it would push a stale copy back over whatever you have since written in the app. So `--notes` applies only to papers the destination manifest has not exported before; for a paper already exported, it is refused with the conflict named, and `--notes=force` is required to overwrite. The manifest records, per paper, whether a note was pushed and the hash of the text that was pushed, which is what makes that check possible.
+
+**Highlights and margin notes cannot be pushed, by construction.** There is no BibTeX field for them, writing the database is forbidden (§7), and their page-rectangle anchors are only valid against Papers' own copy of the file. If annotated PDFs are ever wanted in the app, the only safe route is a later opt-in `--burn-annotations`, which stamps ref-manager-held annotations into the *exported copy* of the PDF as standard PDF annotations — visible in any reader, but not Papers annotations: not in `$.user_data.annotations`, not synced, not searchable through the app's annotation index. That trade-off is why it stays out of the phase 3 scope.
+
+**Gate addition (phase 3).** Export one paper with a note and two tags, import it, and confirm the note appears in the Notes column and the tags in Tags. Then re-export the same paper and confirm the note push is refused rather than silently overwriting the version edited in Papers.
+
+
 ## 8. Build order
 
 | Phase | Deliverable | Gate |
 |---|---|---|
-| 0 | Scaffold/init/status; authority, project, researcher/authorship, grant/funding, claim/correction and study schemas; atomic commits, migrations, locks, rebuild contract | Empty library works; interrupted commit recovers; typed identities do not require PMID for non-paper entities |
+| 0 | Scaffold/init/status; identifier contract (§3d); authority, project, researcher/authorship, grant/funding, claim/correction and study schemas; atomic commits, migrations, locks, rebuild contract | Empty library works; interrupted commit recovers; typed identities do not require PMID for non-paper entities; slug validation rejects illegal characters, a duplicate slug is refused with the conflicting record named rather than suffixed, a rename rewrites references and leaves a resolving alias, and question IDs collide freely across projects without ambiguity |
 | 1 | `/ref:add`, `/ref:project`, `/ref:queue`, `/ref:note`, `/ref:person`, `/ref:grant`; ordered authors, indexed grants, stable citekeys and initial status checks | Fixtures cover missing abstracts, duplicate adds and citekey collisions; one paper belongs to two projects with independent relevance/screening/reading states; raw author order and grant strings survive ingest |
 | 2 | Selector grammar (§5c) shared by set-valued commands; passage and personal-note search; `/ref:export --bib/--csl`, `/ref:cite`; PubMed discovery, saved query runs and project screening; `/ref:discover`, `/ref:publications` incl. `--coauthors`, basic `/ref:report` | Search finds evidence and personal comments with distinct labels; citation exports render correctly; manual rerun preserves history and requires explicit selection to add; index rebuild preserves results; a selector resolves to a reported PMID list with tier and status counts before work runs, an empty match errors rather than yielding an empty result, and a frozen set is re-resolved only on explicit refresh; same-name candidates remain unresolved, sole authors count once, incomplete lists do not yield confident roles, and frozen reports reproduce; the coauthor export de-duplicates across the window, reports group authors as groups, and lists every incomplete author list as a gap rather than omitting it silently |
-| 3 | `/ref:attach`, `/ref:fetch`, source preservation and conversion, funding/acknowledgement and contribution-statement extraction; `/ref:open`, `/ref:export --papers` | Local PDF identity conflicts are caught; incomplete conversion remains visible; retries preserve evidence; export includes selected references and available PDFs without altering originals; funding locators resolve even without full claim promotion; missing acknowledgement sources remain unknown; a multi-PMID `/ref:fetch`/`/ref:attach` call reports per-PMID results and one failure does not block the rest |
+| 3 | `/ref:attach`, `/ref:fetch`, source preservation and conversion, funding/acknowledgement and contribution-statement extraction; `/ref:open`, `/ref:export --papers` (§7a) | Local PDF identity conflicts are caught; incomplete conversion remains visible; retries preserve evidence; export includes selected references and available PDFs without altering originals; a three-paper batch round-trips into a scratch Papers library with PMID, DOI, ordered authors, and attached PDF intact, a pushed note and tags land in the app's Notes and Tags fields, a second export refuses to overwrite a note edited in Papers, a foreign file at a colliding destination path is never clobbered, and an unreadable live database degrades to an export without duplicate detection rather than a failure; funding locators resolve even without full claim promotion; missing acknowledgement sources remain unknown; a multi-PMID `/ref:fetch`/`/ref:attach` call reports per-PMID results and one failure does not block the rest |
 | 4 | `/ref:extract`, `/ref:verify`; full extraction, selective vision, correction overlays including author/grant evidence review; targeted Papers snapshot/annotation pull | Claims resolve to sources; rejected claims leave default synthesis; corrections survive unchanged reruns and become pending on changed evidence; notes survive promotion; snapshot and repeat annotation pulls are consistent; grant aliases preserve distinct awards, shared-role flags require explicit statements, and report counts respect reviewed evidence; a multi-PMID `/ref:extract` call commits each paper's version independently and one paper's failure does not block the others |
 | 5 | `/ref:compare` over any §5c selector, `/ref:methods`, `/ref:review --prisma`; study/dataset grouping and basic evidence tables | Table cells resolve to evidence; a bare PMID list and a project selector produce the same table for the same papers; the saved table records both the selector and the PMIDs it resolved to, and refresh reports added/removed/changed-evidence papers rather than changing membership silently; missing values are explicit; multiple papers from one study are grouped without treating all dataset reuse as the same study; methods retain source/context; the PRISMA flow reconciles against saved run histories and screening decisions, reports studies separately from reports, and marks unevidenced counts unknown rather than balancing the arithmetic |
 | 6 | Project-scoped `/ref:ask`, saved `/ref:brief`; passage diversification and citation validation | Expected-evidence recall and assertion support are measured; project filters work; evidence tiers/status are visible; explicit brief refresh shows changes and preserves user edits |
@@ -389,15 +494,17 @@ Keep a small versioned fixture set and a labeled retrieval/answer evaluation set
 
 1. **The repo and your Papers library will diverge.** That is the point of D12, but it is worth saying plainly: papers you read in Papers are not in the repo unless you add them, and `/ref:ask` can only reason over what the repo holds. If that gap becomes annoying, a one-off selective import is easy to add later — the schema work in §7 is already done.
 
-2. **Papers schema is vendor-owned and undocumented.** Confirmed correct today against a real library; a ReadCube update can move fields. The sync script validates expected paths up front and warns-and-skips per field rather than failing the run.
+2. **The import direction is only evidenced, not documented.** The export dialect in §7a and the `note`/`keywords`/`rating` mapping in §7b were read off Papers' own export and matched against its live database, which establishes what the app *writes* — the phase 3 round-trip gate exists because it does not by itself establish what the app accepts on import. Whether a watched folder ingests BibTeX unattended is unverified and nothing in the design may depend on it.
 
-3. **No embeddings (D3) means FTS misses paraphrase.** Mitigated by MeSH/synonym query expansion, not solved by it. If `/ref:ask` starts missing papers you know are in the library, that is the signal to revisit D3 — worth watching deliberately rather than discovering late.
+3. **Papers schema is vendor-owned and undocumented.** Confirmed correct today against a real library; a ReadCube update can move fields. The sync script validates expected paths up front and warns-and-skips per field rather than failing the run.
 
-4. **Tiered extraction (D4) means most papers are abstract-only.** Every synthesis must label which tier backed each citation, so thin evidence cannot pass as a read paper.
+4. **No embeddings (D3) means FTS misses paraphrase.** Mitigated by MeSH/synonym query expansion, not solved by it. If `/ref:ask` starts missing papers you know are in the library, that is the signal to revisit D3 — worth watching deliberately rather than discovering late.
 
-5. **Paywalled full text stays out of reach.** Acquisition depends on PMC OA, Unpaywall, and whatever Papers happens to hold for papers you add. Local attachment provides another route for user-acquired PDFs; some records may still remain abstract-tier permanently.
+5. **Tiered extraction (D4) means most papers are abstract-only.** Every synthesis must label which tier backed each citation, so thin evidence cannot pass as a read paper.
 
-6. **ABC hypothesis generation over-generates.** Two-hop co-occurrence produces many spurious A–C candidates; the PubMed novelty check filters known links but not implausible ones. `/ref:hypothesize` output is a ranked *reading list of candidates*, not claims — presentation must say so.
+6. **Paywalled full text stays out of reach.** Acquisition depends on PMC OA, Unpaywall, and whatever Papers happens to hold for papers you add. Local attachment provides another route for user-acquired PDFs; some records may still remain abstract-tier permanently.
+
+7. **ABC hypothesis generation over-generates.** Two-hop co-occurrence produces many spurious A–C candidates; the PubMed novelty check filters known links but not implausible ones. `/ref:hypothesize` output is a ranked *reading list of candidates*, not claims — presentation must say so.
 
 ---
 

@@ -194,14 +194,23 @@ def resolve(
         raise SelectorError(f"selector matched no papers: {expr}")
 
     tier_counts = {"abstract": 0, "full": 0, "unavailable": 0, "missing_record": 0}
+    retraction_counts: dict[str, int] = {}
     for pmid in resolved:
         meta = _meta(library_root, pmid)
         if meta is None:
             tier_counts["missing_record"] += 1
+            retraction_counts["unknown"] = retraction_counts.get("unknown", 0) + 1
         else:
             tier_counts[meta.get("extraction_tier", "unavailable")] = (
                 tier_counts.get(meta.get("extraction_tier", "unavailable"), 0) + 1
             )
+            # meta.json's retraction_status exists since phase 4's extract.py
+            # and is kept current by phase 11's /ref:audit -- report the real
+            # counts, not a placeholder (this used to hardcode
+            # "not_yet_tracked" for every PMID even though the field has been
+            # populated since phase 4).
+            rstatus = (meta.get("retraction_status") or {}).get("status", "unknown")
+            retraction_counts[rstatus] = retraction_counts.get(rstatus, 0) + 1
 
     return {
         "pmids": resolved,
@@ -210,7 +219,7 @@ def resolve(
             "count": len(resolved),
             "by_extraction_tier": tier_counts,
             "by_human_verification_state": {"not_yet_tracked": len(resolved)},  # phase 4
-            "by_retraction_errata_status": {"not_yet_tracked": len(resolved)},  # phase 11
+            "by_retraction_errata_status": retraction_counts,
         },
     }
 

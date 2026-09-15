@@ -37,6 +37,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from lib_atomic import atomic_write_json, atomic_write_text
+from lib_status_check import diff_status
 from lib_selector import resolve_from_args, add_selector_args, SelectorError
 from lib_verify_link import load_registry
 
@@ -144,6 +145,13 @@ def run_summarize(
         result["added_pmids"] = sorted(set(pmids) - set(prior_pmids))
         result["removed_pmids"] = sorted(set(prior_pmids) - set(pmids))
         result["withdrawn_evidence"] = _withdrawn_evidence(library_root, prior_candidates)
+        # Phase 11: report a paper's retraction_status changing since this
+        # summary was generated, same never-silent spirit as withdrawn claims.
+        prior_status_by_pmid = {
+            c["pmid"]: c.get("retraction_status", "unknown")
+            for c in prior_candidates if c.get("retraction_status") is not None
+        }
+        result["retraction_status_changes"] = diff_status(library_root, prior_status_by_pmid)
     return result
 
 

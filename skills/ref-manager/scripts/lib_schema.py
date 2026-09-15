@@ -243,3 +243,46 @@ def validate_relation(obj: dict) -> None:
     _require(obj, "stale", bool)
     _require(obj, "created_at", str)
     _require(obj, "updated_at", str)
+
+
+def validate_retraction_status(obj: dict) -> None:
+    """meta.json's retraction_status sub-object (§4a, written at ingestion
+    by extract.py, re-checked by Phase 11's /ref:audit). "failures yield
+    unknown status" -- status is never a guess."""
+    _require(obj, "status", str)
+    if obj["status"] not in ("retracted", "erratum", "none", "unknown"):
+        raise SchemaError(f"status: unexpected value {obj['status']!r}")
+    _require(obj, "source", (str, type(None)))
+    _require(obj, "checked_at", (str, type(None)))
+
+
+def validate_citation_observation(obj: dict) -> None:
+    """One entry of papers/<pmid>/citations.json (§3c "Citation observations
+    (D25)", §3 repo layout). A JSONL-like list that only ever APPENDS --
+    "Observations append to citations.json; they never overwrite an earlier
+    one, so a count's movement over time stays visible and a failed check
+    retains the prior observation with its date rather than writing a zero."
+
+    Three distinguishable entry kinds, all sharing this validator:
+      - a real observation: has "count" (int >= 0) and "source"/"query"/
+        "retrieved_at"/"coverage" all populated.
+      - a failed-check marker: "status": "check_failed" -- proves a check was
+        attempted and didn't produce usable data, WITHOUT looking like a
+        real zero-count observation. No "count" key.
+      - a no-PMCID marker: "status": "no_pmcid" -- proves absence of a
+        prerequisite was checked and recorded, not silently skipped.
+    Readers must never treat "no entries yet" or a failed-check marker as a
+    zero count -- D25: "Absence of an observation is unknown, not zero."
+    """
+    _require(obj, "retrieved_at", str)
+    if "status" in obj and obj["status"] in ("check_failed", "no_pmcid"):
+        if "count" in obj:
+            raise SchemaError(f"status={obj['status']!r} entries must not carry a count field")
+        _require(obj, "reason", str)
+        return
+    _require(obj, "source", str)
+    _require(obj, "query", str)
+    _require(obj, "count", int)
+    if obj["count"] < 0:
+        raise SchemaError("count must be >= 0")
+    _require(obj, "coverage", str)

@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 import urllib.error
 import urllib.request
@@ -56,6 +57,7 @@ from funding_extract import extract_funding_observations
 from attach_figures import download_auto as download_figure_assets
 
 UNPAYWALL_TIMEOUT = 15
+FETCH_VERSION_SOURCES = {"pmc_jats", "publisher_html", "plain_text"}
 
 
 def _sha256(data: bytes) -> str:
@@ -70,6 +72,42 @@ def _preserve_raw(paper_dir: Path, data: bytes, filename: str) -> str:
     if not dest.exists():
         dest.write_bytes(data)
     return h
+
+
+def _read_json(path: Path) -> dict | None:
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def _current_fetch_manifest(paper_dir: Path) -> tuple[str, dict] | None:
+    current = _read_json(paper_dir / "current.json")
+    if not current or not current.get("version"):
+        return None
+    version_id = current["version"]
+    manifest = _read_json(paper_dir / "versions" / version_id / "manifest.json")
+    if not manifest or manifest.get("source") not in FETCH_VERSION_SOURCES:
+        return None
+    return version_id, manifest
+
+
+def _prune_old_fetch_versions(paper_dir: Path, keep_version: str) -> None:
+    versions_dir = paper_dir / "versions"
+    if not versions_dir.exists():
+        return
+    for candidate in versions_dir.iterdir():
+        if candidate.name == keep_version or candidate.name.startswith(".staging-"):
+            continue
+        if not candidate.is_dir():
+            continue
+        manifest = _read_json(candidate / "manifest.json")
+        if not manifest or manifest.get("source") not in FETCH_VERSION_SOURCES:
+            continue
+        # Only completed acquisition versions have both a manifest and source.md.
+        # Leave interrupted/incomplete directories for the normal recovery paths.
+        if (candidate / "source.md").exists():
+            shutil.rmtree(candidate)
 
 
 def _unpaywall_lookup(doi: str, email: str) -> dict | None:
@@ -156,6 +194,17 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
         raw_bytes = conv_input.encode("utf-8")
         raw_hash = _preserve_raw(paper_dir, raw_bytes, f"source.{conv_kind}")
 
+        current_fetch = _current_fetch_manifest(paper_dir)
+        if current_fetch:
+            current_version, current_manifest = current_fetch
+            if current_manifest.get("raw_hash") == raw_hash and current_manifest.get("source") == source:
+                _prune_old_fetch_versions(paper_dir, current_version)
+                return {
+                    "pmid": pmid, "result": "duplicate_noop", "source": source,
+                    "version": current_version, "raw_hash": raw_hash,
+                    "note": "current fetched full-text source is already identical",
+                }
+
         version_id = gen_opaque_id("v-")
 
         def write_fn(staging: Path) -> None:
@@ -177,6 +226,7 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
 
         write_fn.conv = None
         commit_version(paper_dir, version_id, write_fn)
+        _prune_old_fetch_versions(paper_dir, version_id)
         conv = write_fn.conv
 
         if conv_kind == "jats":
@@ -194,7 +244,8 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
             # registers locators (ref_manager_feature_requests.md #1) --
             # per-figure resilient, never blocks the fetch itself.
             doi = record.get("doi") or meta.get("doi")
-            figure_summary = download_figure_assets(library_root, pmid, doi, version_id)
+            pmcid = record.get("pmcid") or meta.get("pmcid")
+            figure_summary = download_figure_assets(library_root, pmid, doi, version_id, pmcid)
 
         result = {
             "pmid": pmid, "result": "acquired", "source": source, "version": version_id,

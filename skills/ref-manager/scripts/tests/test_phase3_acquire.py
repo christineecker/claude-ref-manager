@@ -20,11 +20,12 @@ sys.path.insert(0, str(SCRIPTS))
 
 import add  # noqa: E402
 import attach  # noqa: E402
+import attach_figures  # noqa: E402
 import convert  # noqa: E402
 import fetch  # noqa: E402
 import funding_extract  # noqa: E402
 import init_repo  # noqa: E402
-from lib_atomic import atomic_write_bytes  # noqa: E402
+from lib_atomic import atomic_write_bytes, atomic_write_json  # noqa: E402
 
 JATS_FIXTURE = (FIXTURES / "sample.jats.xml").read_text()
 HTML_FIXTURE = (FIXTURES / "sample.html").read_text()
@@ -134,6 +135,43 @@ class TestFetchPlainText(TempLibrary):
         self.assertEqual(len(version_dirs), 1)
         self.assertEqual((version_dirs[0] / "source.md").read_text(), text)
 
+    def test_refetch_identical_source_is_duplicate_noop(self):
+        self.add_paper("34713413")
+        record = {
+            "pmid": "34713413", "doi": None, "jats_xml": None,
+            "publisher_html": None, "plain_text": "INTRODUCTION\n\nSame source.\n",
+        }
+        first = fetch.fetch_one(self.library_root, record, unpaywall_email=None)
+        second = fetch.fetch_one(self.library_root, record, unpaywall_email=None)
+        paper_dir = self.library_root / "papers" / "34713413"
+        version_dirs = [p for p in (paper_dir / "versions").iterdir() if p.is_dir()]
+
+        self.assertEqual(first["result"], "acquired")
+        self.assertEqual(second["result"], "duplicate_noop")
+        self.assertEqual(second["version"], first["version"])
+        self.assertEqual(len(version_dirs), 1)
+
+    def test_refetch_changed_source_keeps_only_new_complete_fetch_version(self):
+        self.add_paper("34713414")
+        first = fetch.fetch_one(self.library_root, {
+            "pmid": "34713414", "doi": None, "jats_xml": None,
+            "publisher_html": None, "plain_text": "INTRODUCTION\n\nOld source.\n",
+        }, unpaywall_email=None)
+        second = fetch.fetch_one(self.library_root, {
+            "pmid": "34713414", "doi": None, "jats_xml": None,
+            "publisher_html": None, "plain_text": "INTRODUCTION\n\nNew source.\n",
+        }, unpaywall_email=None)
+        paper_dir = self.library_root / "papers" / "34713414"
+        version_dirs = [p for p in (paper_dir / "versions").iterdir() if p.is_dir()]
+        current = json.loads((paper_dir / "current.json").read_text())["version"]
+
+        self.assertEqual(first["result"], "acquired")
+        self.assertEqual(second["result"], "acquired")
+        self.assertNotEqual(first["version"], second["version"])
+        self.assertEqual(current, second["version"])
+        self.assertEqual([p.name for p in version_dirs], [second["version"]])
+        self.assertEqual((version_dirs[0] / "source.md").read_text(), "INTRODUCTION\n\nNew source.\n")
+
 
 class TestConvertPdfUnavailable(TempLibrary):
     def test_anydoc_absent_reports_unavailable_not_crash(self):
@@ -188,6 +226,57 @@ class TestFetchJats(TempLibrary):
         self.assertTrue((paper_dir / "versions" / version / "source.md").exists())
         funding = json.loads((paper_dir / "funding.json").read_text())
         self.assertEqual(funding["state"], "explicit_acknowledgement_verified")
+
+    def test_fetch_passes_pmcid_to_figure_downloader(self):
+        self.add_paper("2005", doi="10.1002/aur.70084", pmcid="PMC12442529")
+        record = {"pmid": "2005", "doi": "10.1002/aur.70084", "jats_xml": JATS_FIXTURE, "publisher_html": None}
+        with mock.patch("fetch.download_figure_assets", return_value={
+            "pmid": "2005", "figures": 1, "images_available": 1, "diagnostics": [],
+        }) as downloader:
+            result = fetch.fetch_one(self.library_root, record, unpaywall_email=None)
+        self.assertEqual(result["result"], "acquired")
+        args = downloader.call_args.args
+        self.assertEqual(args[0], self.library_root)
+        self.assertEqual(args[1], "2005")
+        self.assertEqual(args[2], "10.1002/aur.70084")
+        self.assertEqual(args[4], "PMC12442529")
+
+
+class TestAttachFigures(TempLibrary):
+    def test_pmc_candidate_url_uses_numeric_pmcid_and_jats_locator(self):
+        candidates = attach_figures._candidate_urls(
+            "10.1002/aur.70084", "AUR-18-1861-g001.jpg", "PMC12442529",
+        )
+        self.assertEqual(candidates[0], (
+            "pmc",
+            "AUR-18-1861-g001.jpg",
+            "https://pmc.ncbi.nlm.nih.gov/articles/instance/12442529/bin/AUR-18-1861-g001.jpg",
+        ))
+
+    def test_download_auto_fetches_pmc_asset_and_updates_figures_json(self):
+        paper_dir = self.library_root / "papers" / "2006"
+        vdir = paper_dir / "versions" / "v-test"
+        (vdir / "figures").mkdir(parents=True)
+        atomic_write_json(paper_dir / "current.json", {"version": "v-test"})
+        atomic_write_json(vdir / "figures.json", [{
+            "id": "fig1", "label": "Figure 1", "caption": "Caption",
+            "source_locator": "AUR-18-1861-g001.jpg",
+            "sha256": None, "asset_available": False,
+        }])
+
+        with mock.patch("attach_figures._download", return_value=b"fake image bytes") as download:
+            result = attach_figures.download_auto(
+                self.library_root, "2006", "10.1002/aur.70084", pmcid="PMC12442529",
+            )
+
+        self.assertEqual(result["images_available"], 1)
+        download.assert_called_once_with(
+            "https://pmc.ncbi.nlm.nih.gov/articles/instance/12442529/bin/AUR-18-1861-g001.jpg"
+        )
+        figures = json.loads((vdir / "figures.json").read_text())
+        self.assertTrue(figures[0]["asset_available"])
+        self.assertIsNotNone(figures[0]["sha256"])
+        self.assertEqual((vdir / "figures" / "AUR-18-1861-g001.jpg").read_bytes(), b"fake image bytes")
 
 
 class TestFetchAbstractOnly(TempLibrary):

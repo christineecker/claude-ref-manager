@@ -9,11 +9,11 @@ JATS conversion (`convert.py::_jats_figures`) always registers figures with
 receive. This script fills that gap:
 
 - `download_auto()` -- run automatically by `fetch.py::fetch_one` right after
-  a JATS conversion produces `figures.json` entries. Tries known, verified
-  publisher image URL patterns by DOI prefix (currently: Springer Nature,
-  `10.1038/...`). Per-figure resilient: one 404 never blocks the rest, and a
-  publisher with no known pattern degrades to a diagnostic naming the gap,
-  never a silent no-op.
+  a JATS conversion produces `figures.json` entries. Tries the PMC open-access
+  asset route when a PMCID is known, then known, verified publisher image URL
+  patterns by DOI prefix (currently: Springer Nature, `10.1038/...`). Per-figure
+  resilient: one 404 never blocks the rest, and a publisher with no known
+  pattern degrades to a diagnostic naming the gap, never a silent no-op.
 - `attach_manual()` / `attach_dir()` -- post-hoc CLI paths for a version that
   was already fetched before this existed, or a publisher this script has no
   pattern for: hand it locally-downloaded bytes directly, per figure-id or by
@@ -62,15 +62,32 @@ def _locator_variants(source_locator: str) -> list[str]:
     return variants
 
 
-def _candidate_urls(doi: str | None, source_locator: str) -> list[tuple[str, str]]:
+def _pmcid_numeric(pmcid: str | None) -> str | None:
+    if not pmcid:
+        return None
+    value = str(pmcid).strip()
+    if value.upper().startswith("PMC"):
+        value = value[3:]
+    return value if value.isdigit() else None
+
+
+def _candidate_urls(doi: str | None, source_locator: str, pmcid: str | None = None) -> list[tuple[str, str, str]]:
     """Known, live-verified publisher image URL patterns, keyed by DOI
-    prefix. Returns (label, url) pairs, one per (pattern, locator-variant).
-    Coverage is intentionally partial -- unrecognized DOIs return [] and the
-    caller records that as a diagnostic, not a failure (feature request #1:
-    "degrade gracefully... never silently")."""
-    if not doi:
-        return []
+    prefix, plus the PMC OA route keyed by PMCID. Returns (label, locator, url)
+    triples, one per (pattern, locator-variant). Coverage is intentionally
+    partial -- unrecognized DOI/PMCID combinations return [] and the caller
+    records that as a diagnostic, not a failure (feature request #1: "degrade
+    gracefully... never silently")."""
     candidates = []
+    pmcaid = _pmcid_numeric(pmcid)
+    if pmcaid:
+        for locator in _locator_variants(source_locator):
+            candidates.append((
+                "pmc", locator,
+                f"https://pmc.ncbi.nlm.nih.gov/articles/instance/{pmcaid}/bin/{locator}",
+            ))
+    if not doi:
+        return candidates
     if doi.startswith("10.1038/"):  # Springer Nature, incl. Nature-branded journals
         encoded_doi = urllib.parse.quote(doi, safe="")
         for locator in _locator_variants(source_locator):
@@ -121,7 +138,13 @@ def _write_asset(vdir: Path, fig: dict, data: bytes, locator: str | None = None)
     fig["asset_available"] = True
 
 
-def download_auto(library_root: Path, pmid: str, doi: str | None, version_id: str | None = None) -> dict:
+def download_auto(
+    library_root: Path,
+    pmid: str,
+    doi: str | None,
+    version_id: str | None = None,
+    pmcid: str | None = None,
+) -> dict:
     paper_dir = library_root / "papers" / pmid
     vdir = _version_dir(paper_dir, version_id)
     figures_path, figures = _load_figures(vdir)
@@ -131,9 +154,9 @@ def download_auto(library_root: Path, pmid: str, doi: str | None, version_id: st
     for fig in figures:
         if fig.get("asset_available"):
             continue
-        candidates = _candidate_urls(doi, fig["source_locator"])
+        candidates = _candidate_urls(doi, fig["source_locator"], pmcid)
         if not candidates:
-            diagnostics.append(f"figure {fig['id']}: no known image URL pattern for doi={doi!r}")
+            diagnostics.append(f"figure {fig['id']}: no known image URL pattern for doi={doi!r}, pmcid={pmcid!r}")
             continue
         acquired = False
         for label, locator, url in candidates:
@@ -203,6 +226,7 @@ def main() -> int:
     ap.add_argument("--pmid", required=True)
     ap.add_argument("--version", help="version id; defaults to current.json's version")
     ap.add_argument("--doi", help="for auto-download by known publisher URL pattern")
+    ap.add_argument("--pmcid", help="for auto-download through the PMC OA asset route")
     ap.add_argument("--asset", nargs=2, action="append", metavar=("FIGURE_ID", "PATH"),
                      help="post-hoc manual attach; repeatable")
     ap.add_argument("--figures-dir", help="post-hoc: match files in this dir by source_locator filename")
@@ -221,7 +245,7 @@ def main() -> int:
             result = attach_dir(library_root, args.pmid, args.figures_dir, args.version)
             print(f"{args.pmid}: attached {result['attached']}/{result['of']} figure(s) from {args.figures_dir}")
         else:
-            result = download_auto(library_root, args.pmid, args.doi, args.version)
+            result = download_auto(library_root, args.pmid, args.doi, args.version, args.pmcid)
             print(f"{args.pmid}: figures={result['figures']} images={result['images_available']}/{result['figures']}")
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)

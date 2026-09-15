@@ -30,6 +30,7 @@
     <li><a href="#overview">How they fit</a></li>
     <li><a href="#init"><code>/ref:init</code></a></li>
     <li><a href="#add"><code>/ref:add</code></a></li>
+    <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
     <li><a href="#attach"><code>/ref:attach</code></a></li>
     <li><a href="#extract"><code>/ref:extract</code></a></li>
@@ -236,6 +237,39 @@
   <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#project"><code>/ref:project</code></a> · <a href="write.html#cite"><code>/ref:cite</code></a></p>
 </article>
 
+<!-- ================= add-fetch ================= -->
+<article class="cmd" id="add-fetch">
+  <div class="cmd-head"><h3>/ref:add-fetch</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span><span class="tag net">Unpaywall</span></div></div>
+  <p class="summary">Add missing PMID records, then immediately try to acquire full text for every requested PMID that now exists in the library.</p>
+  <div class="synopsis">/ref:add-fetch &lt;pmid…&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. Existing records are kept and still continue to the fetch stage.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs the same metadata resolution and ingest flow as <a href="#add"><code>/ref:add</code></a>, reporting <code>added</code>, <code>already_present</code>, or <code>failed</code> per PMID.</li>
+    <li>Builds a fetch set from requested PMIDs that have <code>papers/&lt;pmid&gt;/meta.json</code> after the add stage. PMIDs that failed to add are skipped instead of producing a second predictable failure.</li>
+    <li>Runs the same acquisition ladder as <a href="#fetch"><code>/ref:fetch</code></a>: PMC JATS, PubMed MCP plain text, Unpaywall, publisher HTML, or abstract-only.</li>
+  </ol>
+  <p>This is orchestration only. <code>add.py</code> and <code>fetch.py</code> stay separate so creating metadata records remains distinct from acquiring full text.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes everything <a href="#add"><code>/ref:add</code></a> may write, then everything <a href="#fetch"><code>/ref:fetch</code></a> may write for PMIDs that have records.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 99999999</span>
+<span class="o">add:</span>
+<span class="o">40665956: added (citekey=luckhardt2025transcranial)</span>
+<span class="w">99999999: failed — no metadata returned for PMID 99999999</span>
+
+<span class="o">fetch:</span>
+<span class="o">40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">First runs <code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code>, then runs <code>fetch.py --repo &lt;library_root&gt; --input-file &lt;json&gt;</code> for PMIDs with <code>meta.json</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#fetch"><code>/ref:fetch</code></a> · <a href="#attach"><code>/ref:attach</code></a></p>
+</article>
+
 <!-- ================= fetch ================= -->
 <article class="cmd" id="fetch">
   <div class="cmd-head"><h3>/ref:fetch</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span><span class="tag net">Unpaywall</span></div></div>
@@ -253,7 +287,7 @@
     <li><strong>Publisher HTML.</strong> Claude fetches the article page and passes it as <code>publisher_html</code>; it is converted with trafilatura.</li>
     <li><strong>Nothing.</strong> The paper is marked <code>full_text: false</code> and reported <code>abstract_only</code>. This is expected, not a failure.</li>
   </ol>
-  <p>The raw input is preserved under its hash, converted into a staging version, and committed atomically. JATS sources also get funding acknowledgements scanned and appended to <code>funding.json</code>. <code>diagnostic:</code> lines flag incomplete conversion (missing tables, math, figure assets, lost structure) without failing the fetch.</p>
+  <p>The raw input is preserved under its hash, converted into a staging version, and committed atomically. If the current fetched source already has the same source kind and raw hash, the command reports <code>duplicate_noop</code> and does not create a new version. When a changed fetch is committed, older complete fetch-created version directories are pruned so only the final current full-text acquisition version remains; content-addressed <code>raw/&lt;sha256&gt;/...</code> evidence is preserved. JATS sources also get funding acknowledgements scanned and appended to <code>funding.json</code>. When JATS figure locators are present, figure bytes are fetched from PMC OA asset URLs if a PMCID is known, then from known DOI-keyed publisher patterns. <code>diagnostic:</code> lines flag incomplete conversion (missing tables, math, figure assets, lost structure) without failing the fetch.</p>
   <div class="note warn"><strong>Unpaywall needs a config key.</strong> <code>/ref:init</code> writes only <code>library_root</code>. <code>unpaywall_email</code> is an optional key in <code>~/.config/ref-manager/config.json</code>; without it, the Unpaywall step is skipped.</div>
   <h4>Reads &amp; writes</h4>
   <p class="writes">Writes <code>raw/&lt;sha256&gt;/source.jats|html|plain_text</code>, <code>versions/&lt;v&gt;/source.md</code>, <code>figures.json</code> (JATS figure locators), <code>manifest.json</code>, <code>current.json</code>; updates <code>meta.json</code> (<code>full_text</code>, <code>oa_location</code>) and, for JATS, <code>funding.json</code>. Reads <code>unpaywall_email</code> from the config.</p>

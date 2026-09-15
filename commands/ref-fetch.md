@@ -70,15 +70,21 @@ Steps:
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/fetch.py" --repo <library_root> --input-file <temp-file>
    ```
 5. Print the script's own output verbatim — it reports one line per PMID
-   (`acquired` / `oa_location_found` / `abstract_only` / `failed`), each independent;
-   one paper's failure never blocks the rest. For a JATS acquisition it also
-   reports `figures=<N>, images=<K>/<N>` — the script auto-downloads figure
-   image bytes right after a successful JATS conversion, using known
-   publisher URL patterns keyed by DOI (currently Springer Nature,
-   `10.1038/...`; other publishers degrade to a diagnostic, not a failure).
-   Print any `diagnostic:` lines too — these flag incomplete conversion
-   (missing tables/math) or per-figure asset-download failures without
-   failing the whole fetch.
+   (`acquired` / `duplicate_noop` / `oa_location_found` / `abstract_only` /
+   `failed`), each independent; one paper's failure never blocks the rest.
+   `duplicate_noop` means the current fetched full-text version already has
+   the same source kind and raw hash, so no new version was created. When a
+   changed fetch is committed, older complete fetch-created version
+   directories are pruned so only the final current full-text acquisition
+   version remains; content-addressed `raw/<sha256>/...` evidence is
+   preserved. For a JATS acquisition it also reports `figures=<N>,
+   images=<K>/<N>` — the script auto-downloads figure image bytes right after
+   a successful JATS conversion, using PMC OA asset URLs when a PMCID is known
+   and known publisher URL patterns keyed by DOI otherwise (currently Springer
+   Nature, `10.1038/...`; other publishers degrade to a diagnostic, not a
+   failure). Print any `diagnostic:` lines too — these flag incomplete
+   conversion (missing tables/math) or per-figure asset-download failures
+   without failing the whole fetch.
 6. If figures remain `asset_available: false` after step 5 (unrecognized
    publisher, or a version fetched before this auto-download step existed),
    and you can obtain the image bytes another way (manual download,

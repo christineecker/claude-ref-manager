@@ -30,6 +30,7 @@
     <li><a href="#overview">How they fit</a></li>
     <li><a href="#init"><code>/ref:init</code></a></li>
     <li><a href="#add"><code>/ref:add</code></a></li>
+    <li><a href="#add-pdf"><code>/ref:add-pdf</code></a></li>
     <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
     <li><a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></li>
@@ -237,6 +238,38 @@
   <p class="writes"><code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code>. The script never calls the network; the command resolves metadata through PubMed MCP first and hands it the envelope documented in <code>commands/ref-add.md</code>.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#project"><code>/ref:project</code></a> · <a href="write.html#cite"><code>/ref:cite</code></a></p>
+</article>
+
+<!-- ================= add-pdf ================= -->
+<article class="cmd" id="add-pdf">
+  <div class="cmd-head"><h3>/ref:add-pdf</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Identify local PDFs from DOI/PMID clues, add their PubMed records, then attach the PDFs.</p>
+  <div class="synopsis">/ref:add-pdf &lt;path…&gt; [--force]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;path…&gt;</dt><dd>One or more local PDF paths.</dd>
+    <dt>--force</dt><dd>Pass through to attachment if the PDF identity check refuses and you explicitly accept the match.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs <code>pdf_identify.py</code> locally with <code>pdftotext</code> to extract DOI, PMID, PMCID, and a title guess from the first pages.</li>
+    <li>Uses PMID directly when found. Otherwise, DOI or PMCID clues are resolved through PubMed MCP to a candidate PMID; ambiguous matches are shown for confirmation.</li>
+    <li>Calls the normal <a href="#add"><code>/ref:add</code></a> metadata path for resolved PMIDs, preserving PMID as the identity key.</li>
+    <li>Calls the normal <a href="#attach"><code>/ref:attach</code></a> PDF pipeline for each resolved PMID/path pair.</li>
+  </ol>
+  <p>DOI and title are only resolution clues. They never merge records, and a weak or ambiguous match should be confirmed before attaching.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads local PDFs. Writes the same files as <code>/ref:add</code> and <code>/ref:attach</code>: metadata records, raw PubMed responses, raw PDF bytes, attachment provenance, and converted versions when PDF conversion succeeds.</p>
+  <h4>Example</h4>
+  <p class="term-label">identify, add, then attach</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-pdf ~/Downloads/luckhardt2025.pdf</span>
+<span class="o">~/Downloads/luckhardt2025.pdf: identified doi=10.1002/aur.70084 → pmid=40665956</span>
+<span class="o">40665956: added (citekey=luckhardt2025transcranial)</span>
+<span class="o">40665956: attached</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>pdf_identify.py &lt;path…&gt;</code>, PubMed MCP lookup, <code>add.py add --repo … --metadata-file …</code>, then <code>attach.py --repo … &lt;pmid&gt; &lt;path&gt;</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#attach"><code>/ref:attach</code></a> · <a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></p>
 </article>
 
 <!-- ================= add-fetch ================= -->

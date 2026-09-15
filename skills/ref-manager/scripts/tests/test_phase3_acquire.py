@@ -26,6 +26,7 @@ import fetch  # noqa: E402
 import fetch_pmc_pdf  # noqa: E402
 import funding_extract  # noqa: E402
 import init_repo  # noqa: E402
+import pdf_identify  # noqa: E402
 import read_article  # noqa: E402
 from lib_atomic import atomic_write_bytes, atomic_write_json  # noqa: E402
 
@@ -497,6 +498,36 @@ class TestReadArticle(TempLibrary):
         self.assertIn("<table><tr><td>A</td></tr></table>", updated)
         self.assertIn('<figure class="table-snapshot"><img src="tables/table-1.png"', updated)
         self.assertLess(updated.index("</table>"), updated.index("table-snapshot"))
+
+
+class TestPdfIdentify(TempLibrary):
+    def test_extracts_doi_pmid_and_pmcid_from_pdf_text(self):
+        pdf = self.tmp / "paper.pdf"
+        pdf.write_bytes(b"%PDF fake")
+        text = (
+            "Title of the Real Paper\n"
+            "DOI: 10.1002/aur.70084.\n"
+            "PMID: 40665956\n"
+            "PMCID: PMC12442529\n"
+        )
+        with mock.patch("pdf_identify._extract_pdf_text", return_value=(text, None)):
+            result = pdf_identify.identify_pdf(pdf)
+
+        self.assertEqual(result["result"], "identified_clues")
+        self.assertEqual(result["doi"], "10.1002/aur.70084")
+        self.assertEqual(result["pmid"], "40665956")
+        self.assertEqual(result["pmcid"], "PMC12442529")
+        self.assertIn("Title of the Real Paper", result["title_guess"])
+
+    def test_no_clues_is_normal_result(self):
+        pdf = self.tmp / "paper.pdf"
+        pdf.write_bytes(b"%PDF fake")
+        with mock.patch("pdf_identify._extract_pdf_text", return_value=("Only prose.", None)):
+            result = pdf_identify.identify_pdf(pdf)
+
+        self.assertEqual(result["result"], "no_clues")
+        self.assertIsNone(result["doi"])
+        self.assertIsNone(result["pmid"])
 
 
 # ---- interrupted staged commit recovers (§3a) ----

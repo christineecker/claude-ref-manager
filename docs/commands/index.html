@@ -27,7 +27,7 @@
 <main>
 
 <header class="page">
-  <p class="eyebrow">Reference · 43 slash commands</p>
+  <p class="eyebrow">Reference · 44 slash commands</p>
   <h1>Slash commands</h1>
   <p class="lede">Every command is typed inside Claude Code. It resolves the active library from <code>~/.config/ref-manager/config.json</code> and fails loudly, pointing at <code>/ref:init</code>, when none is configured. Commands that work on a set of papers share one selector grammar; see <a href="find.html#selectors">selectors</a>.</p>
 </header>
@@ -44,6 +44,7 @@
     <dl class="cmd-list">
       <dt><a href="acquire.html#init">/ref:init &lt;path&gt;</a></dt><dd>create a library where you choose and record it in the config file</dd>
       <dt><a href="acquire.html#add">/ref:add &lt;pmid…&gt;</a></dt><dd>core ingest path: resolve metadata via PubMed, dedupe by PMID, allocate a stable citekey</dd>
+      <dt><a href="acquire.html#add-pdf">/ref:add-pdf &lt;path…&gt;</a></dt><dd>identify PDFs by DOI/PMID clues, add PubMed records, then attach the files</dd>
       <dt><a href="acquire.html#add-fetch">/ref:add-fetch &lt;pmid…&gt;</a></dt><dd>convenience wrapper: add missing records, then fetch full text for records that exist</dd>
       <dt><a href="acquire.html#fetch">/ref:fetch &lt;pmid…&gt;</a></dt><dd>acquire full text in priority order and convert it to <code>source.md</code>, per-PMID results</dd>
       <dt><a href="acquire.html#fetch-pdf">/ref:fetch-pdf &lt;pmid…&gt;</a></dt><dd>download free PMC OA PDFs and attach them through the PDF pipeline</dd>

@@ -2,9 +2,17 @@ Attach one or more local PDFs you've already acquired to existing PMID records
 (PLAN.md §6 opening paragraph).
 
 Parse `$ARGUMENTS` for:
-- `<pmid> <path> [<pmid> <path> ...]` — one or more pairs, required. Each PMID
-  must already have a `papers/<pmid>/meta.json` (from `/ref:add`).
+- `<pmid> <path> [<pmid> <path> ...]` — one or more pairs. Each PMID must
+  already have a `papers/<pmid>/meta.json` (from `/ref:add`).
 - `--force` — attach even if the identity check below fails; refused otherwise.
+- If no `<pmid> <path>` pairs are given at all: run
+  ```
+  python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_selector.py" recent --repo <library_root> --limit 15
+  ```
+  and present the results via `AskUserQuestion` (multiSelect, one option per
+  paper labeled `<title> (<citekey>, <year>)`) instead of asking the user to
+  recall PMIDs from memory. For each ticked paper, still ask for its PDF
+  path (this command inherently needs one path per PMID) before proceeding.
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).

@@ -53,6 +53,7 @@ from lib_atomic import atomic_write_json, commit_version, pmid_lock
 from lib_ids import gen_opaque_id
 from convert import convert_jats, convert_html, convert_plain_text
 from funding_extract import extract_funding_observations
+from attach_figures import download_auto as download_figure_assets
 
 UNPAYWALL_TIMEOUT = 15
 
@@ -187,10 +188,23 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
         meta["extraction_tier"] = meta.get("extraction_tier") or "abstract"
         atomic_write_json(meta_path, meta)
 
-        return {
+        figure_summary = None
+        if conv_kind == "jats" and conv["figures"]:
+            # Auto-acquire figure image bytes right after JATS conversion
+            # registers locators (ref_manager_feature_requests.md #1) --
+            # per-figure resilient, never blocks the fetch itself.
+            doi = record.get("doi") or meta.get("doi")
+            figure_summary = download_figure_assets(library_root, pmid, doi, version_id)
+
+        result = {
             "pmid": pmid, "result": "acquired", "source": source, "version": version_id,
             "converter": conv["converter"], "diagnostics": conv["diagnostics"],
         }
+        if figure_summary is not None:
+            result["figures"] = figure_summary["figures"]
+            result["images_available"] = figure_summary["images_available"]
+            result["diagnostics"] = result["diagnostics"] + figure_summary["diagnostics"]
+        return result
 
 
 def main() -> int:
@@ -225,7 +239,10 @@ def main() -> int:
     for r in results:
         line = f"{r['pmid']}: {r['result']}"
         if r.get("source"):
-            line += f" (source={r['source']})"
+            detail = f"source={r['source']}"
+            if r.get("figures") is not None:
+                detail += f", figures={r['figures']}, images={r['images_available']}/{r['figures']}"
+            line += f" ({detail})"
         if r.get("note"):
             line += f" -- {r['note']}"
         if r.get("error"):

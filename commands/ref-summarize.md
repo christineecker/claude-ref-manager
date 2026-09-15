@@ -16,6 +16,14 @@ Parse `$ARGUMENTS` for:
 - `--batch <label>` — required, names this saved summary (frozen artifact,
   reused unless `--refresh`, same idiom as `/ref:compare`).
 - `--refresh` — re-resolve the selector and regenerate.
+- If no selector is given at all: run
+  ```
+  python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_selector.py" recent --repo <library_root> --limit 15
+  ```
+  and present the results via `AskUserQuestion` (multiSelect, one option per
+  paper labeled `<title> (<citekey>, <year>)`) instead of failing or asking
+  the user to recall PMIDs from memory. Resolve the ticked papers' `pmid`
+  fields and pass them as the `<pmid...>` selector.
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).

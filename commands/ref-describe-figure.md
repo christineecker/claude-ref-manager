@@ -4,9 +4,18 @@ on-demand step, typically during promotion review or while answering a
 specific question about a figure.
 
 Parse `$ARGUMENTS` for:
-- `<pmid> <figure-id>` — required. `<figure-id>` matches an `id` in that
-  paper's current version's `figures.json` (see `/ref:fetch`'s output, or
-  read `papers/<pmid>/versions/<version>/figures.json` directly).
+- `<pmid> <figure-id>` — `<figure-id>` matches an `id` in that paper's
+  current version's `figures.json` (see `/ref:fetch`'s output, or read
+  `papers/<pmid>/versions/<version>/figures.json` directly).
+- If no `<pmid>` is given at all: run
+  ```
+  python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_selector.py" recent --repo <library_root> --limit 15
+  ```
+  and present the results via `AskUserQuestion` (multiSelect, one option per
+  paper labeled `<title> (<citekey>, <year>)`) instead of asking the user to
+  recall a PMID from memory. Once a paper is picked, list that version's
+  `figures.json` entries (id + caption) so the user can pick `<figure-id>`
+  too, rather than requiring it to already be known.
 - `--model <name>` — optional, defaults to the calling model's own name.
 - `--prompt <text>` — optional, defaults to a plain "describe this figure"
   prompt. Caching is keyed on the exact `(figure hash, model, prompt)`

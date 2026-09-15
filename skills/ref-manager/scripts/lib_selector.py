@@ -19,9 +19,18 @@ Human-verification state (phase 4 corrections) and retraction/errata status
 (phase 11 audit) don't exist as concepts yet — reported as "not_yet_tracked"
 rather than fabricated. An empty resolution is a SelectorError naming the
 selector expression, never a silent empty list.
+
+One exception to "not a standalone command": `recent()` backs the shared
+no-selector fallback (ref_manager_feature_requests.md #2) that every
+`/ref:*` command taking a §5c selector falls back to when invoked with no
+PMID/selector at all -- list recently-added papers instead of failing or
+asking the user to recall a PMID from memory. Centralized here (rather than
+reimplemented per command) since every caller needs the same listing. `main()`
+below is the minimal CLI those command specs shell out to.
 """
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -260,3 +269,42 @@ def resolve_from_args(library_root: Path, args) -> dict:
         tier=args.tier,
         exclude=args.exclude,
     )
+
+
+def recent(library_root: Path, limit: int = 15) -> list[dict]:
+    """Most recently added papers (by `meta.json.checked_at`), newest first --
+    the no-selector fallback picker's data source (feature request #2). Each
+    row carries what a checkbox UI needs to label an option: pmid, citekey,
+    title, year."""
+    rows = []
+    for pmid in _all_pmids(library_root):
+        meta = _meta(library_root, pmid) or {}
+        rows.append({
+            "pmid": pmid,
+            "citekey": meta.get("citekey"),
+            "title": meta.get("title"),
+            "year": meta.get("year"),
+            "checked_at": meta.get("checked_at", ""),
+        })
+    rows.sort(key=lambda r: r["checked_at"], reverse=True)
+    return rows[:limit]
+
+
+def main() -> int:
+    """`python3 lib_selector.py recent --repo <root> [--limit N]` -- prints
+    `recent()` as JSON. The one standalone entry point this module exposes
+    (see module docstring); everything else is imported, not shelled out to."""
+    ap = argparse.ArgumentParser(description=__doc__)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    recent_ap = sub.add_parser("recent", help="list recently-added papers for the no-selector fallback picker")
+    recent_ap.add_argument("--repo", required=True)
+    recent_ap.add_argument("--limit", type=int, default=15)
+    args = ap.parse_args()
+
+    library_root = Path(args.repo).expanduser().resolve()
+    print(json.dumps(recent(library_root, args.limit), indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

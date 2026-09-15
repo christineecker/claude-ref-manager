@@ -5,10 +5,18 @@ this command fans out one `ref-extractor` subagent per PMID instead of calling a
 MCP tool.
 
 Parse `$ARGUMENTS` for:
-- `<pmid...>` — one or more PubMed IDs, required. Each must already have a
+- `<pmid...>` — one or more PubMed IDs. Each must already have a
   `papers/<pmid>/meta.json` from `/ref:add`. Full text is not required — an
   abstract-tier paper extracts from its abstract (D4); this command never
   blocks on missing full text.
+- If no PMID is given at all: run
+  ```
+  python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_selector.py" recent --repo <library_root> --limit 15
+  ```
+  and present the results via `AskUserQuestion` (multiSelect, one option per
+  paper labeled `<title> (<citekey>, <year>)`) instead of failing or asking
+  the user to recall PMIDs from memory. Resolve the ticked papers' `pmid`
+  fields and proceed with those as `<pmid...>`.
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).

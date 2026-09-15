@@ -23,7 +23,7 @@ Steps:
    - `no_pmcid` — the paper has no PMCID.
    - `no_pdf` — PMC OA lookup succeeded but no downloadable PDF link was
      available. When PMC E-utilities JATS is available, the output will say so
-     and point back to `/ref:fetch`.
+     and point back to `/ref:fetch` for structured full text.
    - `refused` — PDF identity check failed.
    - `failed` — lookup/download/attachment error.
 
@@ -33,7 +33,8 @@ Notes:
   access controls.
 - For structured full text and figure locators, `/ref:fetch` remains the
   better default because it prefers PMC JATS XML. Use `/ref:fetch-pdf` when
-  you specifically want a PDF stored for reading/export/Papers handoff.
+  you specifically want a PDF stored for reading/export/Papers handoff or when
+  `/ref:fetch` points you at an available PDF source.
 - Some papers, including PMC-hosted Wiley articles, expose public HTML/JATS
   full text while the PDF route is a browser-check page or absent from the PMC
   OA Web Service. Treat that as "PDF unavailable", not "full text unavailable".

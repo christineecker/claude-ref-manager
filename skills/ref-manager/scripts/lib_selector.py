@@ -24,9 +24,11 @@ One exception to "not a standalone command": `recent()` backs the shared
 no-selector fallback (ref_manager_feature_requests.md #2) that every
 `/ref:*` command taking a §5c selector falls back to when invoked with no
 PMID/selector at all -- list recently-added papers instead of failing or
-asking the user to recall a PMID from memory. Centralized here (rather than
-reimplemented per command) since every caller needs the same listing. `main()`
-below is the minimal CLI those command specs shell out to.
+asking the user to recall a PMID from memory. `kind="unresolved"` adds a
+follow-up view for records that still need source work (metadata-only or
+OA-location-pending). Centralized here (rather than reimplemented per
+command) since every caller needs the same listing. `main()` below is the
+minimal CLI those command specs shell out to.
 """
 from __future__ import annotations
 
@@ -271,21 +273,46 @@ def resolve_from_args(library_root: Path, args) -> dict:
     )
 
 
-def recent(library_root: Path, limit: int = 15) -> list[dict]:
-    """Most recently added papers (by `meta.json.checked_at`), newest first --
-    the no-selector fallback picker's data source (feature request #2). Each
-    row carries what a checkbox UI needs to label an option: pmid, citekey,
-    title, year."""
+def _recent_row(library_root: Path, pmid: str) -> dict:
+    meta = _meta(library_root, pmid) or {}
+    raw_dir = library_root / "papers" / pmid / "raw"
+    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
+    if has_pdf:
+        source_badge = "pdf-backed"
+    elif meta.get("full_text"):
+        source_badge = "full-text"
+    elif meta.get("oa_location"):
+        source_badge = "oa-pending"
+    elif meta.get("abstract_available"):
+        source_badge = "abstract-only"
+    else:
+        source_badge = "metadata-only"
+    return {
+        "pmid": pmid,
+        "citekey": meta.get("citekey"),
+        "title": meta.get("title"),
+        "year": meta.get("year"),
+        "checked_at": meta.get("checked_at", ""),
+        "source_badge": source_badge,
+    }
+
+
+def recent(library_root: Path, limit: int = 15, kind: str = "recent") -> list[dict]:
+    """Browse-first paper lists used by the shared no-selector picker.
+
+    `kind="recent"` / `kind="imports"` returns the newest papers by
+    `meta.json.checked_at`. `kind="unresolved"` returns papers that still
+    need source follow-up, newest first.
+    Each row carries what a checkbox UI needs to label an option: pmid,
+    citekey, title, year, source badge, and checked_at.
+    """
     rows = []
     for pmid in _all_pmids(library_root):
-        meta = _meta(library_root, pmid) or {}
-        rows.append({
-            "pmid": pmid,
-            "citekey": meta.get("citekey"),
-            "title": meta.get("title"),
-            "year": meta.get("year"),
-            "checked_at": meta.get("checked_at", ""),
-        })
+        row = _recent_row(library_root, pmid)
+        if kind == "unresolved":
+            if row["source_badge"] not in ("metadata-only", "oa-pending"):
+                continue
+        rows.append(row)
     rows.sort(key=lambda r: r["checked_at"], reverse=True)
     return rows[:limit]
 
@@ -296,13 +323,14 @@ def main() -> int:
     (see module docstring); everything else is imported, not shelled out to."""
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    recent_ap = sub.add_parser("recent", help="list recently-added papers for the no-selector fallback picker")
+    recent_ap = sub.add_parser("recent", help="list browse-first papers for the no-selector fallback picker")
     recent_ap.add_argument("--repo", required=True)
     recent_ap.add_argument("--limit", type=int, default=15)
+    recent_ap.add_argument("--kind", choices=["recent", "imports", "unresolved"], default="recent")
     args = ap.parse_args()
 
     library_root = Path(args.repo).expanduser().resolve()
-    print(json.dumps(recent(library_root, args.limit), indent=2))
+    print(json.dumps(recent(library_root, args.limit, args.kind), indent=2))
     return 0
 
 

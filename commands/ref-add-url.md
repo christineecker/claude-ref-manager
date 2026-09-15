@@ -1,5 +1,7 @@
 Identify article URLs, add their PubMed records, then fetch available full text.
 
+For mixed intake across URLs, PMIDs, and local PDFs, prefer `/ref:import`.
+
 Parse `$ARGUMENTS` for:
 - `<url...>` — one or more article URLs. Supported best-effort clues include
   PubMed URLs, PMC URLs, DOI URLs, and publisher URLs containing a DOI.

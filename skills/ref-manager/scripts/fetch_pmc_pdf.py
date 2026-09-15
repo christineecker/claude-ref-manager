@@ -132,6 +132,19 @@ def fetch_pmc_pdf_one(library_root: Path, pmid: str, force: bool = False) -> dic
         }
 
     if not data.startswith(b"%PDF"):
+        jats_available, jats_diagnostic = _pmc_jats_available(pmcid)
+        diagnostics.append(f"downloaded OA response did not look like a PDF ({pdf_url})")
+        if jats_diagnostic:
+            diagnostics.append(jats_diagnostic)
+        if jats_available:
+            return {
+                "pmid": str(pmid), "result": "no_pdf", "pmcid": pmcid,
+                "reason": diagnostics[0],
+                "diagnostics": diagnostics[1:],
+                "full_text_available": True,
+                "full_text_source": "pmc_jats",
+                "note": "PMC JATS full text is available; use /ref:fetch for structured full text and figures",
+            }
         return {
             "pmid": str(pmid), "result": "failed", "pmcid": pmcid,
             "error": f"download did not look like a PDF: {pdf_url}",

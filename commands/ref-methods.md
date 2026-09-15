@@ -19,5 +19,8 @@ Notes:
   `software`, and `controls` are not covered by the current claim schema
   and always report `"not_reported"` — full protocol extraction is a later
   extension, not something this command reconstructs from context.
+- Each per-paper row also includes paper provenance metadata (`extraction_tier`
+  and `checked_at`) so downstream writing workflows can see freshness/state at
+  a glance.
 - An unstated method detail is `"not_reported"`, never inferred from what
   similar papers typically do.

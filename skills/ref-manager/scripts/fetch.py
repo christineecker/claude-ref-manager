@@ -170,7 +170,7 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
                     "pmid": pmid, "result": "oa_location_found", "source": "unpaywall",
                     "pdf_url": pdf_url, "note": "Unpaywall found an OA location; "
                     "download + PDF conversion not performed by fetch.py directly "
-                    "(use /ref:attach once downloaded, or a future auto-download step)",
+                    "(use /ref:fetch-pdf for PMC OA PDFs, or /ref:attach once downloaded)",
                 }
                 meta["full_text"] = False
                 meta["oa_location"] = {"source": "unpaywall", "url": pdf_url}
@@ -188,8 +188,11 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
             meta["full_text"] = False
             meta["checked_at"] = meta.get("checked_at")
             atomic_write_json(meta_path, meta)
+            note = "no full text available from any source (§6) -- abstract-only stays first-class"
+            if meta.get("pmcid"):
+                note += "; PMCID is recorded, so /ref:fetch-pdf may still find a downloadable PDF"
             return {"pmid": pmid, "result": "abstract_only",
-                    "note": "no full text available from any source (§6) -- abstract-only stays first-class"}
+                    "note": note}
 
         raw_bytes = conv_input.encode("utf-8")
         raw_hash = _preserve_raw(paper_dir, raw_bytes, f"source.{conv_kind}")

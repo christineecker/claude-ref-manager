@@ -285,10 +285,11 @@ class TestAttachFigures(TempLibrary):
 
 class TestFetchAbstractOnly(TempLibrary):
     def test_no_source_available_is_not_a_failure(self):
-        self.add_paper("2002", doi=None)
+        self.add_paper("2002", doi=None, pmcid="PMC2002")
         record = {"pmid": "2002", "doi": None, "jats_xml": None, "publisher_html": None}
         result = fetch.fetch_one(self.library_root, record, unpaywall_email=None)
         self.assertEqual(result["result"], "abstract_only")
+        self.assertIn("/ref:fetch-pdf", result["note"])
         meta = json.loads((self.library_root / "papers" / "2002" / "meta.json").read_text())
         self.assertFalse(meta["full_text"])
 
@@ -360,6 +361,8 @@ class TestAttach(TempLibrary):
             result = attach.attach_one(self.library_root, "3001", self.pdf_path, force=False)
         self.assertEqual(result["result"], "attached")
         self.assertIn("DOI", result["identity_check"])
+        self.assertTrue(result["identity_verified"])
+        self.assertFalse(result["forced"])
 
     def test_batch_one_bad_path_does_not_block_other(self):
         with mock.patch("attach._pdf_head_text", return_value="... 10.1080/realdoi ..."):
@@ -422,6 +425,20 @@ class TestFetchPmcPdf(TempLibrary):
         self.assertTrue(result["full_text_available"])
         self.assertEqual(result["full_text_source"], "pmc_jats")
         self.assertIn("/ref:fetch", result["note"])
+
+    def test_non_pdf_download_is_downgraded_when_jats_exists(self):
+        self.add_paper("3104", pmcid="PMC12442530")
+        with (
+            mock.patch("fetch_pmc_pdf._oa_pdf_link", return_value=("ftp://example.test/browser-check", [])),
+            mock.patch("fetch_pmc_pdf._urlopen_bytes", return_value=b"<html>browser check</html>"),
+            mock.patch("fetch_pmc_pdf._pmc_jats_available", return_value=(True, None)),
+        ):
+            result = fetch_pmc_pdf.fetch_pmc_pdf_one(self.library_root, "3104")
+
+        self.assertEqual(result["result"], "no_pdf")
+        self.assertTrue(result["full_text_available"])
+        self.assertEqual(result["full_text_source"], "pmc_jats")
+        self.assertIn("did not look like a PDF", result["reason"])
 
     def test_pmc_jats_available_recognizes_efetch_article_xml(self):
         xml = b"<?xml version='1.0'?><pmc-articleset><article/></pmc-articleset>"

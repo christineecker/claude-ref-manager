@@ -151,7 +151,8 @@ def attach_pdf_bytes(library_root: Path, pmid: str, data: bytes, attached_from: 
 
         return {
             "pmid": pmid, "result": "attached", "sha256": file_hash, "version": version_id,
-            "identity_check": method, "conversion_status": conv["status"], "diagnostics": conv["diagnostics"],
+            "identity_check": method, "identity_verified": verified, "forced": force and not verified,
+            "conversion_status": conv["status"], "diagnostics": conv["diagnostics"],
         }
 
 
@@ -189,6 +190,11 @@ def main() -> int:
 
     for r in results:
         line = f"{r['pmid']}: {r['result']}"
+        if r.get("result") == "attached":
+            if r.get("identity_verified"):
+                line += f" -- {r.get('identity_check')}"
+            elif r.get("forced"):
+                line += " -- attached with --force after failed identity check"
         if r.get("reason"):
             line += f" -- {r['reason']}"
         if r.get("error"):

@@ -37,6 +37,39 @@ def _load(path: Path, default):
     return json.loads(path.read_text()) if path.exists() else default
 
 
+def _paper_source_badge(library_root: Path, pmid: str) -> str:
+    paper_dir = library_root / "papers" / pmid
+    meta_path = paper_dir / "meta.json"
+    if not meta_path.exists():
+        return "metadata-only"
+    meta = json.loads(meta_path.read_text())
+    raw_dir = paper_dir / "raw"
+    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
+    if has_pdf:
+        return "pdf-backed"
+    if meta.get("full_text"):
+        return "full-text"
+    if meta.get("oa_location"):
+        return "oa-pending"
+    if meta.get("abstract_available"):
+        return "abstract-only"
+    return "metadata-only"
+
+
+def _paper_source_counts(library_root: Path, papers: list[dict]) -> dict[str, int]:
+    counts = {
+        "metadata_only": 0,
+        "abstract_only": 0,
+        "full_text": 0,
+        "pdf_backed": 0,
+        "oa_pending": 0,
+    }
+    for paper in papers:
+        badge = _paper_source_badge(library_root, str(paper["pmid"]))
+        counts[badge.replace("-", "_")] += 1
+    return counts
+
+
 def create(library_root: Path, slug: str, scope: str | None) -> dict:
     allocate_slug(library_root, "project", slug)  # validates + refuses collision
     pdir = _project_dir(library_root, slug)
@@ -96,9 +129,23 @@ def show(library_root: Path, slug: str) -> dict:
     project_path = pdir / "project.yaml"
     if not project_path.exists():
         raise SlugError(f"project {slug!r} does not exist")
+    papers_doc = _load(pdir / "papers.yaml", {"papers": []})
+    papers = papers_doc.get("papers", [])
+    reading = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
+    for paper in papers:
+        status = paper.get("reading_status")
+        if status in reading:
+            reading[status] += 1
+    source = _paper_source_counts(library_root, papers)
     return {
         "project": json.loads(project_path.read_text()),
-        "papers": _load(pdir / "papers.yaml", {"papers": []}),
+        "papers": papers_doc,
+        "summary": {
+            "paper_count": len(papers),
+            "reading": reading,
+            "source": source,
+            "question_count": len(json.loads(project_path.read_text()).get("questions", [])),
+        },
     }
 
 
@@ -110,7 +157,23 @@ def list_projects(library_root: Path) -> list[dict]:
             p = pdir / "project.yaml"
             if p.exists():
                 proj = json.loads(p.read_text())
-                out.append({"slug": proj["slug"], "scope": proj.get("scope"), "questions": len(proj["questions"])})
+                papers_path = pdir / "papers.yaml"
+                papers_doc = _load(papers_path, {"papers": []}) if papers_path.exists() else {"papers": []}
+                papers = papers_doc.get("papers", [])
+                reading = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
+                for paper in papers:
+                    status = paper.get("reading_status")
+                    if status in reading:
+                        reading[status] += 1
+                source = _paper_source_counts(library_root, papers)
+                out.append({
+                    "slug": proj["slug"],
+                    "scope": proj.get("scope"),
+                    "questions": len(proj["questions"]),
+                    "papers": len(papers),
+                    "reading": reading,
+                    "source": source,
+                })
     return out
 
 

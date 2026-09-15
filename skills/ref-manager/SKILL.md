@@ -6,16 +6,16 @@ description: "Scientific reference management — acquire, extract, and retrieve
 # ref-manager
 
 Acquisition + extraction + retrieval engine for a PMID-keyed paper library (see
-`PLAN.md` at the plugin root for the full design). Phase 0 (this slice) provides the
-library scaffold, identifier contract, core record schemas, and the atomic-commit /
-locking / rebuild machinery every later phase builds on. No acquisition, extraction,
-or synthesis commands exist yet.
+`IMPLEMENTATION_PLAN.md` at the plugin root for the current execution plan).
+Phase 0 (this slice) provides the library scaffold, identifier contract, core
+record schemas, and the atomic-commit / locking / rebuild machinery every later
+phase builds on. No acquisition, extraction, or synthesis commands exist yet.
 
 ## Layout
 
 The library root is chosen at `/ref:init` and recorded in
-`~/.config/ref-manager/config.json` (D2) — never hardcoded. Directory shape: `PLAN.md`
-§3.
+`~/.config/ref-manager/config.json` (D2) — never hardcoded. Directory shape:
+`IMPLEMENTATION_PLAN.md` phase 0.
 
 ## Scripts (`scripts/`)
 
@@ -34,5 +34,5 @@ house style).
 
 ## Read next
 
-`PLAN.md` §8 (build order) is the authoritative phase list. Do not implement a phase
-whose gate criteria you haven't read.
+`IMPLEMENTATION_PLAN.md` is the authoritative execution order. Do not implement a
+phase whose acceptance criteria you haven't read.

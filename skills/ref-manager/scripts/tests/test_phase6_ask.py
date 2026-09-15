@@ -31,6 +31,8 @@ import catalog  # noqa: E402
 import ask_retrieve  # noqa: E402
 import validate_citations  # noqa: E402
 import brief  # noqa: E402
+import report  # noqa: E402
+import methods  # noqa: E402
 import verify  # noqa: E402
 
 
@@ -257,6 +259,38 @@ class TestBrief(TempLibrary):
         brief.save_brief(self.library_root, "thesis", "q1", "some question", None, candidates,
                           "an answer", None, refresh=False)
         self.assertTrue((self.library_root / "projects/thesis/briefs/q1/latest.json").exists())
+
+    def test_brief_manifest_contains_provenance_block(self):
+        self.add_paper("900", title="Brief Provenance")
+        self.extract("900", [claim(evidence_span="Drug Q helped.")])
+        registry = json.loads((self.library_root / "papers/900/claim_registry.json").read_text())
+        claim_id = next(iter(registry["claims"]))
+        candidates = [{"pmid": "900", "claim_id": claim_id, "kind": "claim", "text": "evidence"}]
+        resolution = {"pmids": ["900"], "selector_expression": "--pmid 900", "report": {}}
+        result = brief.save_brief(self.library_root, None, "p1", "question", resolution,
+                                  candidates, "answer", None, refresh=False)
+        self.assertEqual(result["manifest"]["provenance"]["pmids"], ["900"])
+        self.assertEqual(result["manifest"]["provenance"]["question"], "question")
+
+
+class TestReportAndMethodsProvenance(TempLibrary):
+    def test_report_includes_source_tier_columns(self):
+        self.add_paper("910", title="Report Provenance", abstract="abs", authors=[author("A", "B")])
+        person_path = self.library_root / "people" / "person.json"
+        person_path.parent.mkdir(parents=True, exist_ok=True)
+        person_path.write_text(json.dumps({"slug": "person", "confirmed_publications": [{"pmid": "910", "author_index": 0}]}))
+        manifest = report.generate(self.library_root, "person", "2020-01-01", "2023-12-31", "r1")
+        self.assertEqual(manifest["publication_count"], 1)
+        csv_text = (self.library_root / "reports" / "r1" / "publications.csv").read_text()
+        self.assertIn("extraction_tier", csv_text)
+        md_text = (self.library_root / "reports" / "r1" / "report.md").read_text()
+        self.assertIn("Tier", md_text)
+
+    def test_methods_include_provenance_fields(self):
+        self.add_paper("920", title="Methods Provenance", abstract="abs", authors=[author("A", "B")])
+        result = methods.methods_for_pmid(self.library_root, "920")
+        self.assertIn("extraction_tier", result)
+        self.assertIn("checked_at", result)
 
 
 if __name__ == "__main__":

@@ -222,10 +222,10 @@
     <li>The script takes a per-PMID lock. A PMID that already has <code>meta.json</code> is reported <code>already_present</code> and left untouched.</li>
     <li>A new record gets a stable citekey (first author, year, first title word), the exact PubMed response stored under its hash, and author order preserved as published.</li>
     <li>A paper with no abstract is still <code>added</code>, as a metadata-only record with <code>extraction_tier: "unavailable"</code>. Nothing is fabricated.</li>
-    <li>If the DOI matches a <em>different</em> existing PMID, a warning is printed and both records are kept. DOI never merges records.</li>
+    <li>If the DOI matches a <em>different</em> existing PMID, or the same title is attached to a different DOI, a warning is printed and both records are kept. DOI/title mismatches never silently merge records.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Writes <code>papers/&lt;pmid&gt;/meta.json</code>, <code>authorship.json</code> (<code>raw_order_preserved: true</code>), <code>funding.json</code> (indexed GrantList entries, or <code>state: "not_checked"</code>), and <code>raw/&lt;sha256&gt;/response.json</code>. Reads other papers' <code>meta.json</code> for the DOI conflict check.</p>
+  <p class="writes">Writes <code>papers/&lt;pmid&gt;/meta.json</code>, <code>authorship.json</code> (<code>raw_order_preserved: true</code>), <code>funding.json</code> (indexed GrantList entries, or <code>state: "not_checked"</code>), and <code>raw/&lt;sha256&gt;/response.json</code>. Reads other papers' <code>meta.json</code> for the DOI/title conflict check and prints warnings when the identity signals disagree.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 31452104 30679568 99999999</span>

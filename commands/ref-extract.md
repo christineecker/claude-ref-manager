@@ -16,7 +16,8 @@ Parse `$ARGUMENTS` for:
   and present the results via `AskUserQuestion` (multiSelect, one option per
   paper labeled `<title> (<citekey>, <year>)`) instead of failing or asking
   the user to recall PMIDs from memory. Resolve the ticked papers' `pmid`
-  fields and proceed with those as `<pmid...>`.
+  fields and proceed with those as `<pmid...>`. The shared picker also supports
+  `--kind unresolved` for papers that still need source follow-up.
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).

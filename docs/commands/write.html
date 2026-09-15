@@ -244,6 +244,7 @@
     <li>If the batch exists and <code>--refresh</code> is absent, returns <code>reused_frozen_table</code> without touching the selector.</li>
     <li>Otherwise resolves the selector and builds rows. Papers sharing a recorded study (<code>/ref:study</code>) share one row, with the study's confidence shown; shared datasets alone never group papers.</li>
     <li>Fills nine columns per paper: population, design, methods, sample_size, comparator, results, uncertainty, limitations, relevance. <code>not_extracted</code> means no claim covers that dimension (sample_size and limitations always, since extraction doesn't capture them); <code>not_reported</code> means claims exist but the paper didn't state it. The two are kept distinct on purpose.</li>
+    <li>Each row also carries a <code>provenance</code> block keyed by PMID with extraction tier, last checked timestamp, and whether the record currently has an abstract or full text available.</li>
     <li>On refresh, re-applies your edits: an edit whose underlying cell is unchanged survives; one whose evidence changed is flagged <code>stale</code>, never silently dropped or silently re-applied.</li>
     <li>Writes the table, then the manifest (including a per-PMID retraction-status snapshot for the next refresh).</li>
   </ol>
@@ -302,6 +303,7 @@
     <li>Resolves the selector and prints its report.</li>
     <li>Groups papers by recorded study, as <code>/ref:compare</code> does.</li>
     <li>Per paper, collects distinct <code>study_design</code>, <code>adjustment_context</code>, <code>cohort_identity</code> from active claims, plus methods and datasets explicitly linked with <code>/ref:study create-method</code>/<code>create-dataset</code>.</li>
+    <li>Each per-paper row also includes provenance metadata (<code>extraction_tier</code> and <code>checked_at</code>) so you can see freshness and source state without opening raw files.</li>
     <li><code>instruments</code>, <code>software</code>, and <code>controls</code> always read <code>not_reported</code>: the claim schema doesn't capture them, and the command won't reconstruct protocol details from what similar papers usually do.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
@@ -359,6 +361,7 @@
     <li>The candidates are <em>every active claim</em> of the resolved papers, not ranked search hits: the selector already chose the set.</li>
     <li>An abstract-only set may still be summarized, but the summary must say so. (Contrast <a href="#review">/ref:review</a>, which refuses.)</li>
     <li>Spawns one <span class="tag agent">ref-synthesizer</span> for the whole set, never one per paper, with a fixed instruction to cover populations, interventions, outcomes, direction of effect, disagreement, tier, and retraction status.</li>
+    <li>The saved manifest includes a provenance block with the resolved PMIDs and the project/question context so a brief can be traced to the exact library slice that generated it.</li>
     <li>Saves the returned answer with its coverage note and unresolved questions. One paper and many papers go through the same code path.</li>
   </ol>
   <h4>Reads &amp; writes</h4>

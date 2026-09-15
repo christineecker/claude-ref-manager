@@ -12,7 +12,8 @@ Parse `$ARGUMENTS` for:
   and present the results via `AskUserQuestion` (multiSelect, one option per
   paper labeled `<title> (<citekey>, <year>)`) instead of failing or asking
   the user to recall PMIDs from memory. Resolve the ticked papers' `pmid`
-  fields and proceed with those as `<pmid...>`.
+   fields and proceed with those as `<pmid...>`. The shared picker also supports
+   `--kind unresolved` for papers that still need source follow-up.
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).
@@ -46,9 +47,9 @@ Steps:
       (a single deterministic REST call needing no judgment, §6 point 2) using the
       paper's DOI and the `unpaywall_email` recorded in `config.json` at `/ref:init`.
       If Unpaywall finds an OA PDF location, the script records it on the paper and
-      reports `oa_location_found` — download it yourself (WebFetch or similar) and
-      hand it to `/ref:attach` to actually convert it, or leave it for a future
-      auto-download step. Do not treat `oa_location_found` as failure.
+      reports `oa_location_found` — use `/ref:fetch-pdf` when the source is PMC OA,
+      or download it and hand it to `/ref:attach` to actually convert it, or leave
+      it for a future auto-download step. Do not treat `oa_location_found` as failure.
    d. Otherwise, fetch the publisher's article HTML yourself (WebFetch or the
       `firecrawl` skill) and pass it as `publisher_html`. This script does not
       fetch URLs itself beyond the Unpaywall API call.

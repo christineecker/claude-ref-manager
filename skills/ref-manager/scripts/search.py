@@ -7,12 +7,12 @@
 
 No full-text conversion exists until phase 3 and no passage FTS index is
 populated until then either (catalog.py's passages_fts stays an empty
-stub) — so "evidence" search here is title/abstract/journal only. Say so
-plainly rather than pretending passage search exists.
+stub) — so "evidence" search here is still metadata-only, but it now checks
+more of the structured library surface than just title/abstract/journal.
 
---scope evidence   title/abstract/journal (raw/<hash>/response.json's
-                    'abstract', since meta.json never stores abstract text
-                    itself — only an abstract_available flag, §3a).
+-scope evidence   title/abstract/journal/doi/pmcid/citekey/authors (raw/<hash>/
+                    response.json's 'abstract', since meta.json never stores
+                    abstract text itself — only an abstract_available flag, §3a).
 --scope notes      papers/<pmid>/notes.md + project membership relevance/
                     why_saved text (personal content, never evidence).
 --scope all        both, each result tagged with its kind so a personal
@@ -38,6 +38,78 @@ def _paper_abstract(library_root: Path, pmid: str) -> str | None:
     return None
 
 
+def _paper_authors(library_root: Path, pmid: str) -> list[dict]:
+    path = library_root / "papers" / pmid / "authorship.json"
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text()).get("authors", [])
+    except (OSError, ValueError):
+        return []
+
+
+def _paper_funding(library_root: Path, pmid: str) -> list[dict]:
+    path = library_root / "papers" / pmid / "funding.json"
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text()).get("observations", [])
+    except (OSError, ValueError):
+        return []
+
+
+def _paper_lifecycle(library_root: Path, pmid: str) -> str:
+    paper_dir = library_root / "papers" / pmid
+    meta_path = paper_dir / "meta.json"
+    if not meta_path.exists():
+        return "missing_record"
+    meta = json.loads(meta_path.read_text())
+    raw_dir = paper_dir / "raw"
+    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
+    if has_pdf:
+        return "pdf-backed"
+    if meta.get("full_text"):
+        return "full-text"
+    if meta.get("oa_location"):
+        return "oa-pending"
+    if meta.get("abstract_available"):
+        return "abstract-only"
+    return "metadata-only"
+
+
+def _query_matches(library_root: Path, query: str) -> list[dict]:
+    q = query.lower()
+    hits = []
+    queries_dir = library_root / "queries"
+    if not queries_dir.is_dir():
+        return hits
+    for path in sorted(queries_dir.glob("*.yaml")):
+        try:
+            doc = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        slug = doc.get("slug") or path.stem
+        for run in doc.get("runs", []):
+            haystack = "\n".join([
+                slug,
+                run.get("query") or "",
+                run.get("source") or "",
+                run.get("run_id") or "",
+                " ".join(run.get("pmids") or []),
+            ]).lower()
+            if q in haystack:
+                hits.append({
+                    "kind": "saved_query",
+                    "slug": slug,
+                    "run_id": run.get("run_id"),
+                    "source": run.get("source"),
+                    "snippet": (run.get("query") or slug)[:240],
+                    "lifecycle": "query",
+                })
+                break
+    return hits
+
+
 def _evidence_hits(library_root: Path, query: str) -> list[dict]:
     q = query.lower()
     hits = []
@@ -49,18 +121,61 @@ def _evidence_hits(library_root: Path, query: str) -> list[dict]:
         if not meta_path.exists():
             continue
         meta = json.loads(meta_path.read_text())
+        authors = _paper_authors(library_root, pdir.name)
+        funding = _paper_funding(library_root, pdir.name)
         title = meta.get("title") or ""
         journal = meta.get("journal") or ""
         abstract = _paper_abstract(library_root, pdir.name) or ""
-        haystack = f"{title}\n{journal}\n{abstract}".lower()
+        haystack = "\n".join([
+            title,
+            journal,
+            meta.get("doi") or "",
+            meta.get("pmcid") or "",
+            meta.get("citekey") or "",
+            abstract,
+            "\n".join(a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip() for a in authors),
+            "\n".join(
+                " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v)
+                for obs in funding
+            ),
+        ]).lower()
         if q in haystack:
-            snippet_source = title if q in title.lower() else (abstract or journal)
+            if q in title.lower():
+                snippet_source = title
+                field = "title"
+            elif q in (meta.get("doi") or "").lower():
+                snippet_source = meta.get("doi") or ""
+                field = "doi"
+            elif q in (meta.get("pmcid") or "").lower():
+                snippet_source = meta.get("pmcid") or ""
+                field = "pmcid"
+            elif q in (meta.get("citekey") or "").lower():
+                snippet_source = meta.get("citekey") or ""
+                field = "citekey"
+            elif any(q in (a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip()).lower() for a in authors):
+                snippet_source = next((a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip() for a in authors if q in (a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip()).lower()), abstract or journal)
+                field = "author"
+            elif any(
+                q in " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v).lower()
+                for obs in funding
+            ):
+                first = next(
+                    (obs for obs in funding if q in " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v).lower()),
+                    {},
+                )
+                snippet_source = " ".join(str(v) for v in (first.get("funder"), first.get("award_number"), first.get("text"), first.get("locator")) if v)
+                field = "grant"
+            else:
+                snippet_source = abstract or journal
+                field = "abstract" if q in abstract.lower() else "journal"
             hits.append({
                 "kind": "evidence",
                 "pmid": pdir.name,
                 "citekey": meta.get("citekey"),
-                "field": "title" if q in title.lower() else ("abstract" if q in abstract.lower() else "journal"),
+                "field": field,
                 "snippet": snippet_source[:240],
+                "source_kind": "metadata",
+                "lifecycle": _paper_lifecycle(library_root, pdir.name),
             })
     return hits
 
@@ -79,6 +194,7 @@ def _notes_hits(library_root: Path, query: str) -> list[dict]:
                         "kind": "personal_note",
                         "pmid": pdir.name,
                         "snippet": text.strip()[:240],
+                        "lifecycle": _paper_lifecycle(library_root, pdir.name),
                     })
     projects_dir = library_root / "projects"
     if projects_dir.is_dir():
@@ -97,6 +213,7 @@ def _notes_hits(library_root: Path, query: str) -> list[dict]:
                             "project": pdir.name,
                             "field": field,
                             "snippet": val[:240],
+                            "lifecycle": _paper_lifecycle(library_root, m["pmid"]),
                         })
     return hits
 
@@ -107,7 +224,7 @@ def run(library_root: Path, scope: str, query: str) -> list[dict]:
     if scope == "notes":
         return _notes_hits(library_root, query)
     if scope == "all":
-        return _evidence_hits(library_root, query) + _notes_hits(library_root, query)
+        return _evidence_hits(library_root, query) + _notes_hits(library_root, query) + _query_matches(library_root, query)
     raise ValueError(f"unknown scope {scope!r}")
 
 

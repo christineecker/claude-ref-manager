@@ -6,10 +6,13 @@ Run: python3 skills/ref-manager/scripts/tests/test_phase2.py
 from __future__ import annotations
 
 import json
+import hashlib
 import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
@@ -26,6 +29,8 @@ import pubmed_query  # noqa: E402
 import screen  # noqa: E402
 import publications  # noqa: E402
 import report  # noqa: E402
+import status  # noqa: E402
+import queue as queue_mod  # noqa: E402
 from lib_atomic import atomic_write_json  # noqa: E402
 from lib_selector import resolve, SelectorError  # noqa: E402
 
@@ -96,6 +101,157 @@ class TestSearchScopeLabels(TempLibrary):
         # never conflated
         for r in results:
             self.assertIn(r["kind"], ("evidence", "personal_note", "project_relevance"))
+
+    def test_evidence_search_matches_doi_and_author_fields(self):
+        self.add_paper("2002", "Structured Search Paper", "about structured search", [author("Nakamura", "Ai")], doi="10.1234/abc.def")
+
+        doi_results = search.run(self.library_root, "evidence", "10.1234/abc.def")
+        self.assertEqual(len(doi_results), 1)
+        self.assertEqual(doi_results[0]["field"], "doi")
+        self.assertEqual(doi_results[0]["source_kind"], "metadata")
+
+        author_results = search.run(self.library_root, "evidence", "Nakamura Ai")
+        self.assertEqual(len(author_results), 1)
+        self.assertEqual(author_results[0]["field"], "author")
+        self.assertEqual(author_results[0]["lifecycle"], "abstract-only")
+
+    def test_evidence_search_matches_grant_fields(self):
+        self.add_paper("2007", "Grant Search Paper", "about grants", [author("Grant", "Greta")])
+        funding_path = self.library_root / "papers" / "2007" / "funding.json"
+        atomic_write_json(funding_path, {
+            "pmid": "2007",
+            "observations": [{
+                "kind": "explicit_acknowledgement_verified",
+                "source": "jats_funding_statement",
+                "funder": "NIH",
+                "award_number": "R01-ABC123",
+                "text": "Supported by NIH R01-ABC123",
+                "locator": "funding-group/funding-statement",
+            }],
+            "state": "explicit_acknowledgement_verified",
+        })
+
+        grant_results = search.run(self.library_root, "evidence", "R01-ABC123")
+        self.assertEqual(len(grant_results), 1)
+        self.assertEqual(grant_results[0]["field"], "grant")
+        self.assertEqual(grant_results[0]["lifecycle"], "abstract-only")
+
+    def test_all_scope_matches_saved_query_context(self):
+        self.add_paper("2008", "Saved Query Paper", "about queries", [author("Query", "Quinn")])
+        queries_dir = self.library_root / "queries"
+        queries_dir.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(queries_dir / "q1.yaml", {
+            "slug": "q1",
+            "runs": [{
+                "run_id": "run-abc",
+                "query": "cancer AND therapy",
+                "source": "pubmed",
+                "retrieved_at": "2026-01-01T00:00:00Z",
+                "pmids": ["2008"],
+            }],
+        })
+
+        hits = search.run(self.library_root, "all", "cancer AND therapy")
+        saved = [r for r in hits if r["kind"] == "saved_query"]
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]["slug"], "q1")
+        self.assertEqual(saved[0]["lifecycle"], "query")
+
+
+class TestStatusDashboard(TempLibrary):
+    def test_recent_papers_show_source_badges(self):
+        self.add_paper("2101", "Badge Paper", "abs", [author("Badge", "Bea")])
+        paper_dir = self.library_root / "papers" / "2101"
+        file_hash = hashlib.sha256(b"pdf-bytes").hexdigest()
+        raw_dir = paper_dir / "raw" / file_hash
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / "source.pdf").write_bytes(b"pdf-bytes")
+
+        buf = StringIO()
+        with redirect_stdout(buf):
+            status._print_recent_papers(self.library_root)
+        output = buf.getvalue()
+        self.assertIn("[pdf-backed]", output)
+
+    def test_recent_papers_show_figure_badges_when_assets_exist(self):
+        self.add_paper("2108", "Figure Badge Paper", "abs", [author("Figure", "Fay")])
+        paper_dir = self.library_root / "papers" / "2108"
+        file_hash = hashlib.sha256(b"pdf-bytes").hexdigest()
+        raw_dir = paper_dir / "raw" / file_hash
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / "source.pdf").write_bytes(b"pdf-bytes")
+        current = paper_dir / "current.json"
+        current.write_text(json.dumps({"version": "v-fig"}))
+        version_dir = paper_dir / "versions" / "v-fig"
+        version_dir.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(version_dir / "figures.json", [{"id": "fig1", "asset_available": True}])
+
+        buf = StringIO()
+        with redirect_stdout(buf):
+            status._print_recent_papers(self.library_root)
+        output = buf.getvalue()
+        self.assertIn("[pdf-backed+figures]", output)
+
+
+class TestProjectListSummary(TempLibrary):
+    def test_list_projects_includes_paper_and_reading_counts(self):
+        project.create(self.library_root, "proj1", "scope text")
+        self.add_paper("2102", "Project Source Paper", "abs", [author("Alpha", "A")])
+        self.add_paper("2103", "Project Source Paper 2", "abs", [author("Beta", "B")])
+        project.add_paper(self.library_root, "proj1", "2102", "relevant", 1, "read")
+        project.add_paper(self.library_root, "proj1", "2103", "relevant", 2, "to_read")
+
+        projects = project.list_projects(self.library_root)
+        self.assertEqual(projects[0]["papers"], 2)
+        self.assertEqual(projects[0]["reading"]["read"], 1)
+        self.assertEqual(projects[0]["reading"]["to_read"], 1)
+
+    def test_list_projects_includes_source_counts(self):
+        project.create(self.library_root, "proj1", "scope text")
+        self.add_paper("2102", "Project Source Paper", "abs", [author("Alpha", "A")])
+        self.add_paper("2103", "Project Source Paper 2", "abs", [author("Beta", "B")])
+        project.add_paper(self.library_root, "proj1", "2102", "relevant", 1, "read")
+        project.add_paper(self.library_root, "proj1", "2103", "relevant", 2, "to_read")
+        paper_dir = self.library_root / "papers" / "2102"
+        raw_dir = paper_dir / "raw" / hashlib.sha256(b"pdf-bytes").hexdigest()
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / "source.pdf").write_bytes(b"pdf-bytes")
+        result = project.list_projects(self.library_root)
+        self.assertEqual(result[0]["source"]["pdf_backed"], 1)
+        self.assertEqual(result[0]["source"]["abstract_only"], 1)
+
+    def test_show_project_includes_summary(self):
+        project.create(self.library_root, "proj2", "scope text")
+        project.add_paper(self.library_root, "proj2", "2104", "relevant", 1, "reading")
+        result = project.show(self.library_root, "proj2")
+        self.assertEqual(result["summary"]["paper_count"], 1)
+        self.assertEqual(result["summary"]["reading"]["reading"], 1)
+        self.assertEqual(result["summary"]["question_count"], 0)
+        self.assertIn("source", result["summary"])
+
+
+class TestQueueSummary(TempLibrary):
+    def test_queue_show_includes_reading_summary(self):
+        project.create(self.library_root, "proj3", "scope text")
+        project.add_paper(self.library_root, "proj3", "2105", "relevant", 1, "read")
+        project.add_paper(self.library_root, "proj3", "2106", "relevant", 2, "to_screen")
+
+        result = queue_mod.show(self.library_root, "proj3", None)
+        self.assertEqual(result["summary"]["read"], 1)
+        self.assertEqual(result["summary"]["to_screen"], 1)
+        self.assertEqual(len(result["papers"]), 2)
+
+    def test_queue_show_includes_source_summary(self):
+        project.create(self.library_root, "proj4", "scope text")
+        self.add_paper("2107", "Queue Source Paper", "abs", [author("Gamma", "G")])
+        project.add_paper(self.library_root, "proj4", "2107", "relevant", 1, "read")
+        paper_dir = self.library_root / "papers" / "2107"
+        raw_dir = paper_dir / "raw" / hashlib.sha256(b"pdf-bytes").hexdigest()
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        (raw_dir / "source.pdf").write_bytes(b"pdf-bytes")
+
+        result = queue_mod.show(self.library_root, "proj4", None)
+        self.assertEqual(result["source"]["pdf_backed"], 1)
 
 
 # ---- /ref:export ----

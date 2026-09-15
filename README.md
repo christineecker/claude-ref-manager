@@ -6,8 +6,8 @@
 
 Claude Code plugin for scientific reference management: acquire, extract, and
 retrieve PMID-keyed papers into a personal library, with an OKF knowledge graph
-over claims and concepts. Full design in [`PLAN.md`](PLAN.md); the planned
-knowledge layer (phases 12–18) is in [`PLAN-v2.md`](PLAN-v2.md).
+over claims and concepts. The repository's implementation plan is in
+ [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md).
 
 **Documentation:** <https://christineecker.github.io/claude-ref-manager/>
 (source in [`docs/`](docs/index.html); open `docs/index.html` locally for an offline copy)
@@ -67,10 +67,14 @@ claude --plugin-dir /path/to/claude-ref-manager
 /ref:init <path-to-library-root>
 /ref:status
 /ref:add <pmid> [<pmid> ...]
+/ref:import <item...>
 ```
 
 `/ref:init` records the library root in `~/.config/ref-manager/config.json` (D2);
 every other command resolves it from there rather than taking `--repo`.
+For mixed intake from URLs, PDFs, DOI strings, or bibliography files, use
+`/ref:import` or the source-specific `/ref:add-url`, `/ref:add-pdf`, and
+`/ref:add-fetch` commands.
 The [Get started](https://christineecker.github.io/claude-ref-manager/getting-started.html)
 tutorial walks through adding, fetching, extracting, searching and citing papers.
 

@@ -221,6 +221,14 @@ class TestCompareFreezeAndRefresh(TempLibrary):
         self.assertEqual(result["status"], "refreshed")
         self.assertEqual(result["added"], ["2"])
 
+    def test_rows_include_provenance_metadata(self):
+        self.add_paper("3")
+        resolution = self.resolve(pmids=["3"])
+        result = compare.run_compare(self.library_root, "t2", None, resolution, refresh=False)
+        row = result["rows"][0]
+        self.assertEqual(row["provenance"]["3"]["extraction_tier"], "abstract")
+        self.assertIn("checked_at", row["provenance"]["3"])
+
 
 class TestCompareUserEdits(TempLibrary):
     def test_edit_survives_refresh_when_evidence_unchanged(self):

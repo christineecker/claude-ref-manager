@@ -28,6 +28,7 @@ import funding_extract  # noqa: E402
 import init_repo  # noqa: E402
 import pdf_identify  # noqa: E402
 import read_article  # noqa: E402
+import url_identify  # noqa: E402
 from lib_atomic import atomic_write_bytes, atomic_write_json  # noqa: E402
 
 JATS_FIXTURE = (FIXTURES / "sample.jats.xml").read_text()
@@ -528,6 +529,28 @@ class TestPdfIdentify(TempLibrary):
         self.assertEqual(result["result"], "no_clues")
         self.assertIsNone(result["doi"])
         self.assertIsNone(result["pmid"])
+
+
+class TestUrlIdentify(unittest.TestCase):
+    def test_pubmed_url_extracts_pmid(self):
+        result = url_identify.identify_url("https://pubmed.ncbi.nlm.nih.gov/40665956/")
+        self.assertEqual(result["pmid"], "40665956")
+        self.assertEqual(result["source"], "pubmed_url")
+
+    def test_pmc_url_extracts_pmcid(self):
+        result = url_identify.identify_url("https://pmc.ncbi.nlm.nih.gov/articles/PMC12442529/")
+        self.assertEqual(result["pmcid"], "PMC12442529")
+        self.assertEqual(result["source"], "pmc_url")
+
+    def test_doi_url_extracts_doi(self):
+        result = url_identify.identify_url("https://doi.org/10.1002/aur.70084")
+        self.assertEqual(result["doi"], "10.1002/aur.70084")
+        self.assertEqual(result["source"], "doi_url")
+
+    def test_publisher_url_with_encoded_doi_extracts_doi(self):
+        result = url_identify.identify_url("https://example.org/article/10.1002%2Faur.70084?x=1")
+        self.assertEqual(result["doi"], "10.1002/aur.70084")
+        self.assertEqual(result["source"], "doi_in_url")
 
 
 # ---- interrupted staged commit recovers (§3a) ----

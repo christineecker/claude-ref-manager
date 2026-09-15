@@ -32,6 +32,7 @@
     <li><a href="#add"><code>/ref:add</code></a></li>
     <li><a href="#add-pdf"><code>/ref:add-pdf</code></a></li>
     <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
+    <li><a href="#add-url"><code>/ref:add-url</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
     <li><a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></li>
     <li><a href="#attach"><code>/ref:attach</code></a></li>
@@ -303,6 +304,45 @@
   <p class="writes">First runs <code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code>, then runs <code>fetch.py --repo &lt;library_root&gt; --input-file &lt;json&gt;</code> for PMIDs with <code>meta.json</code>.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#fetch"><code>/ref:fetch</code></a> · <a href="#attach"><code>/ref:attach</code></a></p>
+</article>
+
+<!-- ================= add-url ================= -->
+<article class="cmd" id="add-url">
+  <div class="cmd-head"><h3>/ref:add-url</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span><span class="tag net">web fetch</span></div></div>
+  <p class="summary">Identify article URLs from DOI/PMID/PMCID clues, add their PubMed records, then fetch available full text.</p>
+  <div class="synopsis">/ref:add-url &lt;url…&gt; [--no-fetch]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;url…&gt;</dt><dd>One or more article URLs — PubMed, PMC, DOI, or publisher URLs.</dd>
+    <dt>--no-fetch</dt><dd>Add metadata only; skip the fetch stage.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs <code>url_identify.py</code> locally, a deterministic, network-free parser of stable URL patterns, to pull DOI, PMID, or PMCID clues straight from the URL string.</li>
+    <li>Uses PMID directly when found. Otherwise resolves a DOI or PMCID clue to a candidate PMID through PubMed MCP.</li>
+    <li>If the URL itself carries no clue, fetches the page HTML and extracts citation metadata from common tags (<code>citation_doi</code>, <code>DC.Identifier</code>, schema.org JSON-LD, <code>citation_pmid</code>, <code>citation_pmcid</code>), then repeats DOI/PMID/PMCID resolution.</li>
+    <li>Confirms candidates against PubMed <code>get_article_metadata</code> before adding — DOI and title clues must be compatible with what PubMed has. Zero, ambiguous, or weak matches are shown to the user to pick, confirm, or skip.</li>
+    <li>Calls the normal <a href="#add"><code>/ref:add</code></a> metadata path for resolved PMIDs, preserving PMID as the identity key.</li>
+    <li>Unless <code>--no-fetch</code> was passed, runs the same acquisition ladder as <a href="#fetch"><code>/ref:fetch</code></a> for added/already-present PMIDs.</li>
+  </ol>
+  <p>URL, DOI, and title are only resolution clues. They never merge records, and fetching a publisher page is not permission to bypass paywalls — full text still follows the <a href="#fetch"><code>/ref:fetch</code></a> legal/available-source ladder. One URL's failed identification does not block the rest.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes the same files as <a href="#add"><code>/ref:add</code></a> and, unless skipped, <a href="#fetch"><code>/ref:fetch</code></a>.</p>
+  <h4>Example</h4>
+  <p class="term-label">identify, add, then fetch</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-url https://doi.org/10.1002/aur.70084</span>
+<span class="o">identify:</span>
+<span class="o">https://doi.org/10.1002/aur.70084: doi -> 40665956</span>
+
+<span class="o">add:</span>
+<span class="o">40665956: added (citekey=luckhardt2025transcranial)</span>
+
+<span class="o">fetch:</span>
+<span class="o">40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>url_identify.py &lt;url…&gt;</code>, PubMed MCP lookup/confirmation, <code>add.py add --repo … --metadata-file …</code>, then the same fetch path as <code>/ref:fetch</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#fetch"><code>/ref:fetch</code></a></p>
 </article>
 
 <!-- ================= fetch ================= -->

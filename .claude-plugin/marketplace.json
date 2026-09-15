@@ -1,0 +1,25 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-ref-manager",
+  "owner": {
+    "name": "Christine Ecker"
+  },
+  "metadata": {
+    "description": "Scientific reference management for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "ref-manager",
+      "source": "./",
+      "description": "Scientific reference management — acquisition, extraction, retrieval, and knowledge-graph synthesis over a PMID-keyed paper library.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Christine Ecker"
+      },
+      "homepage": "https://christineecker.github.io/claude-ref-manager/",
+      "repository": "https://github.com/christineecker/claude-ref-manager",
+      "keywords": ["references", "pubmed", "literature", "knowledge-graph", "citations"],
+      "category": "productivity"
+    }
+  ]
+}

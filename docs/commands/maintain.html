@@ -260,7 +260,7 @@
 <!-- ================= status ================= -->
 <article class="cmd" id="status">
   <div class="cmd-head"><h3>/ref:status</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
-  <p class="summary">Show which library is configured and how many papers and projects it holds.</p>
+  <p class="summary">Show which library is configured, catalog counts, extraction-tier breakdown, source completeness, project summaries, and a few recent papers. Read-only.</p>
   <div class="synopsis">/ref:status</div>
   <h4>Arguments</h4>
   <p class="writes">None.</p>
@@ -268,11 +268,12 @@
   <ol>
     <li>Reads the config file. If none exists, it errors and points you at <a href="acquire.html#init"><code>/ref:init</code></a>; it never guesses a path.</li>
     <li>Prints the library root, and errors if that directory no longer exists.</li>
-    <li>Prints the number of papers in the catalog, or a hint to run <code>/ref:index --rebuild</code> if the catalog hasn't been built.</li>
-    <li>Prints the number of projects.</li>
+    <li>Prints the number of papers in the catalog (or a hint to run <code>/ref:index --rebuild</code> if the catalog hasn't been built), an extraction-tier breakdown, and source/completeness counts.</li>
+    <li>Prints per-project summaries and, where useful, a short list of recent papers.</li>
+    <li>Each recent paper carries a concise source badge — <code>full-text</code>, <code>pdf-backed</code>, <code>oa-pending</code>, <code>abstract-only</code>, or <code>metadata-only</code> — so you can see acquisition state at a glance without opening records. Claude keeps this compact; the goal is quick orientation, not a substitute for full search.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code>, <code>index/catalog.sqlite</code>, <code>projects/</code>. Writes nothing.</p>
+  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code>, <code>index/catalog.sqlite</code>, <code>projects/</code>, and papers' <code>meta.json</code> for source/completeness state. Writes nothing.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library (paths shortened)</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:status</span>
@@ -282,8 +283,13 @@
 <span class="p">›</span> <span class="cmd">/ref:index --rebuild</span>
 <span class="p">›</span> <span class="cmd">/ref:status</span>
 <span class="o">library: /private/tmp/…/scratch/lib</span>
-<span class="o">papers indexed: 2</span>
-<span class="o">projects: 0</span></pre>
+<span class="o">papers indexed: 2
+by extraction tier: {"abstract": 1, "full": 1, "unavailable": 0}
+by source completeness: {"full-text": 1, "abstract-only": 1}</span>
+<span class="o">projects: 0</span>
+<span class="o">recent papers:
+  10000001 rivera2019cortical (full-text)
+  10000002 chen2019editorial (abstract-only)</span></pre>
   <h4>Under the hood</h4>
   <p class="writes"><code>status.py</code> (no arguments).</p>
   <h4>See also</h4>

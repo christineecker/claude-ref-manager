@@ -33,6 +33,7 @@
     <li><a href="#add-pdf"><code>/ref:add-pdf</code></a></li>
     <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
     <li><a href="#add-url"><code>/ref:add-url</code></a></li>
+    <li><a href="#import"><code>/ref:import</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
     <li><a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></li>
     <li><a href="#attach"><code>/ref:attach</code></a></li>
@@ -342,7 +343,48 @@
   <h4>Under the hood</h4>
   <p class="writes"><code>url_identify.py &lt;url…&gt;</code>, PubMed MCP lookup/confirmation, <code>add.py add --repo … --metadata-file …</code>, then the same fetch path as <code>/ref:fetch</code>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#fetch"><code>/ref:fetch</code></a></p>
+  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#fetch"><code>/ref:fetch</code></a> · <a href="#import"><code>/ref:import</code></a></p>
+</article>
+
+<!-- ================= import ================= -->
+<article class="cmd" id="import">
+  <div class="cmd-head"><h3>/ref:import</h3><div class="chips"><span class="tag phase">phase 6</span><span class="tag net">PubMed MCP</span><span class="tag net">web fetch</span></div></div>
+  <p class="summary">Source-aware front door: feed it a mix of PMIDs, article URLs, local PDFs or folders, DOIs, or bibliography files, and it routes each one into the right add/fetch/attach flow.</p>
+  <div class="synopsis">/ref:import &lt;item…&gt; [--no-fetch]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;item…&gt;</dt><dd>One or more inputs, in any mix: bare PMID tokens (<code>40691132</code>), article URLs, local PDF paths, folders containing PDFs, BibTeX (<code>.bib</code>) files, CSL-JSON (<code>.csl.json</code>) files, or bare DOI strings (<code>10.1038/s41586-026-00001-2</code>).</dd>
+    <dt>--no-fetch</dt><dd>Add metadata only; skip full-text acquisition for every input.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Splits the inputs by type before doing anything else: URL-like inputs go through the same identification step as <a href="#add-url"><code>/ref:add-url</code></a>; existing <code>.pdf</code> paths go through the same identification step as <a href="#add-pdf"><code>/ref:add-pdf</code></a>; directories are expanded to the PDFs they contain and then treated the same way; <code>.bib</code>/<code>.csl.json</code> files are read as citation source material and resolved to PMIDs; bare DOI strings are resolved through PubMed MCP, with confirmation whenever a DOI maps to zero or multiple PMIDs; bare PMID tokens are used directly.</li>
+    <li>URL and PDF inputs reuse the existing local, network-free identification helpers (<code>url_identify.py</code>, <code>pdf_identify.py</code>) to pull DOI/PMID/PMCID clues before ever calling PubMed MCP.</li>
+    <li>Any non-PMID clue (DOI, PMCID, a weak title match, an unmatched bibliography entry) is resolved to a PMID through PubMed MCP, asking you to confirm whenever the match is ambiguous.</li>
+    <li>Calls PubMed MCP <code>get_article_metadata</code> once for every resolved PMID and normalizes the results into the standard <a href="#add"><code>/ref:add</code></a> envelope, then runs the normal add path.</li>
+    <li>Unless <code>--no-fetch</code> was passed, runs the same fetch priority ladder as <a href="#fetch"><code>/ref:fetch</code></a> — PMC JATS, PubMed plain text, Unpaywall, publisher HTML, otherwise abstract-only — for every PMID that now has a record.</li>
+    <li>Prints every stage's output under <code>identify:</code>, <code>add:</code>, and <code>fetch:</code> headers, so you can see where each item came from and whether it was added, already present, attached, or fetched.</li>
+  </ol>
+  <p>PMID stays the identity key throughout: DOI, URL, PDF, and bibliography clues only resolve a candidate PMID, they never merge records. This command is a dispatcher, not a new storage path — it reuses the existing add, fetch, attach, URL-identify, and PDF-identify flows rather than inventing a parallel one. One input's failure never blocks the rest.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads local PDFs/folders/bibliography files you point it at. Writes the same files as <a href="#add"><code>/ref:add</code></a> and, unless <code>--no-fetch</code> is passed, the same files as <a href="#fetch"><code>/ref:fetch</code></a> — nothing beyond what those commands already write.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output, mixed intake</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/luckhardt2025.pdf</span>
+<span class="o">identify:
+40665956: pmid -> 40665956
+https://doi.org/10.1002/aur.70084: doi -> 40665956
+~/Downloads/luckhardt2025.pdf: pdf(doi=10.1002/aur.70084) -> 40665956
+
+add:
+40665956: already_present (citekey=luckhardt2025transcranial)
+
+fetch:
+40665956: duplicate_noop</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>url_identify.py</code> and/or <code>pdf_identify.py</code> for local clue extraction, PubMed MCP for DOI/PMCID/title resolution and <code>get_article_metadata</code>, then <code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code> and, unless skipped, the same <code>fetch.py</code> path as <code>/ref:fetch</code>. No new script — pure orchestration over the existing intake pipeline.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#add-url"><code>/ref:add-url</code></a> · <a href="#fetch"><code>/ref:fetch</code></a></p>
 </article>
 
 <!-- ================= fetch ================= -->
@@ -354,6 +396,7 @@
   <dl class="args">
     <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. Each must already have <code>papers/&lt;pmid&gt;/meta.json</code>. Fetch adds to a record; it never creates one.</dd>
   </dl>
+  <p>If no PMID is given at all, Claude runs the shared <code>lib_selector.py recent</code> picker (also available with <code>--kind unresolved</code>, for papers still needing source follow-up) and presents results via a multi-select question labelled <code>&lt;title&gt; (&lt;citekey&gt;, &lt;year&gt;)</code>, instead of failing or asking you to recall PMIDs from memory.</p>
   <h4>What happens</h4>
   <p>For each PMID, the first source that succeeds wins:</p>
   <ol>
@@ -418,6 +461,7 @@
     <dt>&lt;pmid&gt; &lt;path&gt;</dt><dd>One or more PMID/file pairs, required. Each PMID must already have <code>meta.json</code>.</dd>
     <dt>--force</dt><dd>Attach even when the identity check fails. Without it, a failed check is refused.</dd>
   </dl>
+  <p>If no <code>&lt;pmid&gt; &lt;path&gt;</code> pairs are given at all, Claude runs the shared <code>lib_selector.py recent</code> picker and presents the 15 most recent papers via a multi-select question (<code>&lt;title&gt; (&lt;citekey&gt;, &lt;year&gt;)</code>) instead of asking you to recall PMIDs from memory; you still supply a PDF path for each paper you tick.</p>
   <h4>What happens</h4>
   <ol>
     <li>Each pair is handled under its own per-PMID lock.</li>
@@ -487,6 +531,7 @@
   <dl class="args">
     <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. Each must already have <code>meta.json</code>. Full text is not required: an abstract-tier paper extracts from its abstract.</dd>
   </dl>
+  <p>If no PMID is given at all, Claude runs the shared <code>lib_selector.py recent</code> picker (also available with <code>--kind unresolved</code>) and presents results via a multi-select question labelled <code>&lt;title&gt; (&lt;citekey&gt;, &lt;year&gt;)</code>, instead of failing or asking you to recall PMIDs from memory.</p>
   <h4>What happens</h4>
   <ol>
     <li>For each PMID, Claude reads the committed full text (<code>versions/&lt;v&gt;/source.md</code>) if there is one (<code>evidence_tier: "full"</code>), otherwise the abstract (<code>"abstract"</code>).</li>
@@ -520,6 +565,7 @@
     <dt>--model &lt;name&gt;</dt><dd>Defaults to the calling model's own name.</dd>
     <dt>--prompt &lt;text&gt;</dt><dd>Defaults to a plain "describe this figure" prompt. The cache key is the exact (figure hash, model, prompt) triple, so a different prompt is a new request.</dd>
   </dl>
+  <p>If no <code>&lt;pmid&gt;</code> is given at all, Claude runs the shared <code>lib_selector.py recent</code> picker and presents results via a multi-select question labelled <code>&lt;title&gt; (&lt;citekey&gt;, &lt;year&gt;)</code>, instead of asking you to recall a PMID from memory. Once a paper is picked, Claude runs <code>vision.py list --repo &lt;library_root&gt; --pmid &lt;pmid&gt;</code> so you can choose a figure from that version's inventory (id + caption) rather than needing to already know the figure ID.</p>
   <h4>What happens</h4>
   <ol>
     <li><code>request</code> looks the figure up and branches on status:

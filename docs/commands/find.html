@@ -186,7 +186,7 @@
   <h4>Arguments</h4>
   <dl class="args">
     <dt>--q "&lt;text&gt;"</dt><dd>Required. A case-insensitive substring, not a boolean or FTS expression.</dd>
-    <dt>--scope evidence</dt><dd>Default. Searches the title and journal in <code>meta.json</code>, plus the abstract stored in <code>raw/&lt;hash&gt;/response.json</code>.</dd>
+    <dt>--scope evidence</dt><dd>Default. Matches title, abstract, journal, DOI, PMCID, citekey, author names, and grant metadata in <code>meta.json</code>/<code>authorship.json</code>/<code>funding.json</code>/<code>raw/&lt;hash&gt;/response.json</code>, plus saved-query context where present.</dd>
     <dt>--scope notes</dt><dd>Searches <code>papers/&lt;pmid&gt;/notes.md</code>, plus the <code>relevance</code> and <code>why_saved</code> text on every project membership.</dd>
     <dt>--scope all</dt><dd>Searches both, with every hit tagged by <code>kind</code>.</dd>
   </dl>
@@ -194,7 +194,8 @@
   <ol>
     <li>Resolves the library root. If none is configured, it fails and points you to <code>/ref:init</code>.</li>
     <li>Runs <code>search.py</code> and prints its JSON verbatim.</li>
-    <li>Each hit's <code>kind</code> is <code>evidence</code>, <code>personal_note</code>, or <code>project_relevance</code>. Claude never presents a note or relevance comment as a published finding.</li>
+    <li>Each hit's <code>kind</code> is <code>evidence</code>, <code>personal_note</code>, <code>project_relevance</code>, or <code>saved_query</code>. Claude never presents a note or relevance comment as a published finding.</li>
+    <li>Evidence hits also report which structured field matched (e.g. <code>title</code>, <code>doi</code>, <code>author</code>, <code>grant</code>) and, when available, a lifecycle state: <code>metadata-only</code>, <code>abstract-only</code>, <code>full-text</code>, <code>pdf-backed</code>, or <code>oa-pending</code>.</li>
   </ol>
   <div class="note warn"><strong>Title and abstract only.</strong> This command does not search converted full-text passages. For passage-level retrieval, use <a href="#ask"><code>/ref:ask</code></a>, which queries the FTS5 index.</div>
   <h4>Reads &amp; writes</h4>

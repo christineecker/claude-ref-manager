@@ -177,8 +177,8 @@
     <dt>create &lt;slug&gt;</dt><dd>Creates <code>projects/&lt;slug&gt;/project.yaml</code> and an empty <code>papers.yaml</code>. The slug is validated, and a duplicate is refused with the existing project named.</dd>
     <dt>add-question &lt;slug&gt;</dt><dd><code>--id &lt;qid&gt;</code> (passed to the script as <code>--question-id</code>) and <code>--text</code>. Question IDs only need to be unique within their project.</dd>
     <dt>add-paper &lt;slug&gt; &lt;pmid&gt;</dt><dd>Adds a membership record. <code>--reading-status</code> is one of <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. If the paper is already a member, the existing record is returned unchanged.</dd>
-    <dt>show &lt;slug&gt;</dt><dd>Prints the project and its membership list.</dd>
-    <dt>list</dt><dd>Prints each project's slug, scope, and question count.</dd>
+    <dt>show &lt;slug&gt;</dt><dd>Prints the project and its membership list, plus a summary with paper count, question count, reading-state breakdown, and source/completeness counts.</dd>
+    <dt>list</dt><dd>Prints each project's slug, scope, question count, reading-state breakdown, and source/completeness counts, so it can double as a quick project dashboard.</dd>
   </dl>
   <h4>What happens</h4>
   <ol>
@@ -221,7 +221,7 @@
   <h4>Arguments</h4>
   <dl class="args">
     <dt>set</dt><dd>Updates only the fields you pass. <code>--status</code> is one of <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. <code>--why</code> sets <code>why_saved</code>.</dd>
-    <dt>show</dt><dd>With <code>--pmid</code>, prints that one membership. Without it, prints the whole project queue.</dd>
+    <dt>show</dt><dd>With <code>--pmid</code>, prints that one membership. Without it, prints the whole project queue, including reading-state and source/completeness summaries, so the queue doubles as a quick dashboard.</dd>
     <dt>--project &lt;slug&gt;</dt><dd>Required for both.</dd>
   </dl>
   <h4>What happens</h4>

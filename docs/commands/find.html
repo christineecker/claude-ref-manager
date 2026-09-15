@@ -31,7 +31,9 @@
     <li><a href="#selectors">Selector grammar</a></li>
     <li><a href="#search"><code>/ref:search</code></a></li>
     <li><a href="#ask"><code>/ref:ask</code></a></li>
+    <li><a href="#pubmed-query"><code>/ref:pubmed-query</code></a></li>
     <li><a href="#search-pubmed"><code>/ref:search-pubmed</code></a></li>
+    <li><a href="#search-add-fetch"><code>/ref:search-add-fetch</code></a></li>
     <li><a href="#update-queries"><code>/ref:update-queries</code></a></li>
     <li><a href="#related"><code>/ref:related</code></a></li>
   </ol>
@@ -283,6 +285,35 @@
   <p class="writes"><a href="write.html#brief"><code>/ref:brief</code></a> · <a href="write.html#check-citations"><code>/ref:check-citations</code></a> · <a href="acquire.html#extract"><code>/ref:extract</code></a> · <a href="#search"><code>/ref:search</code></a></p>
 </article>
 
+<article class="cmd" id="pubmed-query">
+  <div class="cmd-head"><h3>/ref:pubmed-query</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag readonly">read-only</span></div></div>
+  <p class="summary">Translate a natural-language research prompt or PICO into a PubMed Boolean query without running the search.</p>
+  <div class="synopsis">/ref:pubmed-query &lt;question or PICO&gt; [--broad|--specific]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;question or PICO&gt;</dt><dd>Prose or explicit P/I/C/O lines.</dd>
+    <dt>--broad</dt><dd>Favor sensitivity: more synonyms, fewer restrictive filters.</dd>
+    <dt>--specific</dt><dd>Favor precision: tighter terms and study-design filters when appropriate.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Claude identifies population, intervention/exposure, comparator, outcome, design, date, age, species, language, and author constraints.</li>
+    <li>It emits a PubMed query using stable MeSH terms plus title/abstract synonyms, date filters with <code>[dp]</code>, and author or publication-type tags when requested.</li>
+    <li>It prints the query, a short strategy note, and any limitations. It does not call PubMed or write files.</li>
+  </ol>
+  <h4>Example</h4>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:pubmed-query "P: autistic adolescents; I: tDCS; C: sham; O: social cognition" --specific</span>
+<span class="o">query:
+(("Autism Spectrum Disorder"[Mesh] OR autism[tiab] OR autistic[tiab])
+ AND ("transcranial direct current stimulation"[tiab] OR tDCS[tiab])
+ AND (sham[tiab] OR placebo[tiab])
+ AND ("social cognition"[tiab] OR "theory of mind"[tiab]))</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">No script and no network call. The query is produced by the command layer so the user can inspect or edit it before running <a href="#search-pubmed"><code>/ref:search-pubmed</code></a>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="#search-add-fetch"><code>/ref:search-add-fetch</code></a></p>
+</article>
+
 <article class="cmd" id="search-pubmed">
   <div class="cmd-head"><h3>/ref:search-pubmed</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
   <p class="summary">Turn a question into a PubMed query, run it, and save the exact expression and its results as an immutable run.</p>
@@ -320,6 +351,43 @@
   <p class="writes">MCP <code>search_articles</code> → <code>pubmed_query.py new-run --repo … --slug … --query-text "…" --source pubmed --pmids-file … [--create]</code>. The script also has <code>show</code> and <code>list</code> actions.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#update-queries"><code>/ref:update-queries</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+</article>
+
+<article class="cmd" id="search-add-fetch">
+  <div class="cmd-head"><h3>/ref:search-add-fetch</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Run a prompt/PICO PubMed search, save the full run, then add and fetch a bounded set of PMIDs.</p>
+  <div class="synopsis">/ref:search-add-fetch &lt;question or query&gt; --slug &lt;slug&gt; [--create] [--limit &lt;N&gt;] [--broad|--specific]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;question or query&gt;</dt><dd>Natural language/PICO or an explicit PubMed expression.</dd>
+    <dt>--slug &lt;slug&gt;</dt><dd>Required. Names the immutable saved search run.</dd>
+    <dt>--create</dt><dd>Required for a new slug.</dd>
+    <dt>--limit &lt;N&gt;</dt><dd>Number of returned PMIDs to ingest. Default <code>20</code>; values above <code>100</code> require confirmation.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Builds or accepts the exact PubMed query, then runs PubMed MCP <code>search_articles</code>.</li>
+    <li>Saves the complete search run through <code>pubmed_query.py new-run</code> before limiting.</li>
+    <li>Takes the first <code>N</code> PMIDs, adds metadata through <code>add.py</code>, then fetches full text through <code>fetch.py</code>.</li>
+    <li>Prints separate <code>search</code>, <code>save-run</code>, <code>add</code>, and <code>fetch</code> stage outputs.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, then the same paper files as <a href="acquire.html#add"><code>/ref:add</code></a> and <a href="acquire.html#fetch"><code>/ref:fetch</code></a> for selected PMIDs.</p>
+  <h4>Example</h4>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-add-fetch "autism tDCS sham social cognition" --slug autism-tdcs --create --limit 20</span>
+<span class="o">search:
+found: 42
+selected: 20
+
+add:
+40665956: added (citekey=luckhardt2025transcranial)
+
+fetch:
+40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">PubMed MCP <code>search_articles</code> → <code>pubmed_query.py new-run</code> → PubMed MCP <code>get_article_metadata</code> → <code>add.py</code> → full-text acquisition ladder → <code>fetch.py</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#pubmed-query"><code>/ref:pubmed-query</code></a> · <a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="acquire.html#add-fetch"><code>/ref:add-fetch</code></a></p>
 </article>
 
 <article class="cmd" id="update-queries">

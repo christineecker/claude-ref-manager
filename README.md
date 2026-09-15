@@ -84,6 +84,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-15 · [`0fe05cd`](https://github.com/christineecker/claude-ref-manager/commit/0fe05cd) docs: document /ref:help in commands reference
 - 2026-09-15 · [`a5e9202`](https://github.com/christineecker/claude-ref-manager/commit/a5e9202) Implement UX_BACKLOG.md: onboarding, status health check, error messages, unified intake, and deferred items
 - 2026-09-15 · [`5085f9f`](https://github.com/christineecker/claude-ref-manager/commit/5085f9f) Remove completed IMPLEMENTATION_PLAN.md and fix stale refs
 - 2026-09-15 · [`7eb9b16`](https://github.com/christineecker/claude-ref-manager/commit/7eb9b16) docs: update adding-papers tutorial for new intake commands
@@ -98,5 +99,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`a317423`](https://github.com/christineecker/claude-ref-manager/commit/a317423) feat: create only core library dirs at init, rest lazily on first write
 - 2026-09-15 · [`4e80136`](https://github.com/christineecker/claude-ref-manager/commit/4e80136) docs: add "Adding papers" tutorial covering four ways to find papers
 - 2026-09-15 · [`da340ee`](https://github.com/christineecker/claude-ref-manager/commit/da340ee) Auto-acquire JATS figure images; add no-selector picker fallback
-- 2026-09-15 · [`1d587eb`](https://github.com/christineecker/claude-ref-manager/commit/1d587eb) docs: README with install instructions and auto-updating change log; add plugin marketplace manifest
 <!-- changelog:end -->

@@ -46,7 +46,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_text, library_lock
 from lib_ids import gen_opaque_id, SlugError
-from lib_schema import validate_relation, SchemaError
+from lib_schema import validate_relation, SchemaError, RELATION_TYPES
 
 _PATH = "graph/relations.jsonl"
 _OPPOSITE_DIRECTIONS = {("increase", "decrease"), ("decrease", "increase")}
@@ -237,7 +237,9 @@ def list_relations(library_root: Path) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["propose", "create", "review", "refresh", "show", "list", "neighbors"])
+    ap.add_argument("action", choices=[
+        "propose", "create", "create-manual", "review", "refresh", "show", "list", "neighbors",
+    ])
     ap.add_argument("--repo", required=True)
     ap.add_argument("--id")
     ap.add_argument("--type")
@@ -272,6 +274,29 @@ def main() -> int:
                 library_root, proposal["type"], proposal["subject_concept_id"],
                 proposal["object_concept_id"], proposal["supporting_claims"],
                 proposal["source_version_ids"],
+            )
+        elif args.action == "create-manual":
+            # Found live during phase 9 (gaps.py's real graph testing needed
+            # supports/extends/replicates edges, which "create" can't mint --
+            # it always goes through propose_relation()'s opposite-direction
+            # comparability check, so it can only ever produce
+            # potential_conflict). create_relation() itself already accepts
+            # any non-"contradicts" type; this path just exposes that
+            # directly for a human/calling-agent judgment call that isn't a
+            # claim-pair auto-comparison (e.g. "paper B explicitly extends
+            # paper A's method" is a human/synthesis-agent's reading of the
+            # papers, not something propose_relation()'s deterministic check
+            # can derive from PICO fields alone).
+            if not args.type:
+                print("error: --type required for create-manual "
+                      f"(one of {RELATION_TYPES})", file=sys.stderr)
+                return 1
+            claims = json.loads(Path(args.claim_a_file).read_text()) if args.claim_a_file else []
+            if not isinstance(claims, list):
+                claims = [claims]
+            result = create_relation(
+                library_root, args.type, args.subject_concept, args.object_concept,
+                claims, [],
             )
         elif args.action == "review":
             result = review_relation(library_root, args.id, args.type, args.reviewer, args.rationale)

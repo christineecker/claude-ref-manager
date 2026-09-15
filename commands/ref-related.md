@@ -34,8 +34,11 @@ Steps:
 
 3. **Forward** (if `--direction forward` or `both`): call
    `mcp__claude_ai_PubMed__find_related_articles` with `pmids: [<pmid>]` and the
-   requested `link_type`. Write the returned PMIDs (just the ID list, e.g. from
-   `identifiers.pmid` per result) to a temp JSON file, then print and run:
+   requested `link_type`. **Verified against the live tool**: the response is an
+   ELink linkset, not a list of per-article objects — extract the PMID list from
+   `linksets[0].linksetdbs[0].links` (a flat array of PMID strings), not from any
+   `identifiers.pmid` field (that shape belongs to `get_article_metadata`, not this
+   tool). Write that PMID list to a temp JSON file, then print and run:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/related.py" forward --repo <library_root> --pmid <pmid> --link-type <link_type> --results-file <temp-file>
    ```

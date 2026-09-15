@@ -43,6 +43,13 @@ Steps (for the default weave mode, when a selector is given):
    When it returns a proposal, persist it with the `create` action instead of `propose`.
    Never mark an edge `contradicts` here — that's always a separate, explicit
    `review` action with a rationale.
+   `propose`/`create` only ever produce `potential_conflict` (the deterministic
+   opposite-direction comparability check can't derive `supports`/`extends`/
+   `replicates` from PICO fields alone). When *you* read two papers and judge that
+   one genuinely extends or replicates another — a judgment call, not something to
+   automate — use `relation.py create-manual --type supports|extends|replicates
+   --subject-concept <slug> --object-concept <slug> --claim-a-file <claim.json>`
+   directly; state your reasoning when you report the edge to the user.
 
 5. **Regenerate the derived views** — always run this step (it's also the entirety of
    `--regenerate-only`/no-selector mode), since concepts/relations may have changed:

@@ -115,6 +115,48 @@ class TestStableClaimIds(TempLibrary):
         self.assertEqual(reg2["claims"][new_id]["status"], "active")
 
 
+class TestMultipleClaimsSharingOneLocator(TempLibrary):
+    def test_distinct_claims_at_same_coarse_locator_all_stay_active(self):
+        # Regression: a coarse locator (e.g. "abstract") commonly holds
+        # several genuinely distinct claims. Found live (real ref-extractor
+        # subagent run against PMID 35486828): the original by-locator
+        # registry keyed identity purely by locator, so claim 2 at "abstract"
+        # chain-superseded claim 1, and claim 3 superseded claim 2 -- only
+        # the last of three real claims survived as active, silently
+        # dropping the other two from any default (active-only) view.
+        self.add_paper("104")
+        self.extract("104", [
+            claim(locator="abstract", population="herb A", outcome="finding A"),
+            claim(locator="abstract", population="herb B", outcome="finding B"),
+            claim(locator="abstract", population="herb C", outcome="finding C"),
+        ])
+        registry = json.loads((self.library_root / "papers/104/claim_registry.json").read_text())
+        self.assertEqual(len(registry["claims"]), 3)
+        statuses = {c["status"] for c in registry["claims"].values()}
+        self.assertEqual(statuses, {"active"})
+        self.assertTrue(all(c.get("supersedes") is None for c in registry["claims"].values()))
+
+    def test_rerun_reuses_ids_for_unchanged_and_supersedes_only_the_changed_one(self):
+        self.add_paper("105")
+        self.extract("105", [
+            claim(locator="abstract", population="herb A", outcome="finding A"),
+            claim(locator="abstract", population="herb B", outcome="finding B"),
+        ])
+        reg1 = json.loads((self.library_root / "papers/105/claim_registry.json").read_text())
+        ids_by_pop = {c["population"]: cid for cid, c in reg1["claims"].items()}
+
+        self.extract("105", [
+            claim(locator="abstract", population="herb A", outcome="finding A"),  # unchanged
+            claim(locator="abstract", population="herb B", outcome="finding B (revised)"),  # changed
+        ])
+        reg2 = json.loads((self.library_root / "papers/105/claim_registry.json").read_text())
+        self.assertEqual(reg2["claims"][ids_by_pop["herb A"]]["status"], "active")
+        self.assertEqual(reg2["claims"][ids_by_pop["herb B"]]["status"], "superseded")
+        new_id = reg2["claims"][ids_by_pop["herb B"]]["superseded_by"]
+        self.assertEqual(reg2["claims"][new_id]["supersedes"], ids_by_pop["herb B"])
+        self.assertEqual(reg2["claims"][new_id]["outcome"], "finding B (revised)")
+
+
 class TestMultiPmidBatchIndependence(TempLibrary):
     def test_one_malformed_record_does_not_block_others(self):
         self.add_paper("103")

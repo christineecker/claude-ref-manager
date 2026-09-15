@@ -65,12 +65,36 @@ def _load_registry(paper_dir: Path) -> dict:
     p = _registry_path(paper_dir)
     if p.exists():
         return json.loads(p.read_text())
-    return {"claims": {}, "by_locator": {}}
+    return {"claims": {}}
 
 
 def assign_claim_ids(registry: dict, incoming_claims: list[dict], study_type: str) -> list[dict]:
     """Mutates registry in place; returns the list of fully-formed claim
-    objects (with claim_id assigned) for this extraction run."""
+    objects (with claim_id assigned) for this extraction run.
+
+    A locator can hold MULTIPLE distinct, simultaneously-active claims (a
+    coarse locator like "abstract" commonly does) -- they are co-existing
+    claims, not sequential versions of one claim slot. Supersession only
+    matches an incoming claim against what was already active at that
+    locator BEFORE this run started (`snapshot`), and only when the match is
+    unambiguous:
+      - exact content-hash match against a prior active claim at that
+        locator -> same claim_id, evidence unchanged
+      - no exact match, and exactly ONE prior active claim at that locator
+        remains unconsumed by an earlier claim in this same run -> that one
+        claim's content changed -> supersede it
+      - no exact match, and zero or MORE THAN ONE unconsumed prior claims at
+        that locator -> ambiguous or genuinely new -> mint a fresh claim_id,
+        no supersession asserted (a wrong non-supersession is recoverable
+        via /ref:verify; a wrong supersession silently drops a real claim
+        from the active set, which is the more harmful failure mode)
+    """
+    snapshot: dict[str, list[str]] = {}
+    for cid, c in registry["claims"].items():
+        if c.get("status") == "active":
+            snapshot.setdefault(c["locator"], []).append(cid)
+    consumed: set[str] = set()
+
     out = []
     for raw in incoming_claims:
         claim_for_hash = dict(raw)
@@ -78,19 +102,22 @@ def assign_claim_ids(registry: dict, incoming_claims: list[dict], study_type: st
         chash = _content_hash(claim_for_hash)
         locator = raw["locator"]
 
-        prior_id = registry["by_locator"].get(locator)
-        if prior_id and registry["claims"][prior_id]["content_hash"] == chash:
-            claim_id = prior_id
-            supersedes = None
-        elif prior_id:
-            # same locator, materially different content -> supersede
+        candidates = [cid for cid in snapshot.get(locator, []) if cid not in consumed]
+        exact = next((cid for cid in candidates if registry["claims"][cid]["content_hash"] == chash), None)
+
+        supersedes = None
+        if exact is not None:
+            claim_id = exact
+            consumed.add(exact)
+        elif len(candidates) == 1:
+            prior_id = candidates[0]
             claim_id = gen_opaque_id("c-")
             registry["claims"][prior_id]["superseded_by"] = claim_id
             registry["claims"][prior_id]["status"] = "superseded"
             supersedes = prior_id
+            consumed.add(prior_id)
         else:
             claim_id = gen_opaque_id("c-")
-            supersedes = None
 
         claim = dict(raw)
         claim["claim_id"] = claim_id
@@ -102,7 +129,6 @@ def assign_claim_ids(registry: dict, incoming_claims: list[dict], study_type: st
             claim["supersedes"] = supersedes
 
         registry["claims"][claim_id] = claim
-        registry["by_locator"][locator] = claim_id
         out.append(claim)
     return out
 

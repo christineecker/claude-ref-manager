@@ -80,6 +80,7 @@ def read_items(snapshot_path: Path) -> list[dict]:
             ext = doc.get("ext_ids") or {}
             article = doc.get("article") or {}
             user = doc.get("user_data") or {}
+            files = doc.get("files") or []
             out.append({
                 "id": row_id,
                 "collection_id": collection_id,
@@ -87,6 +88,8 @@ def read_items(snapshot_path: Path) -> list[dict]:
                 "doi": ext.get("doi"),
                 "pmcid": ext.get("pmcid"),
                 "title": article.get("title"),
+                "annotations": user.get("annotations") or [],
+                "files_sha256": [f.get("sha256") for f in files if isinstance(f, dict) and f.get("sha256")],
                 "notes": user.get("notes"),
                 "tags": user.get("tags") or [],
                 "rating": user.get("rating"),

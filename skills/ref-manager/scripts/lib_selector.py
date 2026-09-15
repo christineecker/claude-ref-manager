@@ -70,6 +70,17 @@ def _query_run_pmids(library_root: Path, slug: str, run_id: str | None) -> tuple
     return list(run.get("pmids", [])), run["run_id"]
 
 
+def _study_pmids(library_root: Path, study_id: str) -> list[str]:
+    # local import: study.py is phase 5, avoid a hard dependency for callers
+    # that never use --study (matches the --search/search.py precedent above)
+    import study as study_mod
+
+    for r in study_mod.list_studies(library_root):
+        if r["study_id"] == study_id:
+            return list(r["pmids"])
+    raise SelectorError(f"--study {study_id!r}: no such study")
+
+
 def _search_pmids(library_root: Path, expr: str) -> list[str]:
     # local import to avoid a hard dependency for callers that never use --search
     import search as search_mod
@@ -110,8 +121,6 @@ def resolve(
     tier: str = "any",
     exclude: list[str] | None = None,
 ) -> dict:
-    if study is not None:
-        raise NotAvailableError("--study is not available until phase 5 (study grouping)")
     if concept is not None:
         raise NotAvailableError("--concept is not available until phase 8 (concept graph)")
     if tier not in ("abstract", "full", "any"):
@@ -136,12 +145,15 @@ def resolve(
     elif query:
         base, _run_id = _query_run_pmids(library_root, query, run)
         sources_used += 1
+    elif study:
+        base = _study_pmids(library_root, study)
+        sources_used += 1
     elif search:
         base = _search_pmids(library_root, search)
         sources_used += 1
     else:
         raise SelectorError(
-            "no selector given: pass <pmid...>, --project, --query, --search, or --from-file"
+            "no selector given: pass <pmid...>, --project, --query, --study, --search, or --from-file"
         )
 
     # AND-narrow by project-scoped state (only meaningful in combination with --project)

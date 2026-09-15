@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>People commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>On this page</h4>
+  <ul>
+    <li><a href="#model">Records &amp; evidence</a></li>
+    <li><a href="#flow">Discover to report</a></li>
+  </ul>
+  <h4>Commands</h4>
+  <ul>
+    <li><a href="#person"><code>/ref:person</code></a></li>
+    <li><a href="#publications"><code>/ref:publications</code></a></li>
+    <li><a href="#grant"><code>/ref:grant</code></a></li>
+    <li><a href="#discover"><code>/ref:discover</code></a></li>
+    <li><a href="#report"><code>/ref:report</code></a></li>
+  </ul>
+  <h4>Groups</h4>
+  <ul>
+    <li><a href="acquire.html">acquire</a></li>
+    <li><a href="find.html">find</a></li>
+    <li><a href="organize.html">organize</a></li>
+    <li><a href="write.html">write</a></li>
+    <li><a href="graph.html">graph</a></li>
+    <li><a href="people.html">people</a></li>
+    <li><a href="maintain.html">maintain</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · people · phases 1–2, 11</p>
+  <h1>Researchers, grants, and reports</h1>
+  <p class="lede">These commands answer PI questions: which papers are hers, in what role, under which grant, and who she worked with. The rule behind all of them is that a name match never proves identity. A publication counts only once someone confirms a specific author position, and anything unresolved stays visible instead of being quietly dropped.</p>
+</header>
+
+<section id="model">
+<h2>Records and evidence</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 440" role="img" aria-label="People data model. people/slug.json holds name_variants, orcid, affiliations, confirmed_publications as pmid plus author_index, candidate_publications, rejected_publications and discovery_runs. grants/slug.json holds funder, award_number, approved_aliases, title, pi, aims and publication_links. A confirmed author position combined with papers/pmid/authorship.json yields a role: sole, first, last, middle, or unresolved when the author list is incomplete. Independent contribution_flags shared_first, shared_senior and corresponding are set only through /ref:verify with an evidence statement, never inferred from position. papers/pmid/funding.json observations have kinds indexed_funding_association from the PubMed grant list, explicit_acknowledgement_verified from JATS funding groups, and possible_match from acknowledgement prose; a paper with no funding evidence has state not_checked or unknown. Exact award matches against a grant's approved aliases become publication_acknowledges_grant edges.">
+  <defs>
+    <marker id="p-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="p-arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+
+  <!-- person -->
+  <rect x="14" y="20" width="270" height="196" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="30" y="44" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="var(--accent)">people/&lt;slug&gt;.json</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <text x="30" y="68">name_variants · orcid</text>
+    <text x="30" y="86">affiliations</text>
+    <text x="30" y="110" font-weight="500">confirmed_publications</text>
+    <text x="42" y="126" fill-opacity=".65">{pmid, author_index}</text>
+    <text x="30" y="150">candidate_publications</text>
+    <text x="30" y="168">rejected_publications</text>
+    <text x="30" y="186">discovery_runs</text>
+    <text x="42" y="202" fill-opacity=".65">{query, retrieved_at, candidate_count}</text>
+  </g>
+
+  <!-- authorship -->
+  <rect x="334" y="20" width="286" height="196" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text x="350" y="44" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">papers/&lt;pmid&gt;/authorship.json</text>
+  <text x="350" y="62" font-size="11" fill="currentColor" fill-opacity=".65">authors[] in raw PubMed order · complete?</text>
+  <text x="350" y="86" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">ROLE (EXACTLY ONE)</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <rect x="350" y="94" width="50" height="24" rx="6" fill="var(--card)" stroke="currentColor"/><text x="360" y="110">sole</text>
+    <rect x="406" y="94" width="54" height="24" rx="6" fill="var(--card)" stroke="currentColor"/><text x="416" y="110">first</text>
+    <rect x="466" y="94" width="50" height="24" rx="6" fill="var(--card)" stroke="currentColor"/><text x="476" y="110">last</text>
+    <rect x="522" y="94" width="60" height="24" rx="6" fill="var(--card)" stroke="currentColor"/><text x="532" y="110">middle</text>
+    <rect x="350" y="124" width="90" height="24" rx="6" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/><text x="360" y="140">unresolved</text>
+  </g>
+  <text x="448" y="140" font-size="10.5" fill="currentColor" fill-opacity=".6">incomplete list</text>
+  <text x="350" y="170" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">CONTRIBUTION_FLAGS (INDEPENDENT)</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <rect x="350" y="178" width="90" height="24" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/><text x="358" y="194">shared_first</text>
+    <rect x="446" y="178" width="96" height="24" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/><text x="454" y="194">shared_senior</text>
+    <rect x="548" y="178" width="66" height="24" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/><text x="552" y="194">corresp.</text>
+  </g>
+
+  <line x1="284" y1="118" x2="330" y2="118" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#p-arrA)"/>
+
+  <!-- verify note -->
+  <rect x="660" y="20" width="266" height="196" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="676" y="44" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">/ref:verify overlays</text>
+  <g font-size="11" fill="currentColor" fill-opacity=".75">
+    <text x="676" y="68">review-author-contribution:</text>
+    <text x="676" y="84">a flag needs an evidence statement;</text>
+    <text x="676" y="100">never inferred from last position</text>
+    <text x="676" y="126">review-person-identity:</text>
+    <text x="676" y="142">confirm / reject a position</text>
+    <text x="676" y="168">review-grant-link:</text>
+    <text x="676" y="184">records a manual link on the grant;</text>
+    <text x="676" y="200">never folds aliases automatically</text>
+  </g>
+  <line x1="660" y1="190" x2="624" y2="190" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#p-arr)"/>
+
+  <!-- funding -->
+  <rect x="14" y="252" width="440" height="170" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text x="30" y="276" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">papers/&lt;pmid&gt;/funding.json · observations[].kind</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="30" y="288" width="408" height="36" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="304" font-family="IBM Plex Mono,monospace" font-weight="500">indexed_funding_association</text>
+    <text x="42" y="318" fill-opacity=".65">PubMed GrantList at /ref:add</text>
+    <rect x="30" y="330" width="408" height="36" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="346" font-family="IBM Plex Mono,monospace" font-weight="500">explicit_acknowledgement_verified</text>
+    <text x="42" y="360" fill-opacity=".65">JATS funding-group / funding-statement, at /ref:fetch</text>
+    <rect x="30" y="372" width="408" height="36" rx="6" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="42" y="388" font-family="IBM Plex Mono,monospace" font-weight="500">possible_match</text>
+    <text x="42" y="402" fill-opacity=".65">acknowledgement prose only · state not_checked / unknown if none</text>
+  </g>
+
+  <!-- grant -->
+  <rect x="534" y="252" width="392" height="110" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="550" y="276" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="var(--accent)">grants/&lt;slug&gt;.json</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <text x="550" y="300">funder · award_number · title · pi · aims</text>
+    <text x="550" y="318" font-weight="500">approved_aliases</text>
+    <text x="680" y="318" fill-opacity=".65">["R01 HL123456", "HL123456"]</text>
+    <text x="550" y="336">publication_links</text>
+  </g>
+  <line x1="454" y1="306" x2="530" y2="306" stroke="currentColor" stroke-width="1.5" marker-end="url(#p-arr)"/>
+  <text x="462" y="296" font-size="10.5" fill="currentColor" fill-opacity=".6">exact match</text>
+  <text x="534" y="392" font-size="11" fill="currentColor" fill-opacity=".75">graph_people.py →</text>
+  <text x="534" y="410" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">publication_acknowledges_grant · researcher_authored_publication</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>user-minted record</span>
+  <span><span class="sw amber"></span>needs explicit evidence</span>
+  <span><span class="sw dash"></span>weaker or reviewed-later evidence</span>
+</div>
+<figcaption>Role and contribution are separate on purpose. Being listed last doesn't make someone senior or corresponding, and a footnote saying "these authors contributed equally" doesn't change anyone's position. So <code>publications.py</code> derives role from position alone, and shared or corresponding authorship is a separate reviewed flag.</figcaption>
+</figure>
+</section>
+
+<section id="flow">
+<h2>From discovery to a report</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 230" role="img" aria-label="Discovery to report flow. /ref:person create mints the record. /ref:discover builds a PubMed author query from name variants and ORCID, and stores the exact query and candidate list on the person record. Each candidate is confirmed with an author index or rejected; rejected PMIDs are never re-suggested. Only confirmed publications feed /ref:publications, which gives roles and a coauthor declaration, and /ref:report, which writes reports/label/manifest.json, publications.csv and report.md.">
+  <defs>
+    <marker id="f-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="f-arrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="40" width="150" height="70" rx="8" fill="none" stroke="currentColor"/>
+    <text x="28" y="64" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:person</text>
+    <text x="28" y="84" fill-opacity=".65">create slug, name,</text>
+    <text x="28" y="98" fill-opacity=".65">optional ORCID</text>
+
+    <rect x="194" y="40" width="170" height="70" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="208" y="64" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:discover</text>
+    <text x="208" y="84" fill-opacity=".7">PubMed author query →</text>
+    <text x="208" y="98" fill-opacity=".7">candidates + discovery_run</text>
+
+    <rect x="394" y="30" width="170" height="90" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="408" y="54" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">you decide</text>
+    <text x="408" y="74" fill-opacity=".7">confirm-publication</text>
+    <text x="408" y="88" fill-opacity=".7">  --author-index N</text>
+    <text x="408" y="106" fill-opacity=".7">reject-publication</text>
+
+    <rect x="594" y="20" width="160" height="56" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="608" y="44" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:publications</text>
+    <text x="608" y="62" fill-opacity=".7">roles · --coauthors</text>
+
+    <rect x="594" y="92" width="160" height="56" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="608" y="116" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:report</text>
+    <text x="608" y="134" fill-opacity=".7">one person, year window</text>
+
+    <rect x="784" y="84" width="142" height="84" rx="8" fill="none" stroke="currentColor"/>
+    <text x="796" y="104" font-family="IBM Plex Mono,monospace" font-weight="500">reports/&lt;label&gt;/</text>
+    <text x="796" y="122" font-family="IBM Plex Mono,monospace" fill-opacity=".75">manifest.json</text>
+    <text x="796" y="138" font-family="IBM Plex Mono,monospace" fill-opacity=".75">publications.csv</text>
+    <text x="796" y="154" font-family="IBM Plex Mono,monospace" fill-opacity=".75">report.md</text>
+  </g>
+  <line x1="164" y1="75" x2="190" y2="75" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-arr)"/>
+  <line x1="364" y1="75" x2="390" y2="75" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#f-arrM)"/>
+  <line x1="564" y1="60" x2="590" y2="50" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-arr)"/>
+  <line x1="564" y1="90" x2="590" y2="118" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-arr)"/>
+  <line x1="754" y1="120" x2="780" y2="124" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-arr)"/>
+  <text x="394" y="150" font-size="10.5" fill="currentColor" fill-opacity=".6">rejected PMIDs are kept so they are never re-suggested</text>
+  <text x="14" y="200" font-size="10.5" fill="currentColor" fill-opacity=".6">Only confirmed_publications count. Candidates and rejected matches never reach roles, coauthor lists, or reports (identity_review_policy: confirmed_publications_only).</text>
+</svg>
+</div>
+<figcaption>Discovery never changes what counts on its own. It only records the exact query and what came back, so you can see later why a paper was suggested.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>Reference</h2>
+<div class="cmd-groups">
+
+<article class="cmd" id="person">
+  <div class="cmd-head"><h3>/ref:person</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>
+  <p class="summary">Create and inspect researcher identity records: name variants, ORCID, and confirmed, candidate and rejected publication matches.</p>
+  <div class="synopsis">/ref:person create &lt;slug&gt; --name "&lt;Last, First&gt;" [--orcid &lt;id&gt;]
+/ref:person show &lt;slug&gt;
+/ref:person list</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>create</dt><dd>Mints <code>people/&lt;slug&gt;.json</code> with one name variant. The slug is yours and library-global. A duplicate is refused and the conflicting record is named. It is never suffixed or overwritten.</dd>
+    <dt>show</dt><dd>The full record, including <code>discovery_runs</code> once <code>/ref:discover</code> has run.</dd>
+    <dt>list</dt><dd>Slug and name variants for every person.</dd>
+  </dl>
+  <p class="writes">The script also implements <code>confirm-publication --slug --pmid --author-index</code> and <code>reject-publication --slug --pmid</code>, which <code>/ref:discover</code> points you to. The <code>/ref:person</code> command file lists only create/show/list; <a href="organize.html#verify">/ref:verify</a> <code>review-person-identity</code> reaches the same functions and also logs a correction record.</p>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root.</li>
+    <li>Runs <code>person.py</code> with the matching action and prints its JSON verbatim.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>people/&lt;slug&gt;.json</code> (create). Fields: <code>slug</code>, <code>name_variants</code>, <code>orcid</code>, <code>affiliations</code>, <code>confirmed_publications</code>, <code>candidate_publications</code>, <code>rejected_publications</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person create moreau-c --name "Moreau, Claire" --orcid 0000-0002-1825-0097</span>
+<span class="o">{
+  "slug": "moreau-c",
+  "name_variants": ["Moreau, Claire"],
+  "orcid": "0000-0002-1825-0097",
+  "affiliations": [],
+  "confirmed_publications": [],
+  "candidate_publications": [],
+  "rejected_publications": []
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:person create moreau-c --name "Moreau, C"</span>
+<span class="w">error: person 'moreau-c' already exists at people/moreau-c.json</span>
+<span class="p">›</span> <span class="cmd">/ref:person list</span>
+<span class="o">[
+  {"slug": "moreau-c", "name_variants": ["Moreau, Claire"]},
+  {"slug": "tanaka-h", "name_variants": ["Tanaka H"]}
+]</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>person.py {create|show|list|confirm-publication|reject-publication} --repo &lt;root&gt; --slug … [--name …] [--orcid …] [--pmid …] [--author-index N]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#discover">/ref:discover</a> · <a href="#publications">/ref:publications</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="../tutorials/pi-report.html">PI report tutorial</a></p>
+</article>
+
+<article class="cmd" id="publications">
+  <div class="cmd-head"><h3>/ref:publications</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">List a person's confirmed publications with their authorship role, or derive a coauthor declaration for a date window.</p>
+  <div class="synopsis">/ref:publications --person &lt;id&gt; [--role sole|first|last|middle|unresolved]
+/ref:publications --person &lt;id&gt; --coauthors --since &lt;date&gt; [--to &lt;date&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--person</dt><dd>Required person slug.</dd>
+    <dt>--role</dt><dd>Filter the role list. Roles are mutually exclusive: one author is <code>sole</code>, index 0 is <code>first</code>, the final index is <code>last</code>, anything else is <code>middle</code>, and an incomplete author list gives <code>unresolved</code>.</dd>
+    <dt>--coauthors --since [--to]</dt><dd>A collaborator declaration (e.g. for NSF/NIH), compared at year granularity.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads <code>confirmed_publications</code> only; candidates never count.</li>
+    <li>Roles: classifies each confirmed <code>author_index</code> against <code>authorship.json</code>.</li>
+    <li>Coauthors: an author at a position another person has confirmed is grouped by that identity (<code>confirmed_identity</code>). Group authors stay one named group. A name matching another person's variant with no confirmed link goes to <code>unconfirmed_candidates</code>, and everyone else is keyed by <code>exact_name</code>.</li>
+    <li>Every paper in the window with an incomplete author list appears in <code>gaps</code>. None of these lists may be dropped when summarizing.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>people/*.json</code>, <code>papers/&lt;pmid&gt;/meta.json</code>, <code>authorship.json</code>. Writes nothing. <code>contribution_flags</code> (shared_first / shared_senior / corresponding) are not part of this output.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:publications --person moreau-c</span>
+<span class="o">[
+  {"pmid": "38000001", "author_index": 2, "role": "last",  "author_count": 3},
+  {"pmid": "38000002", "author_index": 0, "role": "first", "author_count": 2},
+  {"pmid": "38000003", "author_index": 0, "role": "sole",  "author_count": 1}
+]</span>
+<span class="p">›</span> <span class="cmd">/ref:publications --person moreau-c --coauthors --since 2023 --to 2024</span>
+<span class="o">{
+  "person": "moreau-c",
+  "since": "2023",
+  "until": "2024",
+  "coauthors": [
+    {"name": "Lindqvist E", "identity_method": "exact_name", "affiliation": null,
+     "most_recent_pub": "2023", "pmids": ["38000001"]},
+    {"name": "Okafor A", "identity_method": "exact_name", "affiliation": null,
+     "most_recent_pub": "2023", "pmids": ["38000001"]}
+  ],
+  "unconfirmed_candidates": [
+    {"name": "Tanaka H", "candidate_person": "tanaka-h", "pmids": ["38000002"]}
+  ],
+  "gaps": [],
+  "scope_note": "derived from library holdings, not a complete publication record (§3c)"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>publications.py --repo &lt;root&gt; --person &lt;id&gt; [--role …] [--coauthors --since … [--to …]]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#report">/ref:report</a> · <a href="#person">/ref:person</a> · <a href="organize.html#verify">/ref:verify</a></p>
+</article>
+
+<article class="cmd" id="grant">
+  <div class="cmd-head"><h3>/ref:grant</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>
+  <p class="summary">Create and inspect grant records: funder, award number, approved award aliases, title, PI and aims.</p>
+  <div class="synopsis">/ref:grant create &lt;slug&gt; --funder "&lt;name&gt;" --award "&lt;award number&gt;" [--title "…"] [--pi &lt;person-slug&gt;] [--aims "…"]
+/ref:grant add-alias &lt;slug&gt; --alias "&lt;award string&gt;"
+/ref:grant show &lt;slug&gt;
+/ref:grant list</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>create</dt><dd>Mints <code>grants/&lt;slug&gt;.json</code>. The award number seeds <code>approved_aliases</code>. A duplicate slug is refused and the conflicting record is named.</dd>
+    <dt>add-alias</dt><dd>Keeps another string the funder uses for the same award, e.g. <code>HL123456</code> next to <code>R01 HL123456</code>. Existing aliases are never overwritten, and re-adding one is a no-op.</dd>
+    <dt>show / list</dt><dd>Full record, or slug/funder/award for all grants.</dd>
+  </dl>
+  <p class="writes">Why explicit aliases? Funders report one award under several normalized or legacy strings, but two similar strings can also be two different awards. Matching is exact against approved aliases, so merging them is always your decision.</p>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root.</li>
+    <li>Runs <code>grant.py</code> and prints its JSON verbatim.</li>
+    <li>On the next <code>/ref:weave</code>, <code>graph_people.py</code> links each <code>funding.json</code> observation whose award string exactly matches an alias as <code>publication_acknowledges_grant</code>, carrying the observation's <code>evidence_kind</code>.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>grants/&lt;slug&gt;.json</code>: <code>slug</code>, <code>funder</code>, <code>award_number</code>, <code>approved_aliases</code>, <code>title</code>, <code>pi</code>, <code>aims</code>, <code>publication_links</code> (filled by <code>/ref:verify review-grant-link</code>).</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:grant create hl123456 --funder "NHLBI" --award "R01 HL123456" --title "Blood pressure and brain health" --pi moreau-c</span>
+<span class="p">›</span> <span class="cmd">/ref:grant add-alias hl123456 --alias "HL123456"</span>
+<span class="o">{
+  "aims": null,
+  "approved_aliases": ["R01 HL123456", "HL123456"],
+  "award_number": "R01 HL123456",
+  "funder": "NHLBI",
+  "pi": "moreau-c",
+  "publication_links": [],
+  "slug": "hl123456",
+  "title": "Blood pressure and brain health"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:weave --regenerate-only</span>
+<span class="c"># graph_people.py half; both GrantList strings now match one grant</span>
+<span class="o">{
+  "researcher_authored_publication": 3,
+  "publication_acknowledges_grant": 2,
+  "publication_supports_aim": 0,
+  "researcher_lab_membership": 0,
+  "publication_supports_aim_note": "unpopulated -- no mechanism in any phase links a publication to a specific grant aim (§5a)",
+  "researcher_lab_membership_note": "unpopulated -- no /ref:lab command exists in PLAN.md; labs/&lt;slug&gt;.json has no writer yet"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>grant.py {create|add-alias|show|list} --repo &lt;root&gt; --slug … [--funder …] [--award …] [--alias …] [--title …] [--pi …] [--aims …]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="organize.html#verify">/ref:verify</a> · <a href="graph.html#weave">/ref:weave</a> · <a href="acquire.html#fetch">/ref:fetch</a> (JATS funding extraction)</p>
+</article>
+
+<article class="cmd" id="discover">
+  <div class="cmd-head"><h3>/ref:discover</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed</span></div></div>
+  <p class="summary">Run a manually started PubMed author search for one researcher and store the results as candidates awaiting your confirmation.</p>
+  <div class="synopsis">/ref:discover --person &lt;id&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--person</dt><dd>Required person slug.</dd>
+    <dt>--grant</dt><dd>Not implemented: grant records have no candidate-publication fields yet. The script refuses with an error.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads the person record and builds an author query from name variants (and ORCID, if present).</li>
+    <li>Calls PubMed search with that exact query, then writes the candidates (at least <code>pmid</code>, <code>title</code>) to a temp file.</li>
+    <li><code>discover.py</code> appends a <code>discovery_runs</code> entry and adds new candidates. PMIDs already confirmed or rejected are skipped.</li>
+    <li>You confirm each real match at its author position, or reject it. The agent never treats a candidate as confirmed.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Updates <code>people/&lt;slug&gt;.json</code>: <code>candidate_publications</code>, <code>discovery_runs</code>. Does not add papers to the library; ingest confirmed papers with <a href="acquire.html#add">/ref:add</a>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (candidate list supplied by hand)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:discover --person moreau-c</span>
+<span class="c"># PubMed query: Moreau C[Author] → 4 hits</span>
+<span class="o">{
+  "candidate_publications": [
+    {"pmid": "38000001", "title": "Drug X lowers systolic blood pressure in adults with hypertension"},
+    {"pmid": "38000002", "title": "Drug X raises systolic blood pressure at 12 weeks"},
+    {"pmid": "38000003", "title": "Systolic blood pressure and cognitive decline"},
+    {"pmid": "37999999", "title": "An unrelated Moreau paper"}
+  ],
+  "confirmed_publications": [],
+  …
+  "discovery_runs": [
+    {"query": "Moreau C[Author]", "retrieved_at": "2026-09-15T10:15:26.979997+00:00", "candidate_count": 4}
+  ]
+}</span>
+<span class="c"># confirm Moreau's real positions, reject the stranger (person.py actions)</span>
+<span class="o">person.py confirm-publication --slug moreau-c --pmid 38000001 --author-index 2
+person.py reject-publication  --slug moreau-c --pmid 37999999</span>
+<span class="p">›</span> <span class="cmd">/ref:discover --grant hl123456</span>
+<span class="w">error: --grant discovery is not implemented in phase 2 (grants have no candidate-publication fields yet); use --person</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>person.py show</code>, then <code>discover.py --repo &lt;root&gt; --person &lt;id&gt; --query-text "&lt;exact query&gt;" --candidates-file &lt;json&gt;</code>. The PubMed call is made by the command, never by the script.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#person">/ref:person</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="find.html#search-pubmed">/ref:search-pubmed</a></p>
+</article>
+
+<article class="cmd" id="report">
+  <div class="cmd-head"><h3>/ref:report</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag phase">--citations: phase 11</span></div></div>
+  <p class="summary">Generate a reproducible publication report for one researcher and year window, as a manifest, a CSV and Markdown.</p>
+  <div class="synopsis">/ref:report --person &lt;id&gt; --from &lt;date&gt; --to &lt;date&gt; [--label &lt;slug&gt;] [--citations [--stale-days N]]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--person</dt><dd>Required person slug.</dd>
+    <dt>--from / --to</dt><dd>Required. Compared at year granularity (<code>publication_year</code>).</dd>
+    <dt>--label</dt><dd>Output folder name. Default <code>&lt;person&gt;-&lt;from&gt;-&lt;to&gt;</code>.</dd>
+    <dt>--citations</dt><dd>Add PMC-indexed citing-article counts from <code>/ref:audit --citations</code> observations.</dd>
+    <dt>--stale-days N</dt><dd>Flag a count older than N days as stale (default 180).</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Takes confirmed publications only. Papers with no <code>meta.json</code> or no year are excluded, never guessed.</li>
+    <li>Classifies role as <code>/ref:publications</code> does and sorts by year, then PMID.</li>
+    <li>Writes the CSV and Markdown, then a manifest recording the policies used. Rerunning with unchanged data reproduces identical CSV/Markdown; only <code>generated_at</code> differs.</li>
+    <li>With <code>--citations</code>, each count carries its source and retrieval date. No observation reads <code>unknown</code>, never <code>0</code>, and the number is never called "citations".</li>
+  </ol>
+  <p class="writes">Not implemented yet: grouping by grant or lab. This is the basic single-person report.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>people/&lt;slug&gt;.json</code>, <code>meta.json</code>, <code>authorship.json</code>, citation observations. Writes <code>reports/&lt;label&gt;/manifest.json</code>, <code>publications.csv</code> (<code>pmid, citekey, doi, year, journal, title, author_role</code>, plus <code>citation_count, citation_source, citation_retrieved_at, citation_coverage, citation_stale</code> with <code>--citations</code>), <code>report.md</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:report --person moreau-c --from 2023 --to 2024</span>
+<span class="o">{
+  "person": "moreau-c",
+  "from": "2023",
+  "to": "2024",
+  "date_basis": "publication_year",
+  "missing_date_handling": "excluded",
+  "identity_review_policy": "confirmed_publications_only",
+  "dedup_policy": "unique_by_pmid",
+  "publication_count": 3,
+  "generated_at": "2026-09-15T10:15:27.854144+00:00",
+  "includes_citations": false
+}</span>
+<span class="c"># reports/moreau-c-2023-2024/publications.csv</span>
+<span class="o">pmid,citekey,doi,year,journal,title,author_role
+38000001,okafor2023drug,10.1000/a1,2023,Hypertension,Drug X lowers systolic blood pressure in adults with hypertension,last
+38000002,moreau2024drug,10.1000/a2,2024,J Hypertens,Drug X raises systolic blood pressure at 12 weeks,first
+38000003,moreau2024systolic,10.1000/a3,2024,Neurology,Systolic blood pressure and cognitive decline,sole</span>
+<span class="p">›</span> <span class="cmd">/ref:report --person moreau-c --from 2023 --to 2024 --label moreau-2023-2024-cit --citations</span>
+<span class="c"># report.md, no /ref:audit --citations run yet</span>
+<span class="o">| PMID | Year | Role | Title | Citing articles (PMC) | Source | Retrieved | Stale |
+|---|---|---|---|---|---|---|---|
+| 38000001 | 2023 | last | Drug X lowers systolic blood pressure in adults with hypertension | unknown | — | — | — |
+| 38000002 | 2024 | first | Drug X raises systolic blood pressure at 12 weeks | unknown | — | — | — |
+| 38000003 | 2024 | sole | Systolic blood pressure and cognitive decline | unknown | — | — | — |
+
+Total unique publications: 3</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>report.py --repo &lt;root&gt; --person &lt;id&gt; --from … --to … [--label …] [--citations] [--stale-days N]</code>; role logic from <code>publications.classify_role</code>, observations from <code>audit.latest_real_observation</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#publications">/ref:publications</a> · <a href="maintain.html#audit">/ref:audit</a> · <a href="../tutorials/pi-report.html">PI report tutorial</a></p>
+</article>
+
+</div>
+</section>
+
+<nav class="pager">
+  <a href="graph.html"><small>Previous</small>Graph commands</a>
+  <a href="maintain.html" style="text-align:right"><small>Next</small>Maintain commands</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code>.</footer>
+</body>
+</html>

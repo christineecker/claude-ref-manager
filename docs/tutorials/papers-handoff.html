@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Papers handoff · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Round-trip with ReadCube Papers</h1>
+  <p class="lede">Read in Papers, keep the library as the authority. You'll open a PDF in the app, export a batch Papers can import with your note and tags attached, import it yourself, and bring your highlights back. Commands used: <code>/ref:note</code>, <code>/ref:open</code>, <code>/ref:export-papers</code>, and <code>/ref:pull-annotations</code>. The last step covers what <code>/ref:fetch</code> does and doesn't do with Papers.</p>
+</header>
+
+<section>
+<h2>The journey</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 560" role="img" aria-label="Sequence diagram with four lifelines: you, Claude Code, the library, and Papers.app. 1: you run /ref:open; Claude Code resolves the acquired PDF in the library and runs open -a Papers on it. 2: you run /ref:export-papers; Claude Code takes a read-only SQLite backup snapshot of the Papers database for duplicate detection, then writes references.bib, PDF copies and manifest.json into the library's export folder, and prints the destination and the import instruction. 3: you import references.bib through the Papers UI, then read and annotate there. 4: you run /ref:pull-annotations; Claude Code snapshots Papers again, reads the item's annotations, and upserts annotations.json in the library, tombstoning rather than deleting. Papers' database is never written.">
+  <defs>
+    <marker id="phArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="phArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="phArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- heads -->
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor" text-anchor="middle">
+    <rect x="40" y="14" width="140" height="34" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="110" y="36">you</text>
+    <rect x="280" y="14" width="140" height="34" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="350" y="36">Claude Code</text>
+    <rect x="520" y="14" width="140" height="34" rx="8" fill="var(--card)" stroke="currentColor"/><text x="590" y="36">&lt;LIBRARY&gt;</text>
+    <rect x="760" y="14" width="140" height="34" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/><text x="830" y="36">Papers.app</text>
+  </g>
+  <g stroke="currentColor" stroke-opacity=".35" stroke-dasharray="3 4">
+    <line x1="110" y1="48" x2="110" y2="540"/><line x1="350" y1="48" x2="350" y2="540"/>
+    <line x1="590" y1="48" x2="590" y2="540"/><line x1="830" y1="48" x2="830" y2="540"/>
+  </g>
+  <text x="840" y="534" font-size="10.5" fill="var(--amber)">database never written</text>
+
+  <g font-size="11" fill="currentColor">
+    <!-- phase labels -->
+    <g font-family="IBM Plex Mono,monospace" font-size="10.5" fill="var(--accent)" font-weight="500">
+      <text x="14" y="78">1</text><text x="14" y="176">2</text><text x="14" y="352">3</text><text x="14" y="430">4</text>
+    </g>
+
+    <!-- 1 open -->
+    <line x1="110" y1="74" x2="344" y2="74" stroke="currentColor" stroke-width="1.5" marker-end="url(#phArr)"/>
+    <text x="124" y="68" font-family="IBM Plex Mono,monospace">/ref:open 38000101</text>
+    <line x1="350" y1="98" x2="584" y2="98" stroke="currentColor" stroke-width="1.5" marker-end="url(#phArr)"/>
+    <text x="364" y="92" fill-opacity=".75">resolve acquired PDF</text>
+    <line x1="350" y1="126" x2="824" y2="126" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#phArrA)"/>
+    <text x="604" y="120" font-family="IBM Plex Mono,monospace" fill="var(--accent)">open -a Papers &lt;pdf&gt;</text>
+
+    <!-- 2 export -->
+    <line x1="110" y1="172" x2="344" y2="172" stroke="currentColor" stroke-width="1.5" marker-end="url(#phArr)"/>
+    <text x="124" y="166" font-family="IBM Plex Mono,monospace">/ref:export-papers …</text>
+    <line x1="350" y1="202" x2="824" y2="202" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#phArrM)"/>
+    <text x="604" y="196" fill="var(--amber)">read-only snapshot (SQLite backup API)</text>
+    <line x1="830" y1="226" x2="356" y2="226" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#phArrM)"/>
+    <text x="604" y="244" fill-opacity=".75">items: PMID / DOI → already_known</text>
+    <line x1="350" y1="272" x2="584" y2="272" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#phArrA)"/>
+    <text x="364" y="266" fill="var(--accent)">references.bib · PDFs · manifest</text>
+    <line x1="350" y1="304" x2="116" y2="304" stroke="currentColor" stroke-width="1.5" marker-end="url(#phArr)"/>
+    <text x="124" y="298" fill-opacity=".75">destination + "import through</text>
+    <text x="124" y="318" fill-opacity=".75">Papers' own UI"</text>
+
+    <!-- 3 import -->
+    <line x1="110" y1="348" x2="824" y2="348" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#phArr)"/>
+    <text x="124" y="342">import references.bib in the app (you, not the plugin)</text>
+    <line x1="110" y1="380" x2="824" y2="380" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#phArr)"/>
+    <text x="124" y="374">read · highlight · margin notes</text>
+
+    <!-- 4 pull -->
+    <line x1="110" y1="426" x2="344" y2="426" stroke="currentColor" stroke-width="1.5" marker-end="url(#phArr)"/>
+    <text x="124" y="420" font-family="IBM Plex Mono,monospace">/ref:pull-annotations 38000102</text>
+    <line x1="350" y1="456" x2="824" y2="456" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#phArrM)"/>
+    <text x="604" y="450" fill="var(--amber)">snapshot again</text>
+    <line x1="830" y1="480" x2="356" y2="480" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#phArrM)"/>
+    <text x="604" y="498" fill-opacity=".75">$.user_data.annotations[]</text>
+    <line x1="350" y1="516" x2="584" y2="516" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#phArrA)"/>
+    <text x="364" y="510" fill="var(--accent)">upsert annotations.json</text>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>ref-manager writes a file, or hands the OS a file to open</span>
+  <span><span class="sw amber dash"></span>read-only snapshot of Papers' database</span>
+  <span><span class="sw dash"></span>you, in the app</span>
+</div>
+<figcaption>Outbound is files only, and inbound is reads only. Neither direction writes Papers' live database, whose <code>actions_queue</code> is a sync queue that writes could corrupt. For the field-by-field mapping, see the <strong>Papers handoff</strong> section of the <a href="../figures/paper-repo-anatomy.html">paper directory anatomy figure</a>.</figcaption>
+</figure>
+<p class="muted">The example uses project <code>tdcs-review</code>, batch <code>wm-batch</code>, and placeholder PMIDs <code>38000101</code> and <code>38000102</code>, both screened <code>included</code>. Outputs labelled <em>scratch library</em> are real. There, <code>--papers-db</code> pointed at a synthetic SQLite file with Papers' <code>items(id, collection_id, json)</code> shape, never at the real library.</p>
+</section>
+
+<section>
+<h2>Steps</h2>
+<ol class="steps">
+
+<li>
+<h3>Write the note you want to carry over</h3>
+<p><code>notes.md</code> is your content, and <code>/ref:note</code> is the only command that writes it. Each entry is appended with a timestamp.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:note 38000101 "Strongest RCT so far; sham blinding reported in supplement."</span>
+<span class="o">appended to …/lib/papers/38000101/notes.md</span></pre>
+</li>
+
+<li>
+<h3>Open one PDF in Papers</h3>
+<p><code>/ref:open</code> hands the acquired PDF to the OS with <code>open -a Papers</code>, the same as double-clicking it in Finder. It's the only command that touches the app itself. With no PDF on file, it says so without failing:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:open 38000101</span>
+<span class="o">{
+  "pmid": "38000101",
+  "status": "no_pdf_acquired",
+  "message": "no acquired PDF for this paper yet — run /ref:fetch or /ref:attach first"
+}</span></pre>
+<p>Once <code>/ref:fetch</code> or <code>/ref:attach</code> has stored a PDF, the result becomes <code>{"pmid": …, "status": "opened", "path": "…/raw/&lt;sha256&gt;/source.pdf"}</code>.</p>
+</li>
+
+<li>
+<h3>Plan the export with <code>--dry-run</code></h3>
+<p>Choose the papers with any selector. <code>--dry-run</code> resolves the set, checks for duplicates against a read-only snapshot of Papers, and prints the whole plan without writing a file. Claude looks for <code>~/Library/Application Support/Papers/*.db</code> and passes it as <code>--papers-db</code>.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export-papers --project tdcs-review --screened included --batch wm-batch --tags-from tdcs-review --notes --dry-run</span>
+<span class="o">{
+  "dry_run": true,
+  "destination": "…/lib/exports/papers/wm-batch",
+  "manifest": {
+    "selector_expression": "--project tdcs-review --screened included",
+    "pmids": ["38000101", "38000102"],
+    "citekeys": ["rivera2023transcranial", "lindqvist2024working"],
+    "destination_reason": "no destination configured; using exports/papers/&lt;batch&gt;/",
+    "layout": "flat",
+    "pdfs_mode": "copy",
+    "per_paper": {
+      "38000101": { "citekey": "rivera2023transcranial", "pdf_path": null, "already_known": false, "pushed_note_hash": "a52d955f…" },
+      "38000102": { "citekey": "lindqvist2024working", "pdf_path": null, "already_known": true, "pushed_note_hash": null }
+    },
+    "missing_pdfs": ["38000101", "38000102"],
+    "already_known": ["38000102"],
+    "skipped_known": [],
+    "field_omissions": { "38000101": ["volume", "issue", "pages", "issn"], … },
+    "foreign_conflicts": [],
+    "duplicate_detection_available": true,
+    …
+  },
+  "note_statuses": { "38000101": "pushed", "38000102": "no notes.md content" }
+}</span></pre>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Option</th><th>What it decides</th></tr></thead>
+  <tbody>
+    <tr><td>--to &lt;dir&gt;</td><td>Destination. Otherwise the default is <code>papers_export_dir</code> from <code>config.json</code>, and failing that <code>exports/papers/&lt;batch&gt;/</code>, which the output reports as <code>destination_reason</code>.</td></tr>
+    <tr><td>--layout papers|flat</td><td><code>papers</code> mirrors the app's own <code>&lt;LastAuthor&gt;/&lt;Journal&gt;-&lt;Year&gt;.pdf</code> and adds <code>-2</code>, <code>-3</code> on collision. It's the default when writing into the configured folder. <code>flat</code> writes <code>&lt;citekey&gt;.pdf</code> and is the default otherwise.</td></tr>
+    <tr><td>--pdfs copy|link|none</td><td>Copies are the default and leave <code>raw/</code> untouched. <code>none</code> produces a metadata-only bibliography with no <code>local-url</code>.</td></tr>
+    <tr><td>--notes · --tags · --tags-from</td><td>Put <code>notes.md</code> into the BibTeX <code>note</code> field and tags into <code>keywords</code>. <code>--tags-from &lt;project&gt;</code> tags members with the project slug.</td></tr>
+    <tr><td>--skip-known · --force</td><td>Leave out papers the Papers snapshot already holds (matched on PMID, else DOI), or export them anyway.</td></tr>
+    <tr><td>--collection &lt;name&gt;</td><td>Only recorded in the manifest. It never creates a collection in Papers.</td></tr>
+    <tr><td>--refresh</td><td>Re-resolve the selector even if a manifest already exists at the destination.</td></tr>
+  </tbody>
+</table>
+</div>
+</li>
+
+<li>
+<h3>Export for real</h3>
+<p>Drop <code>--dry-run</code>. This run also adds <code>--skip-known</code>, because <code>38000102</code> is already in Papers.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export-papers --project tdcs-review --screened included --batch wm-batch --tags-from tdcs-review --notes --skip-known</span>
+<span class="o">{
+  "dry_run": false,
+  "destination": "…/lib/exports/papers/wm-batch",
+  "manifest": {
+    "pmids": ["38000101"],
+    …
+    "already_known": ["38000102"],
+    "skipped_known": ["38000102"],
+    …
+  },
+  "note_statuses": { "38000101": "pushed" }
+}</span></pre>
+<p>This is the <code>references.bib</code> it wrote, in Papers' own BibTeX dialect. There's no <code>local-url</code> because this scratch paper has no PDF yet:</p>
+<pre class="code">@article{rivera2023transcranial,
+  title = {{Transcranial stimulation and working memory in adults with ADHD: a randomized trial}},
+  abstract = {{We randomized 80 adults...}},
+  author = {Rivera, Ana and Okafor, Chidi and Lindqvist, Maja},
+  journal = {J Atten Disord},
+  year = 2023,
+  doi = {10.1000/example.101},
+  pmid = {38000101},
+  pmcid = {PMC0000101},
+  note = {---
+2026-09-15T10:17:36.789825+00:00
+
+Strongest RCT so far; sham blinding reported in supplement.},
+  keywords = {tdcs-review}
+}</pre>
+<div class="note"><strong>Foreign files are never overwritten.</strong> The export keeps its own record of every path it wrote (<code>.ref-manager-written.json</code>). A file at a target path that isn't in that record belongs to someone else, usually Papers. It's reported under <code>foreign_conflicts</code> and left alone.</div>
+<div class="note"><strong>No Papers database? The export still runs.</strong> If the snapshot can't be taken, the manifest shows <code>"duplicate_detection_available": false</code> with the reason, for example <code>"no database at …/missing.db"</code>, and the export carries on.</div>
+</li>
+
+<li>
+<h3>Import in Papers (you)</h3>
+<p>In Papers, import <code>references.bib</code> from the destination folder through the app's own import dialog. The plugin doesn't drive the app, and it doesn't assume a watched folder picks the file up. Once imported, check the Notes and Tags columns: the note and the <code>tdcs-review</code> tag should be there.</p>
+</li>
+
+<li>
+<h3>Re-exporting won't overwrite a note you've edited in Papers</h3>
+<p>You may have edited the note inside Papers since the first export, so a second <code>--notes</code> push is refused for any paper whose note has already been pushed. The entry is still exported, just without the note.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export-papers 38000101 --batch wm-batch-2 --notes</span>
+<span class="o">{
+  …
+  "note_statuses": {
+    "38000101": "refused: note already pushed for 38000101 (hash a52d955f5b90...); use --notes=force to overwrite"
+  }
+}</span></pre>
+<div class="note warn"><strong>The refusal is library-wide.</strong> Pushes are tracked per PMID in <code>exports/papers/note_pushes.json</code>, not in each destination's manifest. That's why the example above is refused even though <code>wm-batch-2</code> is a new destination. <code>--notes=force</code> on the slash command maps to the script's <code>--notes-force</code> flag and overwrites.</div>
+<div class="note"><strong>Highlights never travel outbound.</strong> BibTeX has no field for them. They're also anchored to a file hash and page rectangles that only make sense against Papers' own copy of the PDF. Annotations move in one direction: from Papers into the library.</div>
+</li>
+
+<li>
+<h3>Pull your annotations back</h3>
+<p><code>/ref:pull-annotations</code> reads the matching Papers item from a fresh snapshot and upserts <code>annotations.json</code>, keyed by each annotation's own Papers <code>id</code>. <code>notes.md</code> is never touched.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:pull-annotations 38000102</span>
+<span class="o">{
+  "pmid": "38000102",
+  "status": "ok",
+  "added": ["ann-1", "ann-2"],
+  "updated": [],
+  "tombstoned": [],
+  "unchanged": []
+}</span>
+<span class="c"># again, with nothing changed upstream</span>
+<span class="p">›</span> <span class="cmd">/ref:pull-annotations 38000102</span>
+<span class="o">{ "pmid": "38000102", "status": "ok", "added": [], "updated": [], "tombstoned": [], "unchanged": ["ann-1", "ann-2"] }</span>
+<span class="c"># after deleting the margin note ann-2 in Papers</span>
+<span class="p">›</span> <span class="cmd">/ref:pull-annotations 38000102</span>
+<span class="o">{ "pmid": "38000102", "status": "ok", "added": [], "updated": [], "tombstoned": ["ann-2"], "unchanged": ["ann-1"] }</span></pre>
+<p>The other statuses don't fail the command either:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="c"># no Papers database found</span>
+<span class="o">{ "pmid": "38000102", "status": "no_papers_db_configured" }</span>
+<span class="c"># this paper isn't in your Papers library</span>
+<span class="o">{ "pmid": "38000101", "status": "no_matching_papers_item" }</span>
+<span class="c"># the live database couldn't be read: "status": "snapshot_unavailable", with a "reason"</span></pre>
+<div class="note"><strong>Why tombstones.</strong> An annotation that disappears upstream might be an accidental delete or a sync hiccup. Locally it gets <code>deleted_upstream: true</code> and a timestamp, and it stays in the file. The <code>tombstoned</code> list makes the loss visible instead of silent.</div>
+</li>
+
+<li>
+<h3>Full text from Papers: not implemented yet</h3>
+<p><code>PLAN.md</code> §7 describes an opportunistic step: during <code>/ref:fetch</code>, reuse Papers' own extracted full text when the app already holds the paper. The implemented <code>/ref:fetch</code> doesn't do this. It tries PMC OA, then Unpaywall, then publisher HTML, and otherwise records the paper as abstract-only. If a PDF is only available inside Papers, export it from the app and attach it:</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:attach 38000102 ~/Downloads/lindqvist-2024.pdf</span>
+<span class="c"># attached / duplicate_noop / refused (DOI and title not found on the first two pages) / failed</span>
+<span class="p">›</span> <span class="cmd">/ref:open 38000102</span>
+<span class="c"># now "status": "opened"</span></pre>
+</li>
+
+</ol>
+</section>
+
+<section>
+<h2>What you now have</h2>
+<pre class="tree">&lt;LIBRARY&gt;/
+  papers/38000101/
+    <span class="m">notes.md                         # yours; exported once as the BibTeX note</span>
+  papers/38000102/
+    <span class="a">annotations.json                 # pulled from Papers; tombstones kept</span>
+  exports/papers/
+    note_pushes.json                 <span class="c"># per-PMID hash of each pushed note, library-wide</span>
+    wm-batch/
+      references.bib                 <span class="c"># Papers dialect: note, keywords, local-url when a PDF exists</span>
+      manifest.json                  <span class="c"># selector, PMIDs, PDF paths, duplicates, omissions, conflicts</span>
+      .ref-manager-written.json      <span class="c"># paths this plugin owns at the destination</span>
+      &lt;citekey&gt;.pdf                  <span class="c"># with --pdfs copy|link and an acquired PDF</span>
+    wm-batch-2/ …
+<span class="c">~/Library/Application Support/Papers/*.db   # read through snapshots only, never written</span></pre>
+<p>Command reference: <a href="../commands/write.html#export-papers"><code>/ref:export-papers</code></a>, <a href="../commands/maintain.html#open"><code>/ref:open</code></a>, <a href="../commands/maintain.html#pull-annotations"><code>/ref:pull-annotations</code></a>, <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="pi-report.html"><small>Previous</small>PI report</a>
+  <a href="graph-discovery.html"><small>Next</small>Graph discovery</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

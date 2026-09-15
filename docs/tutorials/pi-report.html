@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PI report · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>A PI publication report you can defend</h1>
+  <p class="lede">This tutorial walks the PI acceptance path from <code>PLAN.md</code> §8. You'll build a researcher profile, confirm which author entries are really that person, link publications to a grant with evidence, list roles and coauthors, record dated citation observations, and export a reproducible report. Commands used: <code>/ref:person</code>, <code>/ref:discover</code>, <code>/ref:verify</code>, <code>/ref:grant</code>, <code>/ref:weave</code>, <code>/ref:publications</code>, <code>/ref:audit --citations</code>, and <code>/ref:report</code>.</p>
+</header>
+
+<section>
+<h2>The journey</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 250" role="img" aria-label="Journey map. /ref:person create writes people/slug.json. /ref:discover appends candidates and the exact query to that file. /ref:verify person-identity moves a candidate to confirmed_publications and logs corrections.json. /ref:grant create and add-alias write grants/slug.json, and /ref:verify grant-link adds publication_links. /ref:publications reads these without writing. /ref:audit --citations appends papers/pmid/citations.json. /ref:report writes reports/label/ with publications.csv, report.md and manifest.json.">
+  <defs>
+    <marker id="piArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="24" width="120" height="62" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="26" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 PERSON</text>
+    <text x="26" y="66" fill-opacity=".7">create · ORCID</text>
+
+    <rect x="148" y="24" width="120" height="62" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="160" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 DISCOVER</text>
+    <text x="160" y="66" fill-opacity=".7">PubMed → candidates</text>
+
+    <rect x="282" y="24" width="120" height="62" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="294" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">3 CONFIRM</text>
+    <text x="294" y="66" fill-opacity=".7">verify identity</text>
+
+    <rect x="416" y="24" width="120" height="62" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="428" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">4 GRANT</text>
+    <text x="428" y="66" fill-opacity=".7">aliases · links</text>
+
+    <rect x="550" y="24" width="120" height="62" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="562" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">5 ROLES</text>
+    <text x="562" y="66" fill-opacity=".7">role · coauthors</text>
+
+    <rect x="684" y="24" width="120" height="62" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="696" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">6 CITATIONS</text>
+    <text x="696" y="66" fill-opacity=".7">audit --citations</text>
+
+    <rect x="818" y="24" width="108" height="62" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="830" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">7 REPORT</text>
+    <text x="830" y="66" fill-opacity=".7">csv · md</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="134" y1="55" x2="144" y2="55" marker-end="url(#piArr)"/>
+    <line x1="268" y1="55" x2="278" y2="55" marker-end="url(#piArr)"/>
+    <line x1="402" y1="55" x2="412" y2="55" marker-end="url(#piArr)"/>
+    <line x1="536" y1="55" x2="546" y2="55" marker-end="url(#piArr)"/>
+    <line x1="670" y1="55" x2="680" y2="55" marker-end="url(#piArr)"/>
+    <line x1="804" y1="55" x2="814" y2="55" marker-end="url(#piArr)"/>
+  </g>
+  <g stroke="currentColor" stroke-opacity=".45" stroke-dasharray="3 3">
+    <line x1="74" y1="86" x2="74" y2="130"/><line x1="208" y1="86" x2="208" y2="130"/>
+    <line x1="342" y1="86" x2="342" y2="130"/><line x1="476" y1="86" x2="476" y2="130"/>
+    <line x1="610" y1="86" x2="610" y2="130"/><line x1="744" y1="86" x2="744" y2="130"/>
+    <line x1="872" y1="86" x2="872" y2="130"/>
+  </g>
+  <g font-family="IBM Plex Mono,monospace" font-size="10.5" fill="currentColor">
+    <rect x="14" y="130" width="254" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="26" y="149">people/lindqvist-maja.json</text>
+    <text x="26" y="165" fill-opacity=".65">variants · candidates · runs</text>
+    <rect x="282" y="130" width="120" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="292" y="149">confirmed_…</text>
+    <text x="292" y="165" fill-opacity=".65">corrections.json</text>
+    <rect x="416" y="130" width="120" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="426" y="149">grants/</text>
+    <text x="426" y="165" fill-opacity=".65">&lt;slug&gt;.json</text>
+    <rect x="550" y="130" width="120" height="44" rx="6" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="3 3"/>
+    <text x="562" y="149" fill-opacity=".75">read-only</text>
+    <text x="562" y="165" fill-opacity=".65">no file written</text>
+    <rect x="684" y="130" width="120" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="694" y="149">papers/&lt;pmid&gt;/</text>
+    <text x="694" y="165" fill-opacity=".65">citations.json</text>
+    <rect x="818" y="130" width="108" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="826" y="149">reports/</text>
+    <text x="826" y="165" fill-opacity=".65">&lt;label&gt;/</text>
+  </g>
+  <text x="14" y="214" font-size="11" fill="currentColor" fill-opacity=".65">No model call is needed to generate the report: it only queries records you have reviewed.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>deterministic script</span>
+  <span><span class="sw amber"></span>needs PubMed or PMC data</span>
+  <span><span class="sw dash"></span>your evidence-backed decision</span>
+</div>
+<figcaption>Name similarity never establishes identity. Every publication in the report traces back to a confirmed <code>(pmid, author_index)</code> pair that you accepted, and each acceptance is logged in that paper's <code>corrections.json</code>.</figcaption>
+</figure>
+<p class="muted">The researcher is <code>lindqvist-maja</code>, one coauthor is <code>rivera-ana</code>, and the grant is <code>nimh-wm-r01</code>. The PMIDs <code>38000101</code>–<code>38000103</code> and all titles are placeholders, already added with <code>/ref:add</code>. The ORCID is ORCID's public documentation example. Outputs labelled <em>scratch library</em> are real script output. In those runs, hand-written JSON stood in for the PubMed and PMC lookups.</p>
+</section>
+
+<section>
+<h2>Steps</h2>
+<ol class="steps">
+
+<li>
+<h3>Create the researcher profile</h3>
+<p>Person IDs are slugs you choose, and they're library-wide. The name you give becomes the first name variant.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person create lindqvist-maja --name "Lindqvist, Maja" --orcid 0000-0002-1825-0097</span>
+<span class="o">{
+  "slug": "lindqvist-maja",
+  "name_variants": ["Lindqvist, Maja"],
+  "orcid": "0000-0002-1825-0097",
+  "affiliations": [],
+  "confirmed_publications": [],
+  "candidate_publications": [],
+  "rejected_publications": []
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:person create lindqvist-maja --name "Lindqvist, M"</span>
+<span class="o">error: person 'lindqvist-maja' already exists at people/lindqvist-maja.json</span></pre>
+<div class="note warn"><strong>Name variants: current limit.</strong> <code>/ref:person</code> implements only <code>create</code>, <code>show</code> and <code>list</code>. There's no subcommand for adding variants or affiliations after creation, so <code>name_variants</code> holds only the name you gave at create time. Duplicate slugs are refused rather than suffixed. If a researcher publishes under several forms, tell Claude which ones to use when it builds the discovery query in step 2. That query is saved exactly as run.</div>
+</li>
+
+<li>
+<h3>Discover candidate publications</h3>
+<p>Claude builds a PubMed author query from the profile, runs it, and saves the exact query, the retrieval time and the candidates onto the person record. Candidates don't count as publications yet.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:discover --person lindqvist-maja</span>
+<span class="o">{
+  "candidate_publications": [
+    { "pmid": "38000101", "title": "Transcranial stimulation and working memory in adults with ADHD: a randomized trial" },
+    { "pmid": "38000102", "title": "Working memory training outcomes: a cohort study" },
+    { "pmid": "38000103", "title": "Stimulation effects on attention in children" },
+    { "pmid": "37999001", "title": "Lindqvist M. Soil microbiome diversity in boreal forests" }
+  ],
+  "confirmed_publications": [],
+  …
+  "discovery_runs": [
+    { "query": "\"Lindqvist M\"[Author] OR 0000-0002-1825-0097[auid]",
+      "retrieved_at": "2026-09-15T10:16:49.875997+00:00", "candidate_count": 4 }
+  ]
+}</span></pre>
+<div class="note"><strong><code>--grant</code> discovery isn't implemented.</strong> Grant records have no candidate fields yet, so the script refuses <code>--grant</code> and asks for <code>--person</code>.</div>
+</li>
+
+<li>
+<h3>Confirm, or reject, each match</h3>
+<p>A match links the person to one position in the author list. <code>author_index</code> is zero-based and refers to the order preserved at ingest. Accepting a match moves the candidate to <code>confirmed_publications</code>. Rejecting it keeps the PMID in <code>rejected_publications</code>, so later discovery runs don't suggest it again.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:verify person-identity 38000101 lindqvist-maja 2 accept --rationale "affiliation and ORCID match" --reviewer maja</span>
+<span class="o">{
+  "correction_id": "cor-0ccfa93fd6c0",
+  "target_type": "person_identity",
+  "target_id": "lindqvist-maja:38000101:2",
+  "decision": "accept",
+  …
+  "evidence_locator": "authorship.json#author[2]",
+  "status": "active"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:verify person-identity 38000102 lindqvist-maja 0 accept --reviewer maja</span>
+<span class="p">›</span> <span class="cmd">/ref:verify person-identity 38000103 lindqvist-maja 1 accept --reviewer maja</span>
+<span class="p">›</span> <span class="cmd">/ref:verify person-identity 37999001 lindqvist-maja 0 reject --rationale "different researcher (soil science)" --reviewer maja</span>
+<span class="c"># the coauthor, so coauthor rows can use a confirmed identity</span>
+<span class="p">›</span> <span class="cmd">/ref:verify person-identity 38000101 rivera-ana 0 accept --reviewer maja</span></pre>
+<p>Contribution flags are separate, and position alone never sets them:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:verify author-contribution 38000101 2 corresponding</span>
+<span class="o">error: author_contribution flag 'corresponding' refused: an explicit evidence statement is required, never inferred from author position (§3c)</span>
+<span class="p">›</span> <span class="cmd">/ref:verify author-contribution 38000101 2 corresponding --evidence "Correspondence: Maja Lindqvist" --reviewer maja</span>
+<span class="o">{
+  "author_index": 2,
+  "flag": "corresponding",
+  "evidence_statement": "Correspondence: Maja Lindqvist",
+  "reviewer": "maja",
+  "timestamp": "2026-09-15T10:16:51.083767+00:00"
+}</span></pre>
+</li>
+
+<li>
+<h3>Record the grant, its aliases, and evidenced links</h3>
+<p>PubMed often reports one award in several spellings. Keep each spelling as an approved alias. Linking a publication is a separate, reviewed decision that records where the evidence came from.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:grant create nimh-wm-r01 --funder "NIMH" --award "R01 MH123456" --title "Neuromodulation of working memory" --pi lindqvist-maja</span>
+<span class="o">{
+  "slug": "nimh-wm-r01",
+  "funder": "NIMH",
+  "award_number": "R01 MH123456",
+  "approved_aliases": ["R01 MH123456"],
+  "title": "Neuromodulation of working memory",
+  "pi": "lindqvist-maja",
+  "aims": null,
+  "publication_links": []
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:grant add-alias nimh-wm-r01 --alias "R01MH123456"</span>
+<span class="o">{ … "approved_aliases": ["R01 MH123456", "R01MH123456"], … }</span>
+<span class="p">›</span> <span class="cmd">/ref:verify grant-link 38000101 nimh-wm-r01 accept --evidence-locator "PubMed GrantList: R01 MH123456/MH/NIMH NIH HHS" --award-number "R01 MH123456" --reviewer maja</span>
+<span class="o">{
+  "pmid": "38000101",
+  "award_number": "R01 MH123456",
+  "match_method": "manual_review",
+  "evidence_locator": "PubMed GrantList: R01 MH123456/MH/NIMH NIH HHS",
+  "decision": "accept",
+  "reviewer": "maja",
+  "rationale": "",
+  "timestamp": "2026-09-15T10:16:51.730855+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:verify grant-link 38000102 nimh-wm-r01 accept --evidence-locator "PubMed GrantList: R01MH123456/MH/NIMH NIH HHS" --award-number "R01MH123456" --reviewer maja</span></pre>
+<div class="note"><strong>Why links never add aliases.</strong> Folding a new award string into a grant automatically could merge two genuinely different awards from the same funder. <code>grant-link</code> records the link and nothing else. Adding an alias is always a separate, deliberate <code>add-alias</code>.</div>
+<p>To see these decisions as graph edges, regenerate the derived views:</p>
+<p class="term-label">output from a scratch library (people graph part only)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave --regenerate-only</span>
+<span class="c"># … okf_emit output omitted …</span>
+<span class="o">{
+  "researcher_authored_publication": 4,
+  "publication_acknowledges_grant": 2,
+  "publication_supports_aim": 0,
+  "researcher_lab_membership": 0,
+  "publication_supports_aim_note": "unpopulated -- no mechanism in any phase links a publication to a specific grant aim (§5a)",
+  "researcher_lab_membership_note": "unpopulated -- no /ref:lab command exists in PLAN.md; labs/&lt;slug&gt;.json has no writer yet"
+}</span></pre>
+<p class="muted"><code>publication_acknowledges_grant</code> edges come from exact matches between a paper's <code>funding.json</code> award strings and the grant's award number or approved aliases. Here, the second paper matches only because of the alias.</p>
+</li>
+
+<li>
+<h3>List authorship roles</h3>
+<p>Roles are computed from the confirmed index and the preserved author list. Filter with <code>--role sole|first|last|middle|unresolved</code>.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:publications --person lindqvist-maja</span>
+<span class="o">[
+  { "pmid": "38000101", "author_index": 2, "role": "last",   "author_count": 3 },
+  { "pmid": "38000102", "author_index": 0, "role": "sole",   "author_count": 1 },
+  { "pmid": "38000103", "author_index": 1, "role": "middle", "author_count": 4 }
+]</span>
+<span class="p">›</span> <span class="cmd">/ref:publications --person lindqvist-maja --role last</span>
+<span class="o">[
+  { "pmid": "38000101", "author_index": 2, "role": "last", "author_count": 3 }
+]</span></pre>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 400" role="img" aria-label="Authorship role classification. Three example author lists with Lindqvist highlighted: 38000101 has three authors and Lindqvist is last; 38000102 has one author, so the role is sole; 38000103 has four authors including a consortium and Lindqvist is second, so the role is middle. A decision ladder: if the list is incomplete or the index is out of range, the role is unresolved; if there is one author, sole; index 0, first; last index, last; otherwise middle. The categories are mutually exclusive, so a sole author is not also first and last. Separately, shared_first, shared_senior and corresponding are independent flags that are set only from an explicit evidence statement through /ref:verify author-contribution, never from position.">
+  <defs>
+    <marker id="roArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+  <text x="14" y="26" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">CONFIRMED AUTHOR POSITIONS</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <text x="14" y="62">38000101</text>
+    <rect x="90" y="46" width="78" height="24" rx="4" fill="none" stroke="currentColor"/><text x="98" y="62">Rivera</text>
+    <rect x="174" y="46" width="78" height="24" rx="4" fill="none" stroke="currentColor"/><text x="182" y="62">Okafor</text>
+    <rect x="258" y="46" width="90" height="24" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="266" y="62" font-weight="500">Lindqvist</text>
+    <text x="360" y="62" fill="var(--accent)" font-weight="500">→ last</text>
+    <text x="90" y="86" font-size="10" fill-opacity=".6">[0]</text><text x="174" y="86" font-size="10" fill-opacity=".6">[1]</text><text x="258" y="86" font-size="10" fill-opacity=".6">[2] · corresponding flag</text>
+
+    <text x="14" y="126">38000102</text>
+    <rect x="90" y="110" width="90" height="24" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="98" y="126" font-weight="500">Lindqvist</text>
+    <text x="192" y="126" fill="var(--accent)" font-weight="500">→ sole</text>
+    <text x="90" y="150" font-size="10" fill-opacity=".6">[0] · counted once, not also first + last</text>
+
+    <text x="14" y="190">38000103</text>
+    <rect x="90" y="174" width="60" height="24" rx="4" fill="none" stroke="currentColor"/><text x="98" y="190">Chen</text>
+    <rect x="156" y="174" width="90" height="24" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="164" y="190" font-weight="500">Lindqvist</text>
+    <rect x="252" y="174" width="66" height="24" rx="4" fill="none" stroke="currentColor"/><text x="260" y="190">Rivera</text>
+    <rect x="324" y="174" width="96" height="24" rx="4" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="332" y="190">Consortium</text>
+    <text x="432" y="190" fill="var(--accent)" font-weight="500">→ middle</text>
+  </g>
+
+  <!-- decision ladder -->
+  <text x="530" y="26" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">classify_role(index, total, complete)</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="530" y="40" width="250" height="30" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="542" y="60">list incomplete, or index missing?</text>
+    <rect x="530" y="84" width="250" height="30" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="542" y="104">total authors = 1?</text>
+    <rect x="530" y="128" width="250" height="30" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="542" y="148">index = 0?</text>
+    <rect x="530" y="172" width="250" height="30" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="542" y="192">index = total − 1?</text>
+  </g>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">
+    <rect x="826" y="40" width="100" height="30" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/><text x="876" y="60" text-anchor="middle" fill="currentColor">unresolved</text>
+    <rect x="826" y="84" width="100" height="30" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="876" y="104" text-anchor="middle" fill="currentColor">sole</text>
+    <rect x="826" y="128" width="100" height="30" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="876" y="148" text-anchor="middle" fill="currentColor">first</text>
+    <rect x="826" y="172" width="100" height="30" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="876" y="192" text-anchor="middle" fill="currentColor">last</text>
+    <rect x="826" y="216" width="100" height="30" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="876" y="236" text-anchor="middle" fill="currentColor">middle</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="780" y1="55" x2="822" y2="55" marker-end="url(#roArr)"/>
+    <line x1="780" y1="99" x2="822" y2="99" marker-end="url(#roArr)"/>
+    <line x1="780" y1="143" x2="822" y2="143" marker-end="url(#roArr)"/>
+    <line x1="780" y1="187" x2="822" y2="187" marker-end="url(#roArr)"/>
+    <line x1="655" y1="70" x2="655" y2="80" marker-end="url(#roArr)"/>
+    <line x1="655" y1="114" x2="655" y2="124" marker-end="url(#roArr)"/>
+    <line x1="655" y1="158" x2="655" y2="168" marker-end="url(#roArr)"/>
+    <path d="M655 202 L655 231 L822 231" fill="none" marker-end="url(#roArr)"/>
+  </g>
+  <g font-size="10" fill="currentColor" fill-opacity=".6">
+    <text x="788" y="50">yes</text><text x="788" y="94">yes</text><text x="788" y="138">yes</text><text x="788" y="182">yes</text>
+    <text x="662" y="224">no</text>
+  </g>
+
+  <!-- independent flags -->
+  <rect x="14" y="276" width="912" height="104" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="30" y="300" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">INDEPENDENT FLAGS: NOT A ROLE, NOT FROM POSITION</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <rect x="30" y="314" width="120" height="28" rx="6" fill="var(--card)" stroke="currentColor"/><text x="90" y="333" text-anchor="middle">shared_first</text>
+    <rect x="162" y="314" width="130" height="28" rx="6" fill="var(--card)" stroke="currentColor"/><text x="227" y="333" text-anchor="middle">shared_senior</text>
+    <rect x="304" y="314" width="130" height="28" rx="6" fill="var(--card)" stroke="currentColor"/><text x="369" y="333" text-anchor="middle">corresponding</text>
+  </g>
+  <text x="460" y="326" font-size="11" fill="currentColor">set only by <tspan font-family="IBM Plex Mono,monospace">/ref:verify author-contribution</tspan></text>
+  <text x="460" y="344" font-size="11" fill="currentColor" fill-opacity=".7">with an explicit statement; refused without one.</text>
+  <text x="30" y="366" font-size="11" fill="currentColor" fill-opacity=".7">Stored in authorship.json → contribution_flags, beside the literal position. Last position never implies senior or corresponding.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>mutually exclusive reporting role</span>
+  <span><span class="sw amber"></span>no confident role</span>
+  <span><span class="sw dash"></span>evidence-only flag</span>
+</div>
+<figcaption>The four roles partition a verified, complete author list, and <code>unresolved</code> catches everything else. Flags answer a different question and can coexist with any role.</figcaption>
+</figure>
+</li>
+
+<li>
+<h3>Derive a coauthor declaration</h3>
+<p>Use this for NSF Collaborators and Other Affiliations or NIH conflict forms. You get one row per distinct coauthor across the window, each with its identity method and the PMIDs that establish it.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:publications --person lindqvist-maja --coauthors --since 2023 --to 2024</span>
+<span class="o">{
+  "person": "lindqvist-maja",
+  "since": "2023",
+  "until": "2024",
+  "coauthors": [
+    { "name": "ADHD Imaging Consortium", "identity_method": "exact_name", "affiliation": null, "most_recent_pub": "2024", "pmids": ["38000103"] },
+    { "name": "Chen W",    "identity_method": "exact_name",         "affiliation": null, "most_recent_pub": "2024", "pmids": ["38000103"] },
+    { "name": "Okafor C",  "identity_method": "exact_name",         "affiliation": null, "most_recent_pub": "2023", "pmids": ["38000101"] },
+    { "name": "Rivera A",  "identity_method": "confirmed_identity", "affiliation": null, "most_recent_pub": "2023", "pmids": ["38000101"] },
+    { "name": "Rivera A",  "identity_method": "exact_name",         "affiliation": null, "most_recent_pub": "2024", "pmids": ["38000103"] }
+  ],
+  "unconfirmed_candidates": [],
+  "gaps": [],
+  "scope_note": "derived from library holdings, not a complete publication record (§3c)"
+}</span></pre>
+<div class="note"><strong>Why "Rivera A" appears twice.</strong> On <code>38000101</code> that author position is a confirmed identity, <code>rivera-ana</code>. On <code>38000103</code> it only matches by published name. The two cases are kept apart rather than merged. Confirm the second position, and the rows collapse into one confirmed identity.</div>
+<div class="note warn"><strong>Gaps and group authors depend on flags in <code>authorship.json</code>.</strong> A paper lands in <code>gaps</code> when its <code>authorship.json</code> has <code>"complete": false</code>. A group is reported as a group when its author entry has <code>"is_group": true</code>. <code>/ref:add</code> writes neither flag, and no current command sets them. In this scratch library the consortium is therefore listed by exact name, and <code>gaps</code> is empty. Check truncated or consortium author lists yourself before you submit a declaration.</div>
+</li>
+
+<li>
+<h3>Record dated citation observations</h3>
+<p><code>/ref:audit --citations</code> appends one dated observation per paper to <code>citations.json</code>. It never overwrites an earlier one. A paper without a PMCID gets a <code>no_pmcid</code> marker. A failed lookup gets <code>check_failed</code>, never a zero.</p>
+<div class="note warn"><strong>No cited-by source is wired in yet.</strong> None of the PubMed MCP tools in this environment return a PMC cited-by count. <code>find_related_articles</code> measures similarity, not citations. The persistence machinery is complete and tested. Until a real PMC ELink source is available, Claude should tell you there's nothing to record rather than invent counts. The output below comes from observations we supplied by hand.</div>
+<p class="term-label">output from a scratch library (hand-supplied observations)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:audit 38000101 38000102 38000103 --citations</span>
+<span class="o">[
+  { "pmid": "38000101",
+    "entry": { "source": "pmc_elink", "query": "elink.fcgi?dbfrom=pmc&amp;linkname=pmc_pmc_citedby&amp;id=PMC0000101", "count": 14,
+               "coverage": "citing articles indexed in PMC; not a total citation count",
+               "retrieved_at": "2026-09-15T10:16:52.063180+00:00" },
+    "total_observations": 1 },
+  { "pmid": "38000102",
+    "entry": { "retrieved_at": "2026-09-15T10:16:52.065402+00:00", "status": "no_pmcid", "reason": "paper has no PMCID" },
+    "total_observations": 1 },
+  { "pmid": "38000103",
+    "entry": { "retrieved_at": "2026-09-15T10:16:52.066812+00:00", "status": "check_failed", "reason": "ELink request timed out" },
+    "total_observations": 1 }
+]</span>
+<span class="p">›</span> <span class="cmd">/ref:audit show-citations 38000101 38000102 38000103</span>
+<span class="o">[
+  { "pmid": "38000101", "latest_observation": { "count": 14, … "source": "pmc_elink" }, "stale": false },
+  { "pmid": "38000102", "latest_observation": null, "stale": null },
+  { "pmid": "38000103", "latest_observation": null, "stale": null }
+]</span></pre>
+<p>Each result record must carry exactly one of <code>observation</code>, <code>no_pmcid</code> or <code>error</code>. Anything else is rejected as malformed:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="o">error: citations result for pmid '38000101' has none of 'observation'/'no_pmcid'/'error' -- malformed input, not a real failed lookup</span></pre>
+</li>
+
+<li>
+<h3>Generate the report</h3>
+<p>The report covers confirmed publications only, within a year window. It writes CSV and Markdown plus a manifest of the policies used. Rerun it with unchanged data, and the CSV and Markdown come out identical. Only <code>generated_at</code> in the manifest changes.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:report --person lindqvist-maja --from 2023 --to 2024 --citations</span>
+<span class="o">{
+  "person": "lindqvist-maja",
+  "from": "2023",
+  "to": "2024",
+  "date_basis": "publication_year",
+  "missing_date_handling": "excluded",
+  "identity_review_policy": "confirmed_publications_only",
+  "dedup_policy": "unique_by_pmid",
+  "publication_count": 3,
+  "generated_at": "2026-09-15T10:16:52.380729+00:00",
+  "includes_citations": true,
+  "citation_stale_days": 180,
+  "citation_coverage_note": "citing articles indexed in PMC; not a total citation count (D25)"
+}</span></pre>
+<p><code>reports/lindqvist-maja-2023-2024/report.md</code>:</p>
+<pre class="code"># Publication report — lindqvist-maja
+
+Scope: confirmed publications in this library, 2023–2024 (`publication_year`). PubMed-only coverage; portfolio completeness not reviewed (§3c).
+
+Citation counts below are **PMC-indexed citing-article counts (D25)** — not total citations, and not comparable to Scopus/Web of Science. Each count names its source and retrieval date; `unknown` means no observation has been recorded, never zero.
+
+| PMID | Year | Role | Title | Citing articles (PMC) | Source | Retrieved | Stale |
+|---|---|---|---|---|---|---|---|
+| 38000101 | 2023 | last | Transcranial stimulation and working memory in adults with ADHD: a randomized trial | 14 | pmc_elink | 2026-09-15 | no |
+| 38000102 | 2024 | sole | Working memory training outcomes: a cohort study | unknown | — | — | — |
+| 38000103 | 2024 | middle | Stimulation effects on attention in children | unknown | — | — | — |
+
+Total unique publications: 3</pre>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 320" role="img" aria-label="Report inputs and outputs. Inputs: people/lindqvist-maja.json confirmed_publications; papers/pmid/meta.json year and title; papers/pmid/authorship.json author list for the role; papers/pmid/citations.json latest real observation, only with --citations. These feed report.py, which applies year window, missing-date exclusion, confirmed-only identity and unique-by-PMID policies. Outputs in reports/label/: publications.csv with one row per PMID and role and citation columns; report.md with a scope statement and a table in which missing counts read unknown; manifest.json with the policies and generated_at.">
+  <defs>
+    <marker id="rpArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="rpArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+  <text x="14" y="26" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">REVIEWED RECORDS (INPUT)</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="40" width="270" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="26" y="62" font-family="IBM Plex Mono,monospace" font-size="12">people/lindqvist-maja.json</text>
+    <text x="26" y="80" fill-opacity=".65">confirmed_publications only</text>
+    <rect x="14" y="104" width="270" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="26" y="126" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/meta.json</text>
+    <text x="26" y="144" fill-opacity=".65">year · journal · title · citekey · DOI</text>
+    <rect x="14" y="168" width="270" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="26" y="190" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/authorship.json</text>
+    <text x="26" y="208" fill-opacity=".65">ordered list → author_role</text>
+    <rect x="14" y="232" width="270" height="54" rx="6" fill="var(--amber-soft)" stroke="var(--amber)" stroke-dasharray="5 4"/>
+    <text x="26" y="254" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/citations.json</text>
+    <text x="26" y="272" fill-opacity=".7">latest real count · --citations only</text>
+
+    <rect x="360" y="110" width="210" height="104" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="376" y="136" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:report</text>
+    <text x="376" y="156" fill-opacity=".75">year window · missing year excluded</text>
+    <text x="376" y="174" fill-opacity=".75">confirmed identities only</text>
+    <text x="376" y="192" fill-opacity=".75">unique by PMID · no model call</text>
+
+    <rect x="650" y="24" width="276" height="272" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    <text x="666" y="48" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">reports/lindqvist-maja-2023-2024/</text>
+    <rect x="666" y="62" width="244" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="678" y="84" font-family="IBM Plex Mono,monospace" font-size="12">publications.csv</text>
+    <text x="678" y="102" fill-opacity=".65">pmid · citekey · doi · year · role</text>
+    <text x="678" y="118" fill-opacity=".65">+ citation_count/source/retrieved/stale</text>
+    <rect x="666" y="138" width="244" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="678" y="160" font-family="IBM Plex Mono,monospace" font-size="12">report.md</text>
+    <text x="678" y="178" fill-opacity=".65">scope statement · coverage caveat</text>
+    <text x="678" y="194" fill-opacity=".65">no observation → "unknown", never 0</text>
+    <rect x="666" y="214" width="244" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="678" y="236" font-family="IBM Plex Mono,monospace" font-size="12">manifest.json</text>
+    <text x="678" y="254" fill-opacity=".65">date basis · policies · count</text>
+    <text x="678" y="270" fill-opacity=".65">generated_at (only field that changes)</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <path d="M284 67 Q330 67 356 140" marker-end="url(#rpArr)"/>
+    <line x1="284" y1="131" x2="356" y2="152" marker-end="url(#rpArr)"/>
+    <line x1="284" y1="195" x2="356" y2="172" marker-end="url(#rpArr)"/>
+    <path d="M284 259 Q330 259 356 196" stroke-dasharray="4 3" marker-end="url(#rpArr)"/>
+  </g>
+  <g stroke="var(--accent)" stroke-width="1.5" fill="none">
+    <path d="M570 150 Q620 110 662 95" marker-end="url(#rpArrA)"/>
+    <line x1="570" y1="162" x2="662" y2="171" marker-end="url(#rpArrA)"/>
+    <path d="M570 176 Q620 220 662 247" marker-end="url(#rpArrA)"/>
+  </g>
+</svg>
+</div>
+<figcaption>The report can only state what reviewed records establish. Its scope line says "confirmed publications in this library", and every citation figure carries its source and retrieval date.</figcaption>
+</figure>
+
+<div class="note warn"><strong>Not yet the full acceptance test.</strong> <code>PLAN.md</code> §8 asks for an annual report <em>grouped by grant and authorship role</em>. The implemented <code>/ref:report</code> is the basic slice: one person and one year window, with the role as a column. It has no <code>--role</code> filter and no grant or lab grouping. For per-grant views, use the <code>publication_links</code> on <code>grants/nimh-wm-r01.json</code> and the <code>publication_acknowledges_grant</code> edges from step 4.</div>
+</li>
+
+</ol>
+</section>
+
+<section>
+<h2>What you now have</h2>
+<pre class="tree">&lt;LIBRARY&gt;/
+  people/
+    <span class="a">lindqvist-maja.json          # variants, ORCID, confirmed / rejected, discovery_runs</span>
+    rivera-ana.json
+  grants/
+    nimh-wm-r01.json             <span class="c"># award, approved_aliases, publication_links with evidence locators</span>
+  papers/38000101/ … 38000103/
+    authorship.json              <span class="c"># preserved order + contribution_flags</span>
+    corrections.json             <span class="c"># person_identity, grant_link, author_contribution decisions</span>
+    citations.json               <span class="c"># append-only dated observations and markers</span>
+  papers/37999001/corrections.json   <span class="c"># the rejected match, kept for audit</span>
+  graph/
+    people_relations.jsonl       <span class="c"># researcher_authored_publication, publication_acknowledges_grant</span>
+  reports/lindqvist-maja-2023-2024/
+    publications.csv · report.md · manifest.json</pre>
+<p>Command reference: <a href="../commands/people.html#person"><code>/ref:person</code></a>, <a href="../commands/people.html#publications"><code>/ref:publications</code></a>, <a href="../commands/people.html#report"><code>/ref:report</code></a>, <a href="../commands/organize.html#verify"><code>/ref:verify</code></a>, <a href="../commands/maintain.html#audit"><code>/ref:audit</code></a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="systematic-review.html"><small>Previous</small>Systematic review</a>
+  <a href="papers-handoff.html"><small>Next</small>Papers handoff</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

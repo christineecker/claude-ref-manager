@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maintain commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>Maintain</h4>
+  <ol>
+    <li><a href="#overview">How they fit</a></li>
+    <li><a href="#audit"><code>/ref:audit</code></a></li>
+    <li><a href="#index"><code>/ref:index</code></a></li>
+    <li><a href="#status"><code>/ref:status</code></a></li>
+    <li><a href="#open"><code>/ref:open</code></a></li>
+    <li><a href="#pull-annotations"><code>/ref:pull-annotations</code></a></li>
+  </ol>
+  <h4>Other groups</h4>
+  <ul>
+    <li><a href="acquire.html">Acquire</a></li>
+    <li><a href="find.html">Find</a></li>
+    <li><a href="organize.html">Organize</a></li>
+    <li><a href="write.html">Write</a></li>
+    <li><a href="graph.html">Graph</a></li>
+    <li><a href="people.html">People</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · Keep the library healthy</p>
+  <h1>Maintain</h1>
+  <p class="lede">Re-check papers for retractions, rebuild the search index from the files on disk, see what's configured, and move papers into Papers.app and your annotations back out. Files are the authority; these commands refresh projections and flag what changed without rewriting history.</p>
+</header>
+
+<section id="overview">
+<h2>How they fit</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 400" role="img" aria-label="Maintain commands and the library files they touch. /ref:audit writes retraction_status in meta.json and appends to citations.json. /ref:index reads claim registries and paper records, rebuilds index/catalog.sqlite, and flags stale relations in graph/relations.jsonl. /ref:status only reads the config file and the catalog. /ref:open sends an acquired PDF outbound to Papers.app; /ref:pull-annotations reads a read-only snapshot of the Papers database and writes annotations.json inbound.">
+  <defs>
+    <marker id="mntArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="mntArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="mntArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- left: commands -->
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="36" width="170" height="80" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="28" y="60" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="var(--accent)">/ref:audit</text>
+    <text x="28" y="80" fill-opacity=".7">retraction re-check</text>
+    <text x="28" y="95" fill-opacity=".7">--citations observations</text>
+    <text x="28" y="110" fill-opacity=".7">propagate → stale artifacts</text>
+
+    <rect x="14" y="160" width="170" height="76" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="28" y="184" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="var(--accent)">/ref:index --rebuild</text>
+    <text x="28" y="204" fill-opacity=".7">recreate catalog</text>
+    <text x="28" y="219" fill-opacity=".7">refresh relation staleness</text>
+
+    <rect x="14" y="292" width="170" height="64" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="28" y="316" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:status</text>
+    <text x="28" y="336" fill-opacity=".7">read-only counts</text>
+  </g>
+
+  <!-- middle: library -->
+  <rect x="250" y="14" width="360" height="322" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="264" y="32" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">&lt;library_root&gt;/</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="262" y="40" width="336" height="34" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="274" y="55" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/meta.json</text>
+    <text x="274" y="69" fill-opacity=".65">retraction_status (never downgraded on failure)</text>
+
+    <rect x="262" y="82" width="336" height="34" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="274" y="97" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/citations.json</text>
+    <text x="274" y="111" fill-opacity=".65">dated observations, append-only</text>
+
+    <rect x="262" y="124" width="336" height="34" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="274" y="139" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/claim_registry.json</text>
+    <text x="274" y="153" fill-opacity=".65">claim status: active · superseded</text>
+
+    <rect x="262" y="166" width="336" height="34" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="274" y="181" font-family="IBM Plex Mono,monospace" font-size="12">graph/relations.jsonl</text>
+    <text x="274" y="195" fill-opacity=".65">stale: true when evidence is no longer active</text>
+
+    <rect x="262" y="208" width="336" height="34" rx="6" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="274" y="223" font-family="IBM Plex Mono,monospace" font-size="12">index/catalog.sqlite</text>
+    <text x="274" y="237" fill-opacity=".65">FTS5 projection, deleted and recreated</text>
+
+    <rect x="262" y="250" width="336" height="34" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="274" y="265" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/raw/&lt;sha256&gt;/source.pdf</text>
+    <text x="274" y="279" fill-opacity=".65">acquired PDF (immutable)</text>
+
+    <rect x="262" y="292" width="336" height="34" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="274" y="307" font-family="IBM Plex Mono,monospace" font-size="12">papers/&lt;pmid&gt;/annotations.json</text>
+    <text x="274" y="321" fill-opacity=".65">Papers highlights, tombstoned not deleted</text>
+  </g>
+
+  <!-- config outside library -->
+  <rect x="262" y="352" width="336" height="34" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="274" y="374" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">~/.config/ref-manager/config.json</text>
+
+  <!-- audit writes -->
+  <g stroke="var(--accent)" stroke-width="1.5" fill="none">
+    <path d="M184 66 L258 57" marker-end="url(#mntArrA)"/>
+    <path d="M184 90 L258 99" marker-end="url(#mntArrA)"/>
+    <!-- index writes -->
+    <path d="M184 196 L258 183" marker-end="url(#mntArrA)"/>
+    <path d="M184 216 L258 225" marker-end="url(#mntArrA)"/>
+  </g>
+  <!-- index reads registry; status reads catalog + config -->
+  <g stroke="currentColor" stroke-opacity=".6" stroke-width="1.2" fill="none" stroke-dasharray="4 3">
+    <path d="M262 141 L188 178" marker-end="url(#mntArr)"/>
+    <path d="M262 230 L188 308" marker-end="url(#mntArr)"/>
+    <path d="M262 369 L188 344" marker-end="url(#mntArr)"/>
+  </g>
+
+  <!-- Papers.app -->
+  <rect x="800" y="232" width="126" height="104" rx="10" fill="none" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="863" y="256" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Papers.app</text>
+  <text x="863" y="276" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".65">outside ref-manager;</text>
+  <text x="863" y="291" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".65">its *.db is only</text>
+  <text x="863" y="306" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".65">read via a snapshot</text>
+
+  <text x="622" y="244" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">OUTBOUND</text>
+  <rect x="622" y="253" width="150" height="28" rx="6" fill="var(--card)" stroke="var(--amber)"/>
+  <text x="697" y="271" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">/ref:open</text>
+  <rect x="622" y="295" width="150" height="28" rx="6" fill="var(--card)" stroke="var(--amber)"/>
+  <text x="697" y="313" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">/ref:pull-annotations</text>
+  <text x="622" y="340" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">INBOUND</text>
+
+  <g stroke="var(--amber)" stroke-width="1.5" fill="none">
+    <path d="M598 267 L618 267" marker-end="url(#mntArrM)"/>
+    <path d="M772 267 L796 267" marker-end="url(#mntArrM)"/>
+    <path d="M800 309 L776 309" marker-end="url(#mntArrM)"/>
+    <path d="M622 309 L602 309" marker-end="url(#mntArrM)"/>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>writes library records</span>
+  <span><span class="sw dash"></span>reads only</span>
+  <span><span class="sw amber"></span>Papers.app handoff</span>
+</div>
+<figcaption>The catalog is a projection: <code>/ref:index --rebuild</code> deletes and recreates it from committed files, so it is always safe to run. <code>/ref:open</code> hands the OS a file with <code>open -a Papers</code>; <code>/ref:pull-annotations</code> reads a SQLite backup copy of the Papers database. Neither writes to Papers' database.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>Commands</h2>
+<div class="cmd-groups">
+
+<!-- ================= audit ================= -->
+<article class="cmd" id="audit">
+  <div class="cmd-head"><h3>/ref:audit</h3><div class="chips"><span class="tag phase">phase 11</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Re-check retraction and erratum status across the library, or record and show dated cited-by observations.</p>
+  <div class="synopsis">/ref:audit [selector]
+/ref:audit --citations [selector]
+/ref:audit show-citations [--stale-days N] [selector]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>[selector]</dt><dd>Optional selector (<code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--search</code>, <code>--from-file</code>, …) to scope the sweep. Unlike other selector commands, <strong>no selector means the whole library</strong>, not an error: this is a maintenance sweep, not a saved set.</dd>
+    <dt>--citations</dt><dd>Record citation observations instead of retraction checks. Run the two modes separately.</dd>
+    <dt>show-citations</dt><dd>An action, not a flag. Print each PMID's latest real observation and whether it is stale, without checking anything new.</dd>
+    <dt>--stale-days N</dt><dd>For <code>show-citations</code>: age threshold in days (default 180).</dd>
+  </dl>
+  <h4>What happens</h4>
+  <p><strong>Default mode (retraction status):</strong></p>
+  <ol>
+    <li>For each resolved PMID, Claude calls <code>get_article_metadata</code> and checks <code>article_types</code> for a retraction, erratum or correction marker. This is the same check <a href="acquire.html#extract"><code>/ref:extract</code></a> runs at ingestion.</li>
+    <li>A successful check updates <code>retraction_status</code> in <code>meta.json</code> and reports whether it changed. A failed check leaves the prior status untouched and prints a diagnostic. It never guesses <code>"none"</code> or downgrades an earlier <code>"retracted"</code>.</li>
+    <li>If any status changed, <code>propagate</code> lists saved <code>/ref:brief</code>, <code>/ref:compare</code> and <code>/ref:summarize</code> artifacts that used those papers. They are not refreshed automatically; you run <code>--refresh</code> on them, and their earlier frozen versions are kept.</li>
+  </ol>
+  <p><strong><code>--citations</code> mode:</strong> for each PMID, a paper with no PMCID gets a <code>no_pmcid</code> marker, a failed lookup gets a <code>check_failed</code> marker, and a real count is stored with its source, query, coverage note and retrieval date. Every call appends to <code>citations.json</code>; earlier entries are never overwritten, and a failure never becomes a zero.</p>
+  <div class="note warn"><strong>No citation-count source is wired in yet.</strong> None of the PubMed MCP tools available return a PMC cited-by count, and related-article similarity is not citation. The storage and display machinery is built and tested, but until a real source exists, <code>--citations</code> has nothing to record and the command says so instead of inventing counts.</div>
+  <p><strong><code>show-citations</code>:</strong> skips <code>check_failed</code> and <code>no_pmcid</code> markers and shows the most recent real observation. A PMID with none shows <code>null</code>, which means "no observation available", not zero.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Retraction mode updates <code>papers/&lt;pmid&gt;/meta.json</code> (<code>retraction_status</code>). <code>--citations</code> appends to <code>papers/&lt;pmid&gt;/citations.json</code>. <code>propagate</code> and <code>show-citations</code> only read: saved artifact manifests under <code>tables/</code>, <code>summaries/</code>, <code>briefs/</code> (library-wide and per project), and <code>citations.json</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (check results written by hand)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:audit</span>
+<span class="o">31452104: checked (none -&gt; retracted) [CHANGED]</span>
+<span class="w">30679568: check_failed -- prior status retained (unknown); get_article_metadata timed out</span>
+<span class="c"># followed by the same results as JSON, ending in:</span>
+<span class="o">  "changed_pmids": [</span>
+<span class="o">    "31452104"</span>
+<span class="o">  ]</span>
+<span class="c"># propagate: which saved artifacts used the changed paper</span>
+<span class="o">{</span>
+<span class="o">  "changed_pmids": [</span>
+<span class="o">    "31452104"</span>
+<span class="o">  ],</span>
+<span class="o">  "potentially_stale_artifacts": []</span>
+<span class="o">}</span>
+<span class="p">›</span> <span class="cmd">/ref:audit show-citations 31452104</span>
+<span class="o">[</span>
+<span class="o">  {</span>
+<span class="o">    "pmid": "31452104",</span>
+<span class="o">    "latest_observation": null,</span>
+<span class="o">    "stale": null</span>
+<span class="o">  }</span>
+<span class="o">]</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>audit.py retraction --repo &lt;library_root&gt; --results-file &lt;json&gt; [selector]</code>, then <code>audit.py propagate --repo &lt;library_root&gt; --results-file &lt;changed-pmids-json&gt;</code>; <code>audit.py citations --repo … --results-file … [selector]</code>; <code>audit.py show-citations --repo … [--stale-days N] [selector]</code>. The script never calls PubMed; Claude supplies the check results as JSON.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="people.html#report"><code>/ref:report</code></a> (<code>--citations</code>) · <a href="write.html#brief"><code>/ref:brief</code></a> · <a href="write.html#compare"><code>/ref:compare</code></a> · <a href="write.html#summarize"><code>/ref:summarize</code></a> · <a href="#index"><code>/ref:index</code></a></p>
+</article>
+
+<!-- ================= index ================= -->
+<article class="cmd" id="index">
+  <div class="cmd-head"><h3>/ref:index</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag phase">refresh: phase 8</span></div></div>
+  <p class="summary">Rebuild the SQLite search catalog from committed records and flag graph relations whose evidence has changed.</p>
+  <div class="synopsis">/ref:index --rebuild</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--rebuild</dt><dd>Required. It is currently the only supported mode.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Deletes <code>index/catalog.sqlite</code> and recreates it from scratch. Files are the authority and the catalog is only a projection, so rebuilding beats migrating in place.</li>
+    <li>Indexes one row per paper from <code>meta.json</code> (including retraction status), paragraphs of each paper's current <code>source.md</code> into <code>passages_fts</code> (headings become section labels), and every claim in <code>claim_registry.json</code>, whether active or superseded, into <code>claims</code> and <code>claims_fts</code>.</li>
+    <li>Only what <code>current.json</code> points at is read; incomplete staging directories are ignored. Running it twice gives the same result.</li>
+    <li>If <code>graph/relations.jsonl</code> exists, a relation refresh sets <code>stale: true</code> on any relation whose supporting claims are no longer active. A review decision is never cleared, only flagged for re-confirmation, and the stale relation IDs are reported.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/*/meta.json</code>, <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, <code>claim_registry.json</code>. Writes <code>index/catalog.sqlite</code> and, when present, updates <code>graph/relations.jsonl</code> (<code>stale</code>, <code>stale_reason</code>).</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:index --rebuild</span>
+<span class="o">catalog rebuilt: 2 paper(s), 0 passage(s), 1 claim(s) indexed</span>
+<span class="c"># passages come only from source.md in the version current.json names;</span>
+<span class="c"># here /ref:extract committed last, and its version holds claims, not source.md</span>
+<span class="c"># with a graph present, the relation refresh then prints JSON of the form</span>
+<span class="c"># {"relations_checked": N, "went_stale": [relation IDs]}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>catalog.py rebuild --repo &lt;library_root&gt;</code>, then, if <code>graph/relations.jsonl</code> exists, <code>relation.py refresh --repo &lt;library_root&gt;</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#status"><code>/ref:status</code></a> · <a href="find.html#search"><code>/ref:search</code></a> · <a href="graph.html#weave"><code>/ref:weave</code></a> · <a href="../concepts.html">Concepts</a></p>
+</article>
+
+<!-- ================= status ================= -->
+<article class="cmd" id="status">
+  <div class="cmd-head"><h3>/ref:status</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Show which library is configured and how many papers and projects it holds.</p>
+  <div class="synopsis">/ref:status</div>
+  <h4>Arguments</h4>
+  <p class="writes">None.</p>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads the config file. If none exists, it errors and points you at <a href="acquire.html#init"><code>/ref:init</code></a>; it never guesses a path.</li>
+    <li>Prints the library root, and errors if that directory no longer exists.</li>
+    <li>Prints the number of papers in the catalog, or a hint to run <code>/ref:index --rebuild</code> if the catalog hasn't been built.</li>
+    <li>Prints the number of projects.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code>, <code>index/catalog.sqlite</code>, <code>projects/</code>. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (paths shortened)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:status</span>
+<span class="o">library: /private/tmp/…/scratch/lib</span>
+<span class="o">catalog: not built yet (run /ref:index --rebuild)</span>
+<span class="o">projects: 0</span>
+<span class="p">›</span> <span class="cmd">/ref:index --rebuild</span>
+<span class="p">›</span> <span class="cmd">/ref:status</span>
+<span class="o">library: /private/tmp/…/scratch/lib</span>
+<span class="o">papers indexed: 2</span>
+<span class="o">projects: 0</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>status.py</code> (no arguments).</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#init"><code>/ref:init</code></a> · <a href="#index"><code>/ref:index</code></a></p>
+</article>
+
+<!-- ================= open ================= -->
+<article class="cmd" id="open">
+  <div class="cmd-head"><h3>/ref:open</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">Papers.app</span></div></div>
+  <p class="summary">Open a paper's acquired PDF in Papers.app for reading and annotating.</p>
+  <div class="synopsis">/ref:open &lt;pmid&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt;</dt><dd>Required. The paper must be in the library.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Finds the paper's acquired PDF under <code>raw/&lt;sha256&gt;/</code>.</li>
+    <li>If there is none, reports <code>no_pdf_acquired</code> and points at <a href="acquire.html#fetch"><code>/ref:fetch</code></a> or <a href="acquire.html#attach"><code>/ref:attach</code></a>. This is not an error.</li>
+    <li>Otherwise runs <code>open -a Papers &lt;pdf&gt;</code>, just like double-clicking the file in Finder, and reports <code>opened</code> with the path.</li>
+  </ol>
+  <p>This is the only ref-manager command that touches Papers.app itself, and it never touches the Papers database. Highlights you make there come back with <a href="#pull-annotations"><code>/ref:pull-annotations</code></a>.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/&lt;pmid&gt;/meta.json</code> and the acquired PDF. Writes nothing in the library; Papers.app receives the file.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:open 31452104</span>
+<span class="o">{</span>
+<span class="o">  "pmid": "31452104",</span>
+<span class="o">  "status": "no_pdf_acquired",</span>
+<span class="o">  "message": "no acquired PDF for this paper yet — run /ref:fetch or /ref:attach first"</span>
+<span class="o">}</span></pre>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:open 31452104</span>
+<span class="o">{</span>
+<span class="o">  "pmid": "31452104",</span>
+<span class="o">  "status": "opened",</span>
+<span class="o">  "path": "&lt;library_root&gt;/papers/31452104/raw/&lt;sha256&gt;/source.pdf"</span>
+<span class="o">}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>open_in_papers.py &lt;pmid&gt; --repo &lt;library_root&gt;</code>; PDF lookup shared with <code>export_papers.py</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#pull-annotations"><code>/ref:pull-annotations</code></a> · <a href="write.html#export-papers"><code>/ref:export-papers</code></a> · <a href="../tutorials/papers-handoff.html">Papers handoff tutorial</a></p>
+</article>
+
+<!-- ================= pull-annotations ================= -->
+<article class="cmd" id="pull-annotations">
+  <div class="cmd-head"><h3>/ref:pull-annotations</h3><div class="chips"><span class="tag phase">phase 4</span><span class="tag net">Papers.app</span></div></div>
+  <p class="summary">Copy your Papers.app highlights and margin notes for one paper into its record, one-way and without loss.</p>
+  <div class="synopsis">/ref:pull-annotations &lt;pmid&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt;</dt><dd>Required. The paper must already exist (<a href="acquire.html#add"><code>/ref:add</code></a> first).</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Claude looks for <code>~/Library/Application Support/Papers/*.db</code> and passes the first match. If there is none, the result is <code>no_papers_db_configured</code>, not a failure.</li>
+    <li>The live database is copied with SQLite's backup API from a read-only connection, and all reads happen on that copy. If no consistent copy can be taken, the result is <code>snapshot_unavailable</code>.</li>
+    <li>The Papers item is matched by PMID, falling back to DOI. No match gives <code>no_matching_papers_item</code>, meaning the paper isn't in your Papers library.</li>
+    <li>Annotations are upserted by their own Papers <code>id</code>, into <code>added</code>, <code>updated</code> or <code>unchanged</code>. A repeat pull with no upstream changes reports everything <code>unchanged</code> and never duplicates.</li>
+    <li>An annotation deleted in Papers since the last pull is <strong>tombstoned</strong> (<code>deleted_upstream: true</code> with a timestamp), not deleted locally, and listed under <code>tombstoned</code>. An accidental deletion or sync hiccup in Papers never silently erases evidence you already had.</li>
+  </ol>
+  <p>Your free-text <code>notes.md</code> (from <a href="organize.html#note"><code>/ref:note</code></a>) is never touched; annotations and notes are stored separately.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/&lt;pmid&gt;/meta.json</code> and a snapshot of the Papers database. Writes <code>papers/&lt;pmid&gt;/annotations.json</code> (with <code>papers_item_id</code> and <code>last_pulled_at</code>). Never writes to Papers.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:pull-annotations 31452104</span>
+<span class="c"># no Papers database on this machine</span>
+<span class="o">{</span>
+<span class="o">  "pmid": "31452104",</span>
+<span class="o">  "status": "no_papers_db_configured"</span>
+<span class="o">}</span></pre>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:pull-annotations 31452104</span>
+<span class="o">{</span>
+<span class="o">  "pmid": "31452104",</span>
+<span class="o">  "status": "ok",</span>
+<span class="o">  "added": ["&lt;annotation id&gt;"],</span>
+<span class="o">  "updated": [],</span>
+<span class="o">  "tombstoned": ["&lt;annotation id&gt;"],</span>
+<span class="o">  "unchanged": ["&lt;annotation id&gt;", "&lt;annotation id&gt;"]</span>
+<span class="o">}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>pull_annotations.py --repo &lt;library_root&gt; --pmid &lt;pmid&gt; [--papers-db &lt;path&gt;]</code>; snapshot access via <code>papers_snapshot.py</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#open"><code>/ref:open</code></a> · <a href="organize.html#note"><code>/ref:note</code></a> · <a href="write.html#export-papers"><code>/ref:export-papers</code></a> · <a href="../tutorials/papers-handoff.html">Papers handoff tutorial</a></p>
+</article>
+
+</div>
+</section>
+
+<nav class="pager">
+  <a href="people.html"><small>Previous</small>People</a>
+  <a href="../concepts.html"><small>Next</small>Concepts</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

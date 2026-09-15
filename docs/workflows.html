@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workflows · ref-manager docs</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/docs.css">
+<style>
+/* page-local: shared text styles for the workflow SVGs */
+.wf text{font-family:"IBM Plex Sans",system-ui,sans-serif;fill:currentColor}
+.wf .m{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.wf .b{font-weight:500}
+.wf .mu{fill-opacity:.68}
+.wf .ac{fill:var(--accent)}
+.wf .am{fill:var(--amber)}
+.wf .cap{font-size:11px;letter-spacing:.08em;font-weight:500;fill-opacity:.6}
+.wf a text{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:1px}
+.wf a:hover text,.wf a:focus text{fill:var(--accent)}
+.wf a:focus{outline:none}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="index.html"><img src="assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Get started</a>
+    <a href="workflows.html" aria-current="page">Workflows</a>
+    <a href="tutorials/index.html">Tutorials</a>
+    <a href="commands/index.html">Commands</a>
+    <a href="concepts.html">Concepts</a>
+    <a href="api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>Figures</h4>
+  <ol>
+    <li><a href="#command-map">1 · Command map</a></li>
+    <li><a href="#ingest">2 · Ingest &amp; commit</a></li>
+    <li><a href="#acquisition">3 · Full-text acquisition</a></li>
+    <li><a href="#extraction">4 · Extraction fan-out</a></li>
+    <li><a href="#review">5 · Human review overlays</a></li>
+    <li><a href="#selectors">6 · Selector resolution</a></li>
+    <li><a href="#ask">7 · Grounded answers</a></li>
+    <li><a href="#states">8 · Reading &amp; screening state</a></li>
+    <li><a href="#maintenance">9 · Library maintenance</a></li>
+  </ol>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Workflows · phases 0–11</p>
+  <h1>How the pieces move</h1>
+  <p class="lede">Nine diagrams of what the commands actually do, drawn from the scripts under <code>skills/ref-manager/scripts/</code>. Command names in the diagrams link to their reference entries. Wide figures scroll sideways on small screens.</p>
+</header>
+
+<!-- ============================================================ 1 -->
+<section id="command-map">
+<h2>1 · Command map</h2>
+<p>The 40 commands fall into seven groups, and every group works through the same library folder on disk. <em>Acquire</em> fills it. <em>Organize</em> adds your project state and review decisions. The remaining groups mostly read from it and write their own derived outputs next to it.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 570" role="img" aria-label="Command map. Seven groups of commands surround a central library root box listing papers, projects and queries, index/catalog.sqlite, graph, people and grants, and tables, summaries and briefs. Acquire (init, add, fetch, attach, extract, describe-figure) writes paper records into the library. Find (search, ask, search-pubmed, update-queries, related) reads the catalog and writes saved queries. Organize (project, queue, screen, note, verify, study) writes project membership, screening and corrections. Maintain (audit, index, status, open, pull-annotations) updates retraction status, citation observations and the catalog. People (person, publications, grant, discover, report) reads authorship and funding. Write (compare, methods, summarize, review, brief, check-citations, cite, export, export-papers) and Graph (weave, concept, gaps, hypothesize) read active claims and write derived artifacts.">
+  <defs>
+    <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+
+  <!-- connectors -->
+  <g stroke-width="1.5" fill="none">
+    <line x1="160" y1="180" x2="398" y2="219" stroke="var(--accent)" marker-end="url(#m1a)"/>
+    <line x1="800" y1="180" x2="562" y2="219" stroke="var(--accent)" marker-end="url(#m1a)"/>
+    <line x1="300" y1="290" x2="350" y2="290" stroke="var(--accent)" marker-start="url(#m1a)" marker-end="url(#m1a)"/>
+    <line x1="480" y1="220" x2="480" y2="181" stroke="currentColor" marker-end="url(#m1)"/>
+    <line x1="610" y1="290" x2="659" y2="290" stroke="currentColor" marker-end="url(#m1)"/>
+    <line x1="420" y1="360" x2="252" y2="399" stroke="currentColor" marker-end="url(#m1)"/>
+    <line x1="560" y1="360" x2="728" y2="399" stroke="currentColor" marker-end="url(#m1)"/>
+  </g>
+
+  <!-- acquire -->
+  <rect x="20" y="20" width="280" height="160" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="36" y="44" class="m b ac" font-size="12">acquire</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/acquire.html#init"><text x="36" y="66">init</text></a>
+    <a href="commands/acquire.html#add"><text x="36" y="84">add</text></a>
+    <a href="commands/acquire.html#fetch"><text x="36" y="102">fetch</text></a>
+    <a href="commands/acquire.html#attach"><text x="36" y="120">attach</text></a>
+    <a href="commands/acquire.html#extract"><text x="36" y="138">extract</text></a>
+    <a href="commands/acquire.html#describe-figure"><text x="36" y="156">describe-figure</text></a>
+  </g>
+  <g font-size="11">
+    <text x="158" y="66" class="cap ac">WRITES</text>
+    <text x="158" y="84" class="m mu">papers/&lt;pmid&gt;/</text>
+    <text x="158" y="102" class="mu">meta.json · raw/</text>
+    <text x="158" y="120" class="mu">versions · current.json</text>
+    <text x="158" y="138" class="mu">claim_registry.json</text>
+    <text x="158" y="156" class="mu">figures.json</text>
+  </g>
+
+  <!-- find -->
+  <rect x="340" y="20" width="280" height="160" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="356" y="44" class="m b ac" font-size="12">find</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/find.html#search"><text x="356" y="66">search</text></a>
+    <a href="commands/find.html#ask"><text x="356" y="84">ask</text></a>
+    <a href="commands/find.html#search-pubmed"><text x="356" y="102">search-pubmed</text></a>
+    <a href="commands/find.html#update-queries"><text x="356" y="120">update-queries</text></a>
+    <a href="commands/find.html#related"><text x="356" y="138">related</text></a>
+  </g>
+  <g font-size="11">
+    <text x="476" y="66" class="cap">READS</text>
+    <text x="476" y="84" class="m mu">catalog.sqlite</text>
+    <text x="476" y="106" class="cap ac">WRITES</text>
+    <text x="476" y="124" class="m mu">queries/&lt;slug&gt;.yaml</text>
+    <text x="476" y="142" class="m mu">related.json</text>
+  </g>
+
+  <!-- organize -->
+  <rect x="660" y="20" width="280" height="160" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="676" y="44" class="m b ac" font-size="12">organize</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/organize.html#project"><text x="676" y="66">project</text></a>
+    <a href="commands/organize.html#queue"><text x="676" y="84">queue</text></a>
+    <a href="commands/organize.html#screen"><text x="676" y="102">screen</text></a>
+    <a href="commands/organize.html#note"><text x="676" y="120">note</text></a>
+    <a href="commands/organize.html#verify"><text x="676" y="138">verify</text></a>
+    <a href="commands/organize.html#study"><text x="676" y="156">study</text></a>
+  </g>
+  <g font-size="11">
+    <text x="790" y="66" class="cap ac">WRITES</text>
+    <text x="790" y="84" class="mu">projects/: papers.yaml</text>
+    <text x="790" y="102" class="mu">screening.jsonl</text>
+    <text x="790" y="120" class="mu">corrections.json</text>
+    <text x="790" y="138" class="mu">notes.md · studies/</text>
+  </g>
+
+  <!-- maintain -->
+  <rect x="20" y="220" width="280" height="140" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="36" y="244" class="m b ac" font-size="12">maintain</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/maintain.html#audit"><text x="36" y="266">audit</text></a>
+    <a href="commands/maintain.html#index"><text x="36" y="284">index</text></a>
+    <a href="commands/maintain.html#status"><text x="36" y="302">status</text></a>
+    <a href="commands/maintain.html#open"><text x="36" y="320">open</text></a>
+    <a href="commands/maintain.html#pull-annotations"><text x="36" y="338">pull-annotations</text></a>
+  </g>
+  <g font-size="11">
+    <text x="170" y="266" class="cap ac">WRITES</text>
+    <text x="170" y="284" class="mu">retraction status</text>
+    <text x="170" y="302" class="mu">citations.json</text>
+    <text x="170" y="320" class="mu">catalog (rebuild)</text>
+    <text x="170" y="338" class="mu">annotations.json</text>
+  </g>
+
+  <!-- library hub -->
+  <rect x="350" y="220" width="260" height="140" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="366" y="244" class="m b ac" font-size="12">library root (files)</text>
+  <g class="m" font-size="11">
+    <text x="366" y="266">papers/&lt;pmid&gt;/</text>
+    <text x="366" y="284">projects/ · queries/</text>
+    <text x="366" y="302">index/catalog.sqlite</text>
+    <text x="366" y="320">graph/ · people/ · grants/</text>
+    <text x="366" y="338">tables/ · summaries/ · briefs/</text>
+  </g>
+
+  <!-- people -->
+  <rect x="660" y="220" width="280" height="140" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="676" y="244" class="m b ac" font-size="12">people</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/people.html#person"><text x="676" y="266">person</text></a>
+    <a href="commands/people.html#publications"><text x="676" y="284">publications</text></a>
+    <a href="commands/people.html#grant"><text x="676" y="302">grant</text></a>
+    <a href="commands/people.html#discover"><text x="676" y="320">discover</text></a>
+    <a href="commands/people.html#report"><text x="676" y="338">report</text></a>
+  </g>
+  <g font-size="11">
+    <text x="796" y="266" class="cap">READS</text>
+    <text x="796" y="284" class="m mu">authorship.json</text>
+    <text x="796" y="302" class="m mu">funding.json</text>
+    <text x="796" y="320" class="cap ac">WRITES</text>
+    <text x="796" y="338" class="mu">people/ grants/ reports/</text>
+  </g>
+
+  <!-- write -->
+  <rect x="20" y="400" width="460" height="150" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="36" y="424" class="m b ac" font-size="12">write</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/write.html#compare"><text x="36" y="448">compare</text></a>
+    <a href="commands/write.html#methods"><text x="36" y="466">methods</text></a>
+    <a href="commands/write.html#summarize"><text x="36" y="484">summarize</text></a>
+    <a href="commands/write.html#review"><text x="186" y="448">review</text></a>
+    <a href="commands/write.html#check-citations"><text x="186" y="466">check-citations</text></a>
+    <a href="commands/write.html#brief"><text x="186" y="484">brief</text></a>
+    <a href="commands/write.html#cite"><text x="336" y="448">cite</text></a>
+    <a href="commands/write.html#export"><text x="336" y="466">export</text></a>
+    <a href="commands/write.html#export-papers"><text x="336" y="484">export-papers</text></a>
+  </g>
+  <g font-size="11">
+    <text x="36" y="514" class="cap">READS</text>
+    <text x="92" y="514" class="mu">active claims · selector sets · retrieval candidates</text>
+    <text x="36" y="532" class="cap ac">WRITES</text>
+    <text x="92" y="532" class="mu">tables/ · summaries/ · briefs/ · reviews/ · checks/ · exports/</text>
+  </g>
+
+  <!-- graph -->
+  <rect x="520" y="400" width="420" height="150" rx="10" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="536" y="424" class="m b ac" font-size="12">graph</text>
+  <g class="m" font-size="11.5">
+    <a href="commands/graph.html#weave"><text x="536" y="448">weave</text></a>
+    <a href="commands/graph.html#concept"><text x="536" y="466">concept</text></a>
+    <a href="commands/graph.html#gaps"><text x="686" y="448">gaps</text></a>
+    <a href="commands/graph.html#hypothesize"><text x="686" y="466">hypothesize</text></a>
+  </g>
+  <g font-size="11">
+    <text x="536" y="514" class="cap">READS</text>
+    <text x="592" y="514" class="mu">active, non-excluded claims (claim_registry.json)</text>
+    <text x="536" y="532" class="cap ac">WRITES</text>
+    <text x="592" y="532" class="mu">graph/concepts.jsonl · relations.jsonl · okf/</text>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>library files, the single source of truth</span>
+  <span><span class="sw" style="height:0;border-width:0 0 2px;border-radius:0;border-color:var(--accent)"></span>teal arrow: the group mainly writes into the library</span>
+  <span><span class="sw" style="height:0;border-width:0 0 2px;border-radius:0"></span>dark arrow: the group mainly reads from it</span>
+</div>
+<figcaption>All 40 commands, grouped as in the <a href="commands/index.html">command reference</a>. The main dependencies between groups: <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> claims feed <em>find</em>, <em>write</em> and <em>graph</em>. <a href="commands/organize.html#project">project</a>, <a href="commands/organize.html#screen">screening</a> and <a href="commands/find.html#search-pubmed">saved-query</a> state feeds the selectors used by <em>write</em>. <a href="commands/organize.html#verify"><code>/ref:verify</code></a> rejections remove claims from retrieval and the graph. <a href="commands/maintain.html#audit"><code>/ref:audit</code></a> status changes show up when <em>write</em> artifacts are refreshed.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="ingest">
+<h2>2 · Ingest &amp; commit</h2>
+<p><code>/ref:add</code> never overwrites a paper and never lets one paper's failure block another. A per-PMID lock serializes all writes to a single paper. A library-wide lock is taken only for the short moment a citekey is allocated. Later stages add versioned content through one staging-then-swap routine.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 660" role="img" aria-label="Ingest and commit. /ref:add calls the PubMed MCP metadata tool once for all PMIDs, normalizes an envelope JSON and runs add.py. Inside a per-PMID lock: if meta.json exists the result is already_present; if title and authors are both empty the result is failed; otherwise a citekey is allocated under the library lock, meta is schema-validated (failure gives failed), then raw response, meta.json, authorship.json and funding.json are written atomically and the result is added, with extraction tier abstract or unavailable. After the lock, a DOI shared with another PMID gives a warning and no merge. Below, later commits by fetch, attach and extract create a staging directory, run a write function, atomically rename it to versions/id and finally write current.json; if the write function raises, the staging directory is removed and current.json is untouched. The SQLite catalog is not written at commit time; it is rebuilt from current.json pointers.">
+  <defs>
+    <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="m2m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- top row -->
+  <rect x="20" y="30" width="190" height="64" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <a href="commands/acquire.html#add"><text x="34" y="54" class="m b ac" font-size="12">/ref:add &lt;pmid…&gt;</text></a>
+  <text x="34" y="72" class="m" font-size="11">get_article_metadata</text>
+  <text x="34" y="88" class="mu" font-size="11">one MCP call, all PMIDs</text>
+
+  <rect x="240" y="30" width="220" height="64" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="254" y="54" class="m b" font-size="12">envelope JSON</text>
+  <text x="254" y="72" class="mu" font-size="11">pmid · title · abstract · authors</text>
+  <text x="254" y="88" class="mu" font-size="11">doi · pmcid · grants, order kept</text>
+
+  <rect x="490" y="30" width="450" height="64" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="504" y="54" class="m b" font-size="12">add.py add --metadata-file</text>
+  <text x="504" y="72" class="mu" font-size="11">records are processed one at a time; a failure is reported</text>
+  <text x="504" y="88" class="mu" font-size="11">for that PMID only and never blocks the rest</text>
+
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="210" y1="62" x2="238" y2="62" marker-end="url(#m2)"/>
+    <line x1="460" y1="62" x2="488" y2="62" marker-end="url(#m2)"/>
+    <line x1="600" y1="94" x2="600" y2="122" marker-end="url(#m2)"/>
+  </g>
+
+  <!-- pmid lock frame -->
+  <rect x="20" y="124" width="700" height="246" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="36" y="146" class="m ac" font-size="11.5">pmid_lock · index/.locks/&lt;pmid&gt;.lock</text>
+
+  <g font-size="11">
+    <rect x="40" y="164" width="150" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="52" y="186" class="b">meta.json exists?</text>
+    <text x="52" y="204" class="mu">dedup by PMID only</text>
+
+    <rect x="220" y="164" width="150" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="232" y="186" class="b">title or authors?</text>
+    <text x="232" y="204" class="mu">both empty → stop</text>
+
+    <rect x="400" y="164" width="150" height="66" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="412" y="186" class="m b" font-size="11.5">allocate_citekey</text>
+    <text x="412" y="204" class="m mu">.library.lock</text>
+    <text x="412" y="220" class="mu">-2, -3 on collision</text>
+
+    <rect x="580" y="164" width="120" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="592" y="186" class="m b" font-size="11.5">validate_meta</text>
+    <text x="592" y="204" class="mu">lib_schema</text>
+
+    <rect x="380" y="270" width="320" height="84" rx="6" fill="var(--card)" stroke="var(--accent)"/>
+    <text x="394" y="290" class="b">atomic writes (temp file + os.replace)</text>
+    <text x="394" y="308" class="m mu">raw/&lt;sha256&gt;/response.json · meta.json</text>
+    <text x="394" y="326" class="m mu">authorship.json · funding.json</text>
+    <text x="394" y="344" class="mu">abstract null → extraction_tier: unavailable</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="190" y1="197" x2="218" y2="197" marker-end="url(#m2)"/>
+    <line x1="370" y1="197" x2="398" y2="197" marker-end="url(#m2)"/>
+    <line x1="550" y1="197" x2="578" y2="197" marker-end="url(#m2)"/>
+    <line x1="640" y1="230" x2="640" y2="268" marker-end="url(#m2)"/>
+  </g>
+  <text x="120" y="250" class="mu" font-size="11">yes</text>
+  <text x="300" y="250" class="mu" font-size="11">no</text>
+  <text x="726" y="189" class="mu" font-size="11">error</text>
+
+  <!-- outcomes -->
+  <g stroke-width="1.5" fill="none">
+    <line x1="115" y1="230" x2="115" y2="398" stroke="currentColor" marker-end="url(#m2)"/>
+    <line x1="295" y1="230" x2="295" y2="398" stroke="var(--amber)" marker-end="url(#m2m)"/>
+    <line x1="700" y1="197" x2="758" y2="197" stroke="var(--amber)" marker-end="url(#m2m)"/>
+    <line x1="700" y1="312" x2="758" y2="312" stroke="var(--accent)" marker-end="url(#m2a)"/>
+    <line x1="850" y1="346" x2="850" y2="398" stroke="currentColor" marker-end="url(#m2)"/>
+  </g>
+  <g font-size="11">
+    <rect x="40" y="400" width="150" height="54" rx="6" fill="none" stroke="currentColor"/>
+    <text x="52" y="422" class="m b" font-size="11.5">already_present</text>
+    <text x="52" y="440" class="mu">nothing rewritten</text>
+
+    <rect x="220" y="400" width="150" height="54" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="232" y="422" class="m b" font-size="11.5">failed</text>
+    <text x="232" y="440" class="mu">no metadata returned</text>
+
+    <rect x="760" y="164" width="180" height="66" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="772" y="186" class="m b" font-size="11.5">failed</text>
+    <text x="772" y="204" class="mu">schema error, this PMID</text>
+    <text x="772" y="220" class="mu">only</text>
+
+    <rect x="760" y="280" width="180" height="66" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="772" y="302" class="m b ac" font-size="11.5">added</text>
+    <text x="772" y="320" class="mu">citekey · extraction_tier</text>
+    <text x="772" y="336" class="mu">abstract | unavailable</text>
+
+    <rect x="760" y="400" width="180" height="66" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="772" y="422" class="b">after the lock</text>
+    <text x="772" y="440" class="mu">DOI shared with another</text>
+    <text x="772" y="456" class="mu">PMID → warning, no merge</text>
+  </g>
+
+  <!-- commit_version -->
+  <text x="20" y="502" class="cap">LATER COMMITS · FETCH · ATTACH · EXTRACT (lib_atomic.commit_version)</text>
+  <g font-size="11">
+    <rect x="20" y="516" width="200" height="62" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="32" y="538" class="m b" font-size="11.5">versions/.staging-&lt;id&gt;/</text>
+    <text x="32" y="556" class="mu">created under pmid_lock</text>
+
+    <rect x="250" y="516" width="210" height="62" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="262" y="538" class="m b" font-size="11.5">write_fn(staging)</text>
+    <text x="262" y="554" class="mu">source.md, figures.json, or</text>
+    <text x="262" y="570" class="mu">claims.json + manifest.json</text>
+
+    <rect x="490" y="516" width="200" height="62" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="502" y="538" class="m b" font-size="11.5">os.replace</text>
+    <text x="502" y="554" class="mu">staging → versions/&lt;id&gt;/</text>
+    <text x="502" y="570" class="mu">atomic rename</text>
+
+    <rect x="720" y="516" width="220" height="62" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="732" y="538" class="m b ac" font-size="11.5">current.json</text>
+    <text x="732" y="554" class="m mu">{"version": &lt;id&gt;}</text>
+    <text x="732" y="570" class="mu">atomic write, the last step</text>
+
+    <rect x="250" y="606" width="210" height="44" rx="6" fill="var(--amber-soft)" stroke="var(--amber)" stroke-dasharray="4 3"/>
+    <text x="262" y="624" class="b">write_fn raises</text>
+    <text x="262" y="640" class="mu">staging removed, pointer kept</text>
+
+    <rect x="490" y="606" width="450" height="44" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="502" y="624" class="mu">catalog.sqlite is not written at commit: it is rebuilt from</text>
+    <text x="502" y="640" class="mu">current.json pointers (/ref:index --rebuild, and before each /ref:ask)</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="220" y1="547" x2="248" y2="547" marker-end="url(#m2)"/>
+    <line x1="460" y1="547" x2="488" y2="547" marker-end="url(#m2)"/>
+    <line x1="690" y1="547" x2="718" y2="547" marker-end="url(#m2)"/>
+  </g>
+  <line x1="355" y1="578" x2="355" y2="604" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#m2m)"/>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>per-PMID lock / committed result</span>
+  <span><span class="sw amber"></span>library lock, or a failure branch</span>
+  <span><span class="sw dash"></span>note or side check</span>
+</div>
+<figcaption><a href="commands/acquire.html#add"><code>/ref:add</code></a> only resolves and deduplicates. It writes <code>meta.json</code>, <code>authorship.json</code> and <code>funding.json</code> directly, with atomic replacement. Versioned content comes later from <a href="commands/acquire.html#fetch"><code>/ref:fetch</code></a>, <a href="commands/acquire.html#attach"><code>/ref:attach</code></a> and <a href="commands/acquire.html#extract"><code>/ref:extract</code></a>, each through <code>commit_version</code>. Readers only follow <code>current.json</code>, so a half-written staging directory is never seen. That is also why the SQLite catalog can always be thrown away and rebuilt (<a href="commands/maintain.html#index"><code>/ref:index --rebuild</code></a>).</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="acquisition">
+<h2>3 · Full-text acquisition</h2>
+<p><code>fetch.py</code> tries each paper's sources in a fixed order and stops at the first one that applies. The PubMed and publisher lookups are done by the command itself; the script calls only the Unpaywall API. Local PDFs go through <code>/ref:attach</code>, which refuses a file unless it can match the file to the paper.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 720" role="img" aria-label="Full-text acquisition. Left, the /ref:fetch ladder per PMID: 1 jats_xml, genuine JATS only, converts with pandoc; 2 DOI plus unpaywall_email queries Unpaywall and, if a best OA location exists, records it and stops with oa_location_found; 3 publisher_html converts with trafilatura; 4 plain_text is written through as raw text without structure; 5 nothing usable gives abstract_only, not an error. Converted sources go through commit_version, preserving raw bytes first, giving acquired, with funding observations appended for JATS, or failed if conversion status is not ok. Right, /ref:attach: identical bytes already stored gives duplicate_noop; otherwise pdftotext reads the first two pages and looks for the DOI or the first eight title words; no match without --force gives refused; otherwise the PDF and attachment.json are stored and commit_version runs convert_pdf with anydoc, giving attached, with full_text true only if conversion succeeded. Bottom: figures.json records JATS fig locators and HTML image references with asset_available false; /ref:describe-figure runs vision.py request keyed on figure hash, model and prompt, returning asset_unavailable, figure_not_found, cache_hit or needs_description, after which the agent stores a model_interpretation entry.">
+  <defs>
+    <marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="m3m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <a href="commands/acquire.html#fetch"><text x="30" y="40" class="m b ac" font-size="12">/ref:fetch &lt;pmid…&gt;</text></a>
+  <text x="172" y="40" class="mu" font-size="11">first rung that applies wins</text>
+
+  <!-- rungs -->
+  <g font-size="11">
+    <rect x="30" y="60" width="220" height="50" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="81" class="m b" font-size="11.5">1  jats_xml</text>
+    <text x="42" y="99" class="mu">genuine JATS markup only</text>
+    <rect x="30" y="130" width="220" height="50" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="151" class="m b" font-size="11.5">2  DOI + unpaywall_email</text>
+    <text x="42" y="169" class="mu">Unpaywall best_oa_location</text>
+    <rect x="30" y="200" width="220" height="50" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="221" class="m b" font-size="11.5">3  publisher_html</text>
+    <text x="42" y="239" class="mu">fetched by the command</text>
+    <rect x="30" y="270" width="220" height="50" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="291" class="m b" font-size="11.5">4  plain_text</text>
+    <text x="42" y="309" class="mu">e.g. the MCP full_text string</text>
+    <rect x="30" y="340" width="220" height="50" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="42" y="361" class="m b" font-size="11.5">5  nothing usable</text>
+    <text x="42" y="379" class="mu">every input null / no OA URL</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".55">
+    <line x1="140" y1="110" x2="140" y2="128" marker-end="url(#m3)"/>
+    <line x1="140" y1="180" x2="140" y2="198" marker-end="url(#m3)"/>
+    <line x1="140" y1="250" x2="140" y2="268" marker-end="url(#m3)"/>
+    <line x1="140" y1="320" x2="140" y2="338" marker-end="url(#m3)"/>
+  </g>
+  <g stroke-width="1.5">
+    <line x1="250" y1="85" x2="288" y2="85" stroke="var(--accent)" marker-end="url(#m3a)"/>
+    <line x1="250" y1="155" x2="288" y2="155" stroke="var(--amber)" marker-end="url(#m3m)"/>
+    <line x1="250" y1="225" x2="288" y2="225" stroke="var(--accent)" marker-end="url(#m3a)"/>
+    <line x1="250" y1="295" x2="288" y2="295" stroke="var(--accent)" marker-end="url(#m3a)"/>
+    <line x1="250" y1="365" x2="288" y2="365" stroke="currentColor" marker-end="url(#m3)"/>
+  </g>
+  <!-- rung outcomes -->
+  <g font-size="11">
+    <rect x="290" y="60" width="180" height="50" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="302" y="81" class="m b" font-size="11.5">convert_jats</text>
+    <text x="302" y="99" class="mu">pandoc; XML check first</text>
+    <rect x="290" y="130" width="180" height="50" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="302" y="151" class="m b" font-size="11.5">oa_location_found</text>
+    <text x="302" y="169" class="mu">URL recorded, stops here</text>
+    <rect x="290" y="200" width="180" height="50" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="302" y="221" class="m b" font-size="11.5">convert_html</text>
+    <text x="302" y="239" class="mu">trafilatura (uv worker)</text>
+    <rect x="290" y="270" width="180" height="50" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="302" y="291" class="m b" font-size="11.5">convert_plain_text</text>
+    <text x="302" y="309" class="mu">raw-text; no structure</text>
+    <rect x="290" y="340" width="180" height="50" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="302" y="361" class="m b" font-size="11.5">abstract_only</text>
+    <text x="302" y="379" class="mu">full_text: false · expected</text>
+  </g>
+  <!-- collector -->
+  <g stroke="var(--accent)" stroke-width="1.5" fill="none">
+    <path d="M470 85 H495 V450 H482" marker-end="url(#m3a)"/>
+    <line x1="470" y1="225" x2="495" y2="225"/>
+    <line x1="470" y1="295" x2="495" y2="295"/>
+  </g>
+  <g fill="var(--accent)"><circle cx="495" cy="225" r="3"/><circle cx="495" cy="295" r="3"/></g>
+
+  <g font-size="11">
+    <rect x="30" y="420" width="450" height="64" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="42" y="442" class="m b ac" font-size="12">commit_version</text>
+    <text x="42" y="460" class="mu">raw/&lt;sha256&gt;/source.&lt;kind&gt; preserved before conversion</text>
+    <text x="42" y="476" class="mu">versions/&lt;id&gt;/source.md (+ figures.json, manifest) → current.json</text>
+
+    <rect x="30" y="510" width="210" height="66" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="42" y="530" class="m b ac" font-size="11.5">acquired</text>
+    <text x="42" y="548" class="mu">meta.full_text: true</text>
+    <text x="42" y="564" class="mu">JATS: funding.json appended</text>
+
+    <rect x="270" y="510" width="210" height="66" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="282" y="530" class="m b" font-size="11.5">failed</text>
+    <text x="282" y="548" class="mu">conversion status ≠ ok</text>
+    <text x="282" y="564" class="mu">staging discarded</text>
+  </g>
+  <line x1="135" y1="484" x2="135" y2="508" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#m3a)"/>
+  <line x1="375" y1="484" x2="375" y2="508" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#m3m)"/>
+
+  <!-- attach column -->
+  <a href="commands/acquire.html#attach"><text x="560" y="40" class="m b ac" font-size="12">/ref:attach &lt;pmid&gt; &lt;path&gt; [--force]</text></a>
+  <g font-size="11">
+    <rect x="560" y="60" width="230" height="50" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="572" y="81" class="b">same bytes already stored?</text>
+    <text x="572" y="99" class="m mu">raw/&lt;sha256&gt;/source.pdf</text>
+    <rect x="820" y="60" width="120" height="50" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="832" y="81" class="m b" font-size="11.5">duplicate_noop</text>
+    <text x="832" y="99" class="mu">nothing written</text>
+
+    <rect x="560" y="140" width="230" height="66" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="572" y="161" class="b">identity check (pdftotext)</text>
+    <text x="572" y="179" class="mu">first 2 pages contain the DOI,</text>
+    <text x="572" y="195" class="mu">or the first 8 title words</text>
+    <rect x="820" y="140" width="120" height="66" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="832" y="161" class="m b" font-size="11.5">refused</text>
+    <text x="832" y="179" class="mu">no match and</text>
+    <text x="832" y="195" class="mu">no --force</text>
+
+    <rect x="560" y="236" width="230" height="50" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="572" y="257" class="b">store raw/&lt;sha256&gt;/source.pdf</text>
+    <text x="572" y="275" class="mu">attachment.json: verified, forced</text>
+
+    <rect x="560" y="316" width="230" height="66" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="572" y="337" class="m b" font-size="11.5">commit_version · convert_pdf</text>
+    <text x="572" y="355" class="mu">anydoc; if it is unavailable the</text>
+    <text x="572" y="371" class="mu">version commits with that status</text>
+
+    <rect x="560" y="412" width="230" height="50" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="572" y="433" class="m b ac" font-size="11.5">attached</text>
+    <text x="572" y="451" class="mu">full_text: true only when ok</text>
+  </g>
+  <g stroke-width="1.5">
+    <line x1="790" y1="85" x2="818" y2="85" stroke="currentColor" marker-end="url(#m3)"/>
+    <line x1="790" y1="173" x2="818" y2="173" stroke="var(--amber)" marker-end="url(#m3m)"/>
+    <line x1="675" y1="110" x2="675" y2="138" stroke="currentColor" marker-end="url(#m3)"/>
+    <line x1="675" y1="206" x2="675" y2="234" stroke="currentColor" marker-end="url(#m3)"/>
+    <line x1="675" y1="286" x2="675" y2="314" stroke="currentColor" marker-end="url(#m3)"/>
+    <line x1="675" y1="382" x2="675" y2="410" stroke="var(--accent)" marker-end="url(#m3a)"/>
+  </g>
+  <g font-size="11" class="mu">
+    <text x="796" y="78">yes</text>
+    <text x="685" y="128">new bytes</text>
+    <text x="685" y="224">match, or --force</text>
+  </g>
+
+  <!-- figures row -->
+  <line x1="20" y1="600" x2="940" y2="600" stroke="currentColor" stroke-opacity=".2"/>
+  <text x="30" y="620" class="cap">FIGURES</text>
+  <g font-size="11">
+    <rect x="30" y="630" width="300" height="80" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="42" y="650" class="m b" font-size="11.5">figures.json (per version)</text>
+    <text x="42" y="668" class="mu">JATS &lt;fig&gt;: label, caption, locator</text>
+    <text x="42" y="684" class="mu">HTML image refs: locator only</text>
+    <text x="42" y="700" class="mu">asset_available: false (no bytes)</text>
+
+    <rect x="370" y="630" width="250" height="80" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <a href="commands/acquire.html#describe-figure"><text x="382" y="650" class="m b" font-size="11.5">/ref:describe-figure</text></a>
+    <text x="382" y="668" class="m mu">vision.py request</text>
+    <text x="382" y="684" class="mu">cache key: sha256 + model + prompt</text>
+    <text x="382" y="700" class="mu">on demand, never automatic</text>
+
+    <rect x="660" y="630" width="280" height="80" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="672" y="650" class="m" font-size="11">asset_unavailable · figure_not_found</text>
+    <text x="672" y="668" class="mu">cache_hit → stored description</text>
+    <text x="672" y="684" class="mu">needs_description → agent looks,</text>
+    <text x="672" y="700" class="mu">then vision.py store (model_interpretation)</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="330" y1="670" x2="368" y2="670" marker-end="url(#m3)"/>
+    <line x1="620" y1="670" x2="658" y2="670" marker-end="url(#m3)"/>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>converts and commits a version</span>
+  <span><span class="sw amber"></span>stops without full text, or needs you</span>
+  <span><span class="sw dash"></span>terminal no-op / not a failure</span>
+</div>
+<figcaption><a href="commands/acquire.html#fetch"><code>/ref:fetch</code></a> records an Unpaywall hit (<code>oa_location_found</code>) and stops there. It does not download the PDF: you download it and hand it to <a href="commands/acquire.html#attach"><code>/ref:attach</code></a>. The live PubMed full-text tool returns plain text, so it belongs in <code>plain_text</code>, not <code>jats_xml</code>. Section structure and figures are then lost, and a diagnostic says so. PDF conversion produces no <code>figures.json</code> entries. <a href="commands/acquire.html#describe-figure"><code>/ref:describe-figure</code></a> can only describe figures whose image bytes and hash exist; its output is labelled as a model interpretation and stored next to the caption, never in place of it.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="extraction">
+<h2>4 · Extraction fan-out</h2>
+<p><code>/ref:extract</code> starts one <code>ref-extractor</code> subagent per PMID, all in parallel. <code>extract.py</code> never sees the paper itself: it validates what each agent returned, assigns stable claim IDs and commits each paper on its own.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 560" role="img" aria-label="Extraction fan-out. /ref:extract reads each PMID's committed source.md or abstract. Three lanes: PMID A with full text gets evidence tier full; PMID B, abstract only, gets tier abstract; PMID C either tier. Each lane has one ref-extractor subagent run in parallel returning study_type and claims JSON, then extract.py validates every claim before touching the registry, then commit_version writes claims.json and manifest and updates claim_registry.json. Lane C fails validation and fails only that PMID. Bottom: claim ID rules across reruns — same content hash keeps the claim_id; changed hash with exactly one prior candidate mints a new id and marks the old one superseded_by; a new locator or an ambiguous match mints a new id without supersession. Extraction tier only moves up.">
+  <defs>
+    <marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m4m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <g class="cap" font-size="11">
+    <text x="200" y="28">INPUT &amp; TIER</text>
+    <text x="400" y="28">SUBAGENT</text>
+    <text x="590" y="28">VALIDATE</text>
+    <text x="780" y="28">COMMIT</text>
+  </g>
+
+  <rect x="20" y="180" width="160" height="100" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <a href="commands/acquire.html#extract"><text x="34" y="204" class="m b ac" font-size="12">/ref:extract</text></a>
+  <text x="34" y="222" class="m" font-size="11.5">&lt;pmid…&gt;</text>
+  <text x="34" y="244" class="mu" font-size="11">reads committed</text>
+  <text x="34" y="260" class="mu" font-size="11">source.md or abstract</text>
+
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <path d="M180 230 L198 85" marker-end="url(#m4)"/>
+    <line x1="180" y1="230" x2="198" y2="230" marker-end="url(#m4)"/>
+    <path d="M180 230 L198 375" marker-end="url(#m4)"/>
+  </g>
+
+  <!-- lanes: y 40 / 185 / 330, h 90 -->
+  <g font-size="11">
+    <!-- lane A -->
+    <rect x="200" y="40" width="170" height="90" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="212" y="62" class="m b" font-size="11.5">PMID A</text>
+    <text x="212" y="80" class="mu">source.md at current.json</text>
+    <text x="212" y="98" class="m">evidence_tier: full</text>
+    <rect x="400" y="40" width="160" height="90" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="412" y="62" class="m b" font-size="11.5">ref-extractor</text>
+    <text x="412" y="80" class="mu">one subagent, parallel</text>
+    <text x="412" y="96" class="mu">→ study_type,</text>
+    <text x="412" y="112" class="mu">claims[] as JSON</text>
+    <rect x="590" y="40" width="160" height="90" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="602" y="62" class="m b" font-size="11.5">extract.py</text>
+    <text x="602" y="80" class="mu">validate every claim</text>
+    <text x="602" y="96" class="mu">before the registry</text>
+    <text x="602" y="112" class="mu">is touched</text>
+    <rect x="780" y="40" width="160" height="90" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="792" y="62" class="m b ac" font-size="11.5">commit_version</text>
+    <text x="792" y="80" class="mu">stable claim_ids</text>
+    <text x="792" y="96" class="mu">claims.json + manifest</text>
+    <text x="792" y="112" class="m mu">claim_registry.json</text>
+
+    <!-- lane B -->
+    <rect x="200" y="185" width="170" height="90" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="212" y="207" class="m b" font-size="11.5">PMID B</text>
+    <text x="212" y="225" class="mu">no committed full text</text>
+    <text x="212" y="243" class="m">evidence_tier: abstract</text>
+    <rect x="400" y="185" width="160" height="90" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="412" y="207" class="m b" font-size="11.5">ref-extractor</text>
+    <text x="412" y="225" class="mu">reads the abstract only</text>
+    <text x="412" y="241" class="mu">never blocks on</text>
+    <text x="412" y="257" class="mu">missing full text</text>
+    <rect x="590" y="185" width="160" height="90" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="602" y="207" class="m b" font-size="11.5">extract.py</text>
+    <text x="602" y="225" class="mu">schema ok</text>
+    <rect x="780" y="185" width="160" height="90" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="792" y="207" class="m b ac" font-size="11.5">commit_version</text>
+    <text x="792" y="225" class="mu">own version, own lock</text>
+    <text x="792" y="241" class="mu">independent of A and C</text>
+
+    <!-- lane C -->
+    <rect x="200" y="330" width="170" height="90" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="212" y="352" class="m b" font-size="11.5">PMID C</text>
+    <text x="212" y="370" class="mu">full text or abstract</text>
+    <rect x="400" y="330" width="160" height="90" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="412" y="352" class="m b" font-size="11.5">ref-extractor</text>
+    <text x="412" y="370" class="mu">returns a malformed</text>
+    <text x="412" y="386" class="mu">claim</text>
+    <rect x="590" y="330" width="160" height="90" rx="6" fill="var(--card)" stroke="var(--amber)"/>
+    <text x="602" y="352" class="m b" font-size="11.5">extract.py</text>
+    <text x="602" y="370" class="m am">SchemaError</text>
+    <rect x="780" y="330" width="160" height="90" rx="6" fill="none" stroke="var(--amber)" stroke-dasharray="4 3"/>
+    <text x="792" y="352" class="m b" font-size="11.5">failed</text>
+    <text x="792" y="370" class="mu">this PMID only; no</text>
+    <text x="792" y="386" class="mu">registry change; A and</text>
+    <text x="792" y="402" class="mu">B still commit</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="370" y1="85" x2="398" y2="85" marker-end="url(#m4)"/>
+    <line x1="560" y1="85" x2="588" y2="85" marker-end="url(#m4)"/>
+    <line x1="750" y1="85" x2="778" y2="85" marker-end="url(#m4)"/>
+    <line x1="370" y1="230" x2="398" y2="230" marker-end="url(#m4)"/>
+    <line x1="560" y1="230" x2="588" y2="230" marker-end="url(#m4)"/>
+    <line x1="750" y1="230" x2="778" y2="230" marker-end="url(#m4)"/>
+    <line x1="370" y1="375" x2="398" y2="375" marker-end="url(#m4)"/>
+    <line x1="560" y1="375" x2="588" y2="375" marker-end="url(#m4)"/>
+  </g>
+  <line x1="750" y1="375" x2="778" y2="375" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#m4m)"/>
+
+  <!-- claim id rules -->
+  <text x="20" y="456" class="cap">CLAIM IDS ACROSS RERUNS · per locator, against the claims active before the run</text>
+  <g font-size="11">
+    <rect x="20" y="466" width="293" height="54" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="32" y="487" class="b">same content hash</text>
+    <text x="32" y="505" class="mu">→ same claim_id; review decisions kept</text>
+    <rect x="333" y="466" width="293" height="54" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="345" y="487" class="b">changed hash, exactly one prior claim</text>
+    <text x="345" y="505" class="mu">→ new id; old claim gets superseded_by</text>
+    <rect x="646" y="466" width="294" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="658" y="487" class="b">new locator, or several candidates</text>
+    <text x="658" y="505" class="mu">→ new id; no supersession asserted</text>
+  </g>
+  <text x="20" y="546" class="mu" font-size="11">extraction_tier only moves up (unavailable → abstract → full). After each commit, corrections that target a superseded claim flip to pending_review.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw amber"></span>subagent judgment (LLM)</span>
+  <span><span class="sw"></span>deterministic script</span>
+  <span><span class="sw solid"></span>committed version</span>
+  <span><span class="sw dash" style="border-color:var(--amber)"></span>per-PMID failure</span>
+</div>
+<figcaption><a href="commands/acquire.html#extract"><code>/ref:extract</code></a> sets the evidence tier from what is committed: <code>full</code> if <code>current.json</code> points at a <code>source.md</code>, <code>abstract</code> otherwise. It also re-checks retraction status for each paper. When two candidates are ambiguous, a new ID is minted rather than guessing a supersession. A missed supersession can be fixed with <a href="commands/organize.html#verify"><code>/ref:verify</code></a>; a wrong one would silently drop a real claim.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="review">
+<h2>5 · Human review overlays</h2>
+<p>Your review decisions live in <code>corrections.json</code>, outside the regeneration path. Re-running extraction never erases them. If the evidence a decision points at changes, the decision is flagged <code>pending_review</code> instead of being silently reapplied or dropped.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 490" role="img" aria-label="Human review overlays. /ref:verify kinds — claim accept, edit or reject; grant-link accept or reject; author-contribution; person-identity; show — append a record to papers/pmid/corrections.json with target_type, target_id, decision, rationale, reviewer, timestamp, evidence_locator and status active or pending_review. Side effects in the same call: claim reject sets excluded_from_synthesis true on the claim registry entry, keeping the claim; grant-link updates grants/slug.json publication_links; author-contribution writes authorship.json flags and is refused without an evidence statement; person-identity calls person.py confirm or reject; claim accept or edit is recorded in corrections.json only. Later: an extract rerun with the same content hash keeps the claim_id and the decision stays active; a rerun with changed content gives a new claim_id, supersedes the old one, and the correction becomes pending_review; a rejected claim is skipped by ask retrieval, gaps and relation support, and brief or summarize refresh lists it under withdrawn_evidence.">
+  <defs>
+    <marker id="m5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m5m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <rect x="20" y="30" width="220" height="190" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <a href="commands/organize.html#verify"><text x="34" y="54" class="m b ac" font-size="12">/ref:verify</text></a>
+  <g class="m" font-size="11">
+    <text x="34" y="80">claim  accept|edit|reject</text>
+    <text x="34" y="98">grant-link  accept|reject</text>
+    <text x="34" y="116">author-contribution</text>
+    <text x="34" y="134">person-identity</text>
+    <text x="34" y="152">show &lt;pmid&gt;</text>
+  </g>
+  <text x="34" y="180" class="mu" font-size="11">verify.py also has</text>
+  <text x="34" y="196" class="m mu" font-size="11">review-appraisal</text>
+
+  <rect x="280" y="30" width="240" height="190" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="294" y="54" class="m b ac" font-size="12">corrections.json</text>
+  <text x="294" y="72" class="mu" font-size="11">papers/&lt;pmid&gt;/, append a record</text>
+  <g class="m" font-size="11">
+    <text x="294" y="96">target_type · target_id</text>
+    <text x="294" y="114">decision · rationale</text>
+    <text x="294" y="132">reviewer · timestamp</text>
+    <text x="294" y="150">evidence_locator</text>
+    <text x="294" y="168">status: active |</text>
+    <text x="294" y="186">        pending_review</text>
+  </g>
+
+  <rect x="560" y="30" width="380" height="190" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="574" y="54" class="b" font-size="12">side effects of the same call</text>
+  <g font-size="11">
+    <text x="574" y="78">claim reject → claim_registry.json</text>
+    <text x="574" y="94" class="mu">excluded_from_synthesis: true (kept, never deleted)</text>
+    <text x="574" y="116">grant-link → grants/&lt;slug&gt;.json publication_links</text>
+    <text x="574" y="138">author-contribution → authorship.json flags</text>
+    <text x="574" y="154" class="mu">refused without an explicit evidence statement</text>
+    <text x="574" y="176">person-identity → person.py confirm / reject</text>
+    <text x="574" y="198">claim accept / edit → recorded in corrections.json only</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="240" y1="125" x2="278" y2="125" marker-end="url(#m5)"/>
+    <line x1="520" y1="125" x2="558" y2="125" marker-end="url(#m5)"/>
+  </g>
+
+  <text x="20" y="258" class="cap">WHAT HAPPENS LATER</text>
+  <g font-size="11">
+    <!-- lane 1 -->
+    <rect x="20" y="272" width="260" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <a href="commands/acquire.html#extract"><text x="32" y="294" class="m b" font-size="11.5">/ref:extract rerun</text></a>
+    <text x="32" y="312" class="mu">same content hash at the locator</text>
+    <rect x="320" y="272" width="260" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="332" y="294" class="b">same claim_id</text>
+    <text x="332" y="312" class="mu">evidence unchanged</text>
+    <rect x="620" y="272" width="320" height="56" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="632" y="294" class="b ac">decision kept</text>
+    <text x="632" y="312" class="mu">correction stays active</text>
+
+    <!-- lane 2 -->
+    <rect x="20" y="346" width="260" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <a href="commands/acquire.html#extract"><text x="32" y="368" class="m b" font-size="11.5">/ref:extract rerun</text></a>
+    <text x="32" y="386" class="mu">changed content, one prior claim</text>
+    <rect x="320" y="346" width="260" height="56" rx="6" fill="var(--card)" stroke="var(--amber)"/>
+    <text x="332" y="368" class="b">new claim_id</text>
+    <text x="332" y="386" class="mu">old claim marked superseded</text>
+    <rect x="620" y="346" width="320" height="56" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="632" y="368" class="m b" font-size="11.5">status: pending_review</text>
+    <text x="632" y="386" class="mu">never silently reapplied or dropped</text>
+
+    <!-- lane 3 -->
+    <rect x="20" y="420" width="260" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="32" y="442" class="b">claim rejected</text>
+    <text x="32" y="460" class="m mu">excluded_from_synthesis: true</text>
+    <rect x="320" y="420" width="260" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="332" y="442" class="b">ask retrieval · gaps · relations</text>
+    <text x="332" y="460" class="mu">use only active, non-excluded claims</text>
+    <rect x="620" y="420" width="320" height="56" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="632" y="442" class="m b" font-size="11.5">/ref:brief · /ref:summarize --refresh</text>
+    <text x="632" y="460" class="mu">list it under withdrawn_evidence</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="280" y1="300" x2="318" y2="300" marker-end="url(#m5)"/>
+    <line x1="580" y1="300" x2="618" y2="300" marker-end="url(#m5)"/>
+    <line x1="280" y1="374" x2="318" y2="374" marker-end="url(#m5)"/>
+    <line x1="280" y1="448" x2="318" y2="448" marker-end="url(#m5)"/>
+    <line x1="580" y1="448" x2="618" y2="448" marker-end="url(#m5)"/>
+  </g>
+  <line x1="580" y1="374" x2="618" y2="374" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#m5m)"/>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>authoritative review record / decision preserved</span>
+  <span><span class="sw amber"></span>evidence changed, needs your re-review</span>
+  <span><span class="sw dash"></span>surfaced on refresh</span>
+</div>
+<figcaption><a href="commands/organize.html#verify"><code>/ref:verify show</code></a> re-checks the records against the claim registry before printing them, and so does every <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> commit, which is how superseded targets become <code>pending_review</code>. Two limits in phases 0–11. First, a claim <code>edit</code> stores its replacement value, but no reader applies it to the claim; only <code>reject</code> changes what synthesis sees. Second, <a href="commands/write.html#compare"><code>/ref:compare</code></a> cells and a fresh <a href="commands/write.html#summarize"><code>/ref:summarize</code></a> filter by <code>status: active</code> only, so a rejected claim can still appear there.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="selectors">
+<h2>6 · Selector resolution</h2>
+<p>Every set-based command takes the same selector grammar from <code>lib_selector.py</code>. It follows three steps: resolve the set, report what is in it, then do the work. The resolved PMID list is frozen into the artifact's manifest, so its membership can only change when you run an explicit <code>--refresh</code>, which then shows what changed.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 460" role="img" aria-label="Selector resolution. A selector expression has a base source, where the first one given wins: explicit PMIDs, --from-file, --project, --query with optional --run, --study, or --search. Narrowing flags --screened, --read and --queue require --project. Refinements are --exclude and --tier abstract, full or any; --concept raises not available. The resolved PMIDs are deduplicated and sorted; an empty result is a SelectorError naming the expression. The report gives count, by_extraction_tier, by_retraction_errata_status and by_human_verification_state, which is always not_yet_tracked. The frozen manifest.json stores selector_expression, pmids, resolved_at and report; a rerun without --refresh reuses the frozen artifact. With --refresh the selector is re-resolved and compare reports added, removed, changed_evidence_cells and retraction_status_changes; summarize reports added_pmids, removed_pmids, withdrawn_evidence and retraction_status_changes; brief reports added_support_claim_ids, new_pmids, withdrawn_evidence and retraction_status_changes.">
+  <defs>
+    <marker id="m6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m6a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="m6m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <rect x="20" y="30" width="310" height="240" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="36" y="54" class="m b ac" font-size="12">selector expression</text>
+  <text x="36" y="76" class="cap">BASE · first one given wins</text>
+  <g class="m" font-size="11">
+    <text x="36" y="94">&lt;pmid…&gt; · --from-file</text>
+    <text x="36" y="112">--project · --query [--run]</text>
+    <text x="36" y="130">--study · --search</text>
+  </g>
+  <text x="36" y="154" class="cap">NARROW · needs --project</text>
+  <g class="m" font-size="11">
+    <text x="36" y="172">--screened included|excluded|pending</text>
+    <text x="36" y="190">--read · --queue &lt;state&gt;</text>
+  </g>
+  <text x="36" y="214" class="cap">REFINE</text>
+  <text x="36" y="232" class="m" font-size="11">--exclude · --tier abstract|full|any</text>
+  <text x="36" y="254" class="mu" font-size="11">--concept → raises "not available"</text>
+
+  <rect x="370" y="30" width="200" height="110" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="384" y="54" class="b" font-size="12">resolved PMIDs</text>
+  <g font-size="11" class="mu">
+    <text x="384" y="76">deduplicated, sorted</text>
+    <text x="384" y="94">empty → SelectorError</text>
+    <text x="384" y="110">naming the expression,</text>
+    <text x="384" y="126">never a silent empty set</text>
+  </g>
+
+  <rect x="610" y="30" width="330" height="136" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="624" y="54" class="b" font-size="12">report (before any work)</text>
+  <g class="m" font-size="11">
+    <text x="624" y="76">count</text>
+    <text x="624" y="94">by_extraction_tier</text>
+    <text x="624" y="112">by_retraction_errata_status</text>
+    <text x="624" y="130">by_human_verification_state</text>
+  </g>
+  <text x="624" y="154" class="mu" font-size="11">verification state is always not_yet_tracked</text>
+
+  <rect x="370" y="200" width="570" height="80" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="384" y="222" class="m b ac" font-size="12">frozen manifest.json</text>
+  <text x="384" y="242" class="m" font-size="11">selector_expression · pmids · resolved_at · report</text>
+  <text x="384" y="262" class="mu" font-size="11">rerun without --refresh → reused_frozen_* (membership never shifts silently)</text>
+
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <line x1="330" y1="80" x2="368" y2="80" marker-end="url(#m6)"/>
+    <line x1="570" y1="80" x2="608" y2="80" marker-end="url(#m6)"/>
+    <line x1="775" y1="166" x2="775" y2="198" marker-end="url(#m6)"/>
+  </g>
+
+  <!-- refresh bus -->
+  <g stroke="var(--amber)" stroke-width="1.5" fill="none">
+    <path d="M655 280 V305 H800 V328" marker-end="url(#m6m)"/>
+    <path d="M655 305 H170 V328" marker-end="url(#m6m)"/>
+    <path d="M490 305 V328" marker-end="url(#m6m)"/>
+    <path d="M60 330 V272" stroke-dasharray="4 3" marker-end="url(#m6m)"/>
+  </g>
+  <text x="680" y="298" class="m am" font-size="11">--refresh</text>
+  <text x="70" y="306" class="m am" font-size="11">re-resolve</text>
+
+  <g font-size="11">
+    <rect x="20" y="330" width="300" height="100" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <a href="commands/write.html#compare"><text x="34" y="352" class="m b" font-size="11.5">/ref:compare --refresh</text></a>
+    <text x="34" y="374" class="m">added · removed</text>
+    <text x="34" y="392" class="m">changed_evidence_cells</text>
+    <text x="34" y="410" class="m">retraction_status_changes</text>
+
+    <rect x="340" y="330" width="300" height="100" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <a href="commands/write.html#summarize"><text x="354" y="352" class="m b" font-size="11.5">/ref:summarize --refresh</text></a>
+    <text x="354" y="374" class="m">added_pmids · removed_pmids</text>
+    <text x="354" y="392" class="m">withdrawn_evidence</text>
+    <text x="354" y="410" class="m">retraction_status_changes</text>
+
+    <rect x="660" y="330" width="280" height="100" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <a href="commands/write.html#brief"><text x="674" y="352" class="m b" font-size="11.5">/ref:brief --refresh</text></a>
+    <text x="674" y="374" class="m">added_support_claim_ids · new_pmids</text>
+    <text x="674" y="392" class="m">withdrawn_evidence</text>
+    <text x="674" y="410" class="m">retraction_status_changes</text>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw dash"></span>what you type</span>
+  <span><span class="sw solid"></span>frozen record</span>
+  <span><span class="sw amber"></span>explicit refresh and its diff</span>
+</div>
+<figcaption>One grammar is shared by <a href="commands/write.html#compare"><code>/ref:compare</code></a>, <a href="commands/write.html#summarize"><code>/ref:summarize</code></a>, <a href="commands/write.html#brief"><code>/ref:brief</code></a>, <a href="commands/write.html#export"><code>/ref:export</code></a>, <a href="commands/find.html#ask"><code>/ref:ask</code></a> and <a href="commands/maintain.html#audit"><code>/ref:audit</code></a>. Audit is the one exception to the rule that an empty selector is an error: with no selector it sweeps the whole library. <code>/ref:brief</code> stores the list as <code>pmids_at_resolution</code>. The tier report counts <code>abstract</code>, <code>full</code>, <code>unavailable</code> and <code>missing_record</code>. A bare PMID list and an equivalent <code>--project</code> selector produce identical comparison rows.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="ask">
+<h2>7 · Grounded answer loop</h2>
+<p><code>/ref:ask</code> works without embeddings. Claude suggests extra search terms, a lexical FTS5 search fills a fixed budget of evidence, one synthesizer writes the answer, and a script checks that every citation points at evidence the synthesizer was actually given.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 570" role="img" aria-label="Grounded answer loop. /ref:ask takes a question; Claude picks 2 to 4 expansion terms passed as --expand, plus an optional selector. ask_retrieve.py rebuilds the catalog, OR-matches terms over claims_fts restricted to active non-excluded claims and over passages_fts, keeps selector PMIDs, dedupes so claims beat overlapping passages, round-robins across PMIDs, and applies budgets of 30 candidates and 6000 tokens. If insufficient_coverage is true the command says so without synthesis. Otherwise one ref-synthesizer subagent receives all candidates and returns answer, coverage_note and unresolved_questions. validate_citations.py checks each [^pmid] is in the candidate set and reports unresolved citations without fixing them. The answer is presented with coverage note, unresolved questions, evidence tier and retraction status; /ref:ask saves nothing. Below, /ref:brief runs the same loop then brief.py save writes briefs/key/snapshot_id with answer.md, evidence.json and manifest.json and updates latest.json. If the key exists and there is no --refresh, the frozen brief is reused; --refresh writes a new snapshot and reports added_support_claim_ids, new_pmids, withdrawn_evidence and retraction_status_changes. --edit writes edits.json, kept while evidence is unchanged and marked stale when the evidence hash changes.">
+  <defs>
+    <marker id="m7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m7a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="m7m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <rect x="20" y="30" width="190" height="150" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <a href="commands/find.html#ask"><text x="34" y="54" class="m b ac" font-size="12">/ref:ask</text></a>
+  <text x="34" y="72" class="m" font-size="11">"&lt;question&gt;"</text>
+  <text x="34" y="96" class="cap">EXPANSION</text>
+  <text x="34" y="114" class="mu" font-size="11">Claude picks 2–4 MeSH</text>
+  <text x="34" y="130" class="mu" font-size="11">terms, synonyms, aliases</text>
+  <text x="34" y="150" class="m" font-size="11">--expand &lt;term…&gt;</text>
+  <text x="34" y="168" class="mu" font-size="11">+ optional selector</text>
+
+  <rect x="240" y="30" width="270" height="180" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="254" y="54" class="m b" font-size="12">ask_retrieve.py</text>
+  <g font-size="11" class="mu">
+    <text x="254" y="76">1  catalog.rebuild() first</text>
+    <text x="254" y="94">2  FTS5 OR-match over claims_fts</text>
+    <text x="254" y="110">    (active, not excluded) + passages_fts</text>
+    <text x="254" y="128">3  keep selector PMIDs only</text>
+    <text x="254" y="146">4  dedupe: claims beat passages</text>
+    <text x="254" y="164">5  round-robin across PMIDs</text>
+    <text x="254" y="182">6  budget: 30 candidates, 6000 tokens</text>
+    <text x="254" y="198">    (about 4 characters per token)</text>
+  </g>
+
+  <rect x="540" y="30" width="180" height="150" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="554" y="54" class="m b" font-size="12">ref-synthesizer</text>
+  <text x="554" y="72" class="mu" font-size="11">one subagent, given</text>
+  <text x="554" y="88" class="mu" font-size="11">every candidate at once</text>
+  <text x="554" y="112" class="cap">RETURNS</text>
+  <g class="m" font-size="11">
+    <text x="554" y="130">answer</text>
+    <text x="554" y="148">coverage_note</text>
+    <text x="554" y="166">unresolved_questions</text>
+  </g>
+
+  <rect x="750" y="30" width="190" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="764" y="54" class="m b" font-size="11.5">validate_citations.py</text>
+  <text x="764" y="74" class="mu" font-size="11">each [^pmid] must be in</text>
+  <text x="764" y="90" class="mu" font-size="11">the candidate set</text>
+  <text x="764" y="112" class="m" font-size="11">all_resolved</text>
+  <text x="764" y="130" class="m" font-size="11">unresolved: […]</text>
+  <text x="764" y="150" class="mu" font-size="11">reported to you, never</text>
+  <text x="764" y="166" class="mu" font-size="11">silently dropped or fixed</text>
+
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="210" y1="100" x2="238" y2="100" marker-end="url(#m7)"/>
+    <line x1="510" y1="100" x2="538" y2="100" marker-end="url(#m7)"/>
+    <line x1="720" y1="100" x2="748" y2="100" marker-end="url(#m7)"/>
+  </g>
+  <line x1="375" y1="210" x2="375" y2="238" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#m7m)"/>
+  <line x1="845" y1="180" x2="845" y2="238" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#m7a)"/>
+
+  <g font-size="11">
+    <rect x="240" y="240" width="270" height="56" rx="6" fill="none" stroke="var(--amber)" stroke-dasharray="4 3"/>
+    <text x="252" y="262" class="m b" font-size="11.5">insufficient_coverage: true</text>
+    <text x="252" y="280" class="mu">say so plainly; no padded synthesis</text>
+
+    <rect x="540" y="240" width="400" height="56" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="552" y="262" class="b">answer · coverage note · unresolved questions</text>
+    <text x="552" y="280" class="mu">with evidence tier and retraction status; /ref:ask saves nothing</text>
+  </g>
+
+  <!-- brief -->
+  <rect x="20" y="320" width="920" height="236" rx="10" fill="none" stroke="currentColor" stroke-opacity=".45"/>
+  <a href="commands/write.html#brief"><text x="36" y="344" class="m b ac" font-size="12">/ref:brief "&lt;question&gt;" --key &lt;label&gt; [--project &lt;slug&gt;] [--refresh | --show | --edit]</text></a>
+  <g font-size="11">
+    <rect x="40" y="362" width="200" height="86" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="52" y="384" class="b">same loop as /ref:ask</text>
+    <text x="52" y="402" class="mu">expand → retrieve →</text>
+    <text x="52" y="418" class="mu">synthesize → validate</text>
+
+    <rect x="280" y="362" width="300" height="86" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="292" y="384" class="m b ac" font-size="11.5">brief.py save</text>
+    <text x="292" y="402" class="m">briefs/&lt;key&gt;/&lt;snapshot_id&gt;/</text>
+    <text x="292" y="420" class="mu">answer.md · evidence.json · manifest.json</text>
+    <text x="292" y="436" class="mu">latest.json points at the snapshot</text>
+
+    <rect x="620" y="362" width="300" height="86" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="632" y="384" class="b">key already saved?</text>
+    <text x="632" y="404" class="m">no --refresh → reused_frozen_brief</text>
+    <text x="632" y="422" class="m">--refresh → new snapshot + diff</text>
+    <text x="632" y="440" class="mu">the prior snapshot stays on disk</text>
+
+    <rect x="280" y="470" width="300" height="66" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="292" y="490" class="m b" font-size="11.5">--edit &lt;text&gt; → edits.json</text>
+    <text x="292" y="508" class="mu">kept while the evidence is unchanged;</text>
+    <text x="292" y="524" class="mu">stale: true when evidence_hash changes</text>
+
+    <rect x="620" y="470" width="300" height="76" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="632" y="490" class="cap">REFRESH DIFF</text>
+    <text x="632" y="506" class="m">added_support_claim_ids · new_pmids</text>
+    <text x="632" y="522" class="m">withdrawn_evidence</text>
+    <text x="632" y="538" class="m">retraction_status_changes</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="240" y1="405" x2="278" y2="405" marker-end="url(#m7)"/>
+    <line x1="580" y1="405" x2="618" y2="405" marker-end="url(#m7)"/>
+  </g>
+  <line x1="770" y1="448" x2="770" y2="468" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#m7m)"/>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw"></span>deterministic script</span>
+  <span><span class="sw amber"></span>subagent, or a result that needs attention</span>
+  <span><span class="sw solid"></span>presented / persisted result</span>
+</div>
+<figcaption><a href="commands/find.html#ask"><code>/ref:ask</code></a> answers once and keeps nothing. <a href="commands/write.html#brief"><code>/ref:brief</code></a> wraps the same four steps and saves the result as a snapshot under <code>projects/&lt;slug&gt;/briefs/&lt;key&gt;/</code>, or under <code>briefs/&lt;key&gt;/</code> at the library root when you give no project. Refreshing is always explicit: nothing re-runs on a schedule. Citation validation only checks that each cited PMID was among the candidates given to the synthesizer. Whether the evidence actually supports the sentence is checked by <a href="commands/write.html#check-citations"><code>/ref:check-citations</code></a>.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="states">
+<h2>8 · Reading &amp; screening state</h2>
+<p>Reading and screening state belong to one paper's membership in one project, not to the paper itself. Only <code>/ref:project</code>, <code>/ref:queue</code> and <code>/ref:screen</code> can change them. Fetching full text or extracting claims never marks a paper as read.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 460" role="img" aria-label="Reading and screening state. reading_status lives on the membership record in projects/slug/papers.yaml and is set by /ref:project add-paper --reading-status or /ref:queue set --status. States: not set (null), to_screen, to_read, reading, read, shown left to right; a dashed return arc notes that any state can be set directly and no order is enforced. Screening, per project: /ref:screen decide takes a decision of pending, included or excluded with a required reason; it appends to screening.jsonl, mirrors the latest decision onto the membership, adds the PMID as a member if new, and feeds the --screened selector. Bottom: /ref:add, /ref:fetch, /ref:attach and /ref:extract write only papers/pmid and never set reading_status or screening, so one PMID can be read in one project and to_screen in another.">
+  <defs>
+    <marker id="m8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m8a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+
+  <text x="20" y="34" class="m b ac" font-size="12">reading_status</text>
+  <text x="134" y="34" class="mu" font-size="11">on the membership record in projects/&lt;slug&gt;/papers.yaml</text>
+  <text x="20" y="54" class="mu" font-size="11">set by /ref:project add-paper --reading-status, or /ref:queue set --status</text>
+
+  <g font-size="12" text-anchor="middle">
+    <rect x="20" y="76" width="140" height="44" rx="22" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="90" y="103" class="m mu">not set (null)</text>
+    <rect x="210" y="76" width="140" height="44" rx="22" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="280" y="103" class="m b">to_screen</text>
+    <rect x="400" y="76" width="140" height="44" rx="22" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="470" y="103" class="m b">to_read</text>
+    <rect x="590" y="76" width="140" height="44" rx="22" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="660" y="103" class="m b">reading</text>
+    <rect x="780" y="76" width="140" height="44" rx="22" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="850" y="103" class="m b ac">read</text>
+  </g>
+  <g stroke="var(--accent)" stroke-width="1.5" fill="none">
+    <line x1="160" y1="98" x2="208" y2="98" stroke="currentColor" stroke-dasharray="4 3" marker-end="url(#m8)"/>
+    <line x1="350" y1="98" x2="398" y2="98" marker-end="url(#m8a)"/>
+    <line x1="540" y1="98" x2="588" y2="98" marker-end="url(#m8a)"/>
+    <line x1="730" y1="98" x2="778" y2="98" marker-end="url(#m8a)"/>
+    <path d="M850 120 C850 176 280 176 280 122" stroke="currentColor" stroke-opacity=".55" stroke-dasharray="4 3" marker-end="url(#m8)"/>
+  </g>
+  <text x="565" y="188" text-anchor="middle" class="mu" font-size="11">typical path; any of the four states can be set directly, no order is enforced</text>
+
+  <!-- screening -->
+  <line x1="20" y1="208" x2="940" y2="208" stroke="currentColor" stroke-opacity=".2"/>
+  <text x="20" y="234" class="m b ac" font-size="12">screening</text>
+  <text x="100" y="234" class="mu" font-size="11">per project · /ref:screen decide --decision … --reason "…" [--run &lt;query-run&gt;]</text>
+
+  <rect x="20" y="254" width="160" height="80" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <a href="commands/organize.html#screen"><text x="34" y="276" class="m b" font-size="11.5">/ref:screen</text></a>
+  <text x="34" y="294" class="mu" font-size="11">reason required;</text>
+  <text x="34" y="310" class="mu" font-size="11">adds the PMID as a</text>
+  <text x="34" y="326" class="mu" font-size="11">member if needed</text>
+
+  <g font-size="12" text-anchor="middle">
+    <rect x="210" y="272" width="140" height="44" rx="22" fill="var(--card)" stroke="currentColor"/>
+    <text x="280" y="299" class="m b">pending</text>
+    <rect x="400" y="272" width="140" height="44" rx="22" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="470" y="299" class="m b">included</text>
+    <rect x="590" y="272" width="140" height="44" rx="22" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="660" y="299" class="m b">excluded</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <path d="M180 294 H208" marker-end="url(#m8)"/>
+    <path d="M194 294 V258 H470 V270" marker-end="url(#m8)"/>
+    <path d="M470 258 H660 V270" marker-end="url(#m8)"/>
+  </g>
+
+  <rect x="770" y="254" width="170" height="80" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="782" y="276" class="m b" font-size="11.5">screening.jsonl</text>
+  <text x="782" y="294" class="mu" font-size="11">append-only history;</text>
+  <text x="782" y="310" class="mu" font-size="11">latest copied to membership</text>
+  <text x="782" y="326" class="mu" font-size="11">→ --screened selector</text>
+
+  <!-- wall -->
+  <line x1="20" y1="356" x2="940" y2="356" stroke="currentColor" stroke-opacity=".2"/>
+  <rect x="20" y="378" width="470" height="60" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-dasharray="4 3"/>
+  <text x="34" y="402" class="m b" font-size="11.5">/ref:add · /ref:fetch · /ref:attach · /ref:extract</text>
+  <text x="34" y="422" class="mu" font-size="11">acquisition and extraction write papers/&lt;pmid&gt;/ only</text>
+  <line x1="490" y1="408" x2="560" y2="408" stroke="var(--amber)" stroke-width="1.5"/>
+  <g stroke="var(--amber)" stroke-width="2"><line x1="518" y1="400" x2="534" y2="416"/><line x1="534" y1="400" x2="518" y2="416"/></g>
+  <text x="576" y="402" class="b" font-size="12">never set reading_status or screening</text>
+  <text x="576" y="420" class="mu" font-size="11">state lives on the project membership, so one PMID can be</text>
+  <text x="576" y="436" class="mu" font-size="11">read in one project and to_screen in another</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>reading state / included</span>
+  <span><span class="sw amber"></span>excluded, or a write that is blocked</span>
+  <span><span class="sw dash"></span>unset, or a direct jump</span>
+</div>
+<figcaption><a href="commands/organize.html#project"><code>/ref:project add-paper</code></a> can set a starting state, and <a href="commands/organize.html#queue"><code>/ref:queue set</code></a> moves a paper to any of the four states, together with priority and a why-saved note. <a href="commands/organize.html#screen"><code>/ref:screen</code></a> logs every decision and copies the latest onto the membership. These records feed the <code>--read</code>, <code>--queue &lt;state&gt;</code> and <code>--screened</code> selectors (figure 6), and the PRISMA counts in <a href="commands/write.html#review"><code>/ref:review --prisma</code></a>.</figcaption>
+</figure>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="maintenance">
+<h2>9 · Library maintenance</h2>
+<p>Maintenance never erases what the library already knows. A failed retraction check keeps the previous status. Citation counts are only ever appended. The SQLite catalog is a projection of the files that you can rebuild at any time.</p>
+<figure>
+<div class="svg-wrap">
+<svg class="wf" viewBox="0 0 960 550" role="img" aria-label="Library maintenance. Lane 1, retraction and errata: /ref:audit with an optional selector, where none means the whole library, re-reads article_types through the PubMed MCP; audit.py retraction handles each PMID under its lock; a result marks it checked and writes meta.json retraction_status with changed true or false; an error gives check_failed with the prior status retained and never downgraded. changed_pmids go to audit.py propagate, which lists potentially_stale_artifacts; you run --refresh on brief, compare or summarize to see retraction_status_changes. Lane 2, citation observations: /ref:audit --citations needs a real cited-by count source, none is wired in yet; per-PMID input is observation, no_pmcid or error, anything else is refused; citations.json is append-only with count entries, no_pmcid markers and check_failed markers; show-citations reports the latest real count and marks it stale after --stale-days, default 180. Lane 3: /ref:index --rebuild runs catalog.py rebuild, deleting and recreating catalog.sqlite with papers, passages_fts, claims and claims_fts from current.json targets only, ignoring staging; then relation.py refresh, if graph/relations.jsonl exists, marks relations with superseded or excluded evidence stale. /ref:status is read-only and prints library path, papers indexed and project count.">
+  <defs>
+    <marker id="m9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="m9a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="m9m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- lane 1 -->
+  <text x="20" y="22" class="cap">RETRACTION &amp; ERRATA</text>
+  <g font-size="11">
+    <rect x="20" y="56" width="180" height="100" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <a href="commands/maintain.html#audit"><text x="34" y="78" class="m b ac" font-size="12">/ref:audit [selector]</text></a>
+    <text x="34" y="96" class="mu">no selector = whole library</text>
+    <text x="34" y="114" class="mu">PubMed MCP metadata:</text>
+    <text x="34" y="130" class="m">article_types</text>
+
+    <rect x="230" y="56" width="190" height="100" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="244" y="78" class="m b" font-size="11.5">audit.py retraction</text>
+    <text x="244" y="96" class="mu">one PMID at a time,</text>
+    <text x="244" y="112" class="mu">under its pmid_lock</text>
+    <text x="244" y="132" class="b">result or error?</text>
+
+    <rect x="460" y="36" width="230" height="60" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="472" y="58" class="m b ac" font-size="11.5">checked</text>
+    <text x="472" y="74" class="mu">meta.json retraction_status</text>
+    <text x="472" y="90" class="m mu">changed: true | false</text>
+
+    <rect x="460" y="116" width="230" height="60" rx="6" fill="var(--amber-soft)" stroke="var(--amber)" stroke-dasharray="4 3"/>
+    <text x="472" y="138" class="m b" font-size="11.5">check_failed</text>
+    <text x="472" y="154" class="mu">prior status retained,</text>
+    <text x="472" y="170" class="mu">never downgraded</text>
+
+    <rect x="720" y="36" width="220" height="60" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="732" y="58" class="m b" font-size="11.5">audit.py propagate</text>
+    <text x="732" y="74" class="mu">changed_pmids →</text>
+    <text x="732" y="90" class="m">potentially_stale_artifacts</text>
+
+    <rect x="720" y="116" width="220" height="60" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="732" y="138" class="b">you run --refresh</text>
+    <text x="732" y="154" class="mu">brief · compare · summarize</text>
+    <text x="732" y="170" class="m">retraction_status_changes</text>
+  </g>
+  <g stroke-width="1.5" fill="none">
+    <line x1="200" y1="106" x2="228" y2="106" stroke="currentColor" marker-end="url(#m9)"/>
+    <line x1="420" y1="90" x2="458" y2="68" stroke="var(--accent)" marker-end="url(#m9a)"/>
+    <line x1="420" y1="122" x2="458" y2="144" stroke="var(--amber)" marker-end="url(#m9m)"/>
+    <line x1="690" y1="66" x2="718" y2="66" stroke="currentColor" marker-end="url(#m9)"/>
+    <line x1="830" y1="96" x2="830" y2="114" stroke="currentColor" marker-end="url(#m9)"/>
+  </g>
+
+  <!-- lane 2 -->
+  <line x1="20" y1="206" x2="940" y2="206" stroke="currentColor" stroke-opacity=".2"/>
+  <text x="20" y="232" class="cap">CITATION OBSERVATIONS · --citations</text>
+  <g font-size="11">
+    <rect x="20" y="250" width="180" height="104" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <a href="commands/maintain.html#audit"><text x="34" y="272" class="m b ac" font-size="12">/ref:audit --citations</text></a>
+    <text x="34" y="290" class="mu">needs a real cited-by</text>
+    <text x="34" y="306" class="mu">count source; none is</text>
+    <text x="34" y="322" class="mu">wired in yet</text>
+
+    <rect x="230" y="250" width="190" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="244" y="272" class="b">per-PMID input</text>
+    <text x="244" y="290" class="m">observation</text>
+    <text x="244" y="306" class="m">no_pmcid</text>
+    <text x="244" y="322" class="m">error</text>
+    <text x="244" y="340" class="mu">none of the three → refused</text>
+
+    <rect x="460" y="250" width="260" height="104" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="472" y="272" class="m b ac" font-size="11.5">citations.json</text>
+    <text x="472" y="290" class="mu">append-only, every entry dated:</text>
+    <text x="472" y="308" class="m">{count, source, query, coverage}</text>
+    <text x="472" y="324" class="m">{status: no_pmcid}</text>
+    <text x="472" y="340" class="m">{status: check_failed}</text>
+
+    <rect x="760" y="250" width="180" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="772" y="272" class="m b" font-size="11.5">show-citations</text>
+    <text x="772" y="290" class="mu">latest real count only</text>
+    <text x="772" y="306" class="mu">(markers skipped)</text>
+    <text x="772" y="322" class="mu">stale after --stale-days</text>
+    <text x="772" y="338" class="mu">(default 180)</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="200" y1="302" x2="228" y2="302" marker-end="url(#m9)"/>
+    <line x1="420" y1="302" x2="458" y2="302" marker-end="url(#m9)"/>
+    <line x1="720" y1="302" x2="758" y2="302" marker-end="url(#m9)"/>
+  </g>
+
+  <!-- lane 3 -->
+  <line x1="20" y1="376" x2="940" y2="376" stroke="currentColor" stroke-opacity=".2"/>
+  <text x="20" y="402" class="cap">INDEX &amp; STATUS</text>
+  <g font-size="11">
+    <rect x="20" y="416" width="180" height="84" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <a href="commands/maintain.html#index"><text x="34" y="438" class="m b ac" font-size="12">/ref:index --rebuild</text></a>
+    <text x="34" y="456" class="mu">idempotent; safe to</text>
+    <text x="34" y="472" class="mu">run at any time</text>
+
+    <rect x="230" y="416" width="290" height="120" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="244" y="438" class="m b" font-size="11.5">catalog.py rebuild</text>
+    <text x="244" y="456" class="mu">delete and recreate catalog.sqlite</text>
+    <text x="244" y="474" class="m">papers · passages_fts</text>
+    <text x="244" y="490" class="m">claims · claims_fts</text>
+    <text x="244" y="508" class="mu">reads current.json targets only;</text>
+    <text x="244" y="524" class="mu">staging directories ignored</text>
+
+    <rect x="560" y="416" width="200" height="84" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="572" y="438" class="m b" font-size="11.5">relation.py refresh</text>
+    <text x="572" y="456" class="mu">if graph/relations.jsonl</text>
+    <text x="572" y="472" class="mu">superseded / excluded</text>
+    <text x="572" y="488" class="mu">evidence → stale: true</text>
+
+    <rect x="790" y="416" width="150" height="100" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <a href="commands/maintain.html#status"><text x="802" y="438" class="m b ac" font-size="12">/ref:status</text></a>
+    <text x="802" y="456" class="mu">read-only</text>
+    <text x="802" y="472" class="mu">library path,</text>
+    <text x="802" y="488" class="mu">papers indexed,</text>
+    <text x="802" y="504" class="mu">project count</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="200" y1="458" x2="228" y2="458" marker-end="url(#m9)"/>
+    <line x1="520" y1="458" x2="558" y2="458" marker-end="url(#m9)"/>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>recorded or appended</span>
+  <span><span class="sw amber"></span>failure that keeps prior data</span>
+  <span><span class="sw dash"></span>your command / your decision</span>
+</div>
+<figcaption>When <a href="commands/maintain.html#audit"><code>/ref:audit</code></a> changes a paper's status, it does not rewrite saved artifacts. <code>propagate</code> lists the <code>tables/</code>, <code>summaries/</code> and <code>briefs/</code> entries (including those inside projects) that cite that paper, and each one stays frozen until you refresh it. <code>--citations</code> is fully built, but no connected tool provides a real cited-by count yet, so the command says so rather than recording word-similarity results as citations. <a href="commands/maintain.html#index"><code>/ref:index --rebuild</code></a> runs <code>relation.py refresh</code>, which flags edges for re-review and never clears a review decision. <a href="commands/maintain.html#status"><code>/ref:status</code></a> reads only what the catalog currently holds.</figcaption>
+</figure>
+</section>
+
+<nav class="pager" aria-label="Pager">
+  <a href="getting-started.html"><small>Previous</small>Get started</a>
+  <a href="tutorials/index.html" style="text-align:right"><small>Next</small>Tutorials</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

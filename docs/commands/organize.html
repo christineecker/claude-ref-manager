@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Organize commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>Organize</h4>
+  <ol>
+    <li><a href="#overview">How they fit</a></li>
+    <li><a href="#project"><code>/ref:project</code></a></li>
+    <li><a href="#queue"><code>/ref:queue</code></a></li>
+    <li><a href="#screen"><code>/ref:screen</code></a></li>
+    <li><a href="#note"><code>/ref:note</code></a></li>
+    <li><a href="#verify"><code>/ref:verify</code></a></li>
+    <li><a href="#study"><code>/ref:study</code></a></li>
+  </ol>
+  <h4>Other groups</h4>
+  <ul>
+    <li><a href="acquire.html">Acquire</a></li>
+    <li><a href="find.html">Find</a></li>
+    <li><a href="write.html">Write</a></li>
+    <li><a href="graph.html">Graph</a></li>
+    <li><a href="people.html">People</a></li>
+    <li><a href="maintain.html">Maintain</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · Organize</p>
+  <h1>Projects, reading state, screening, notes, and review decisions</h1>
+  <p class="lede">These commands record <em>your</em> judgement: which projects a paper belongs to, how far you have read it, whether it passed screening, what you think of it, which extracted claims you accept, and which papers report the same study. Acquisition and extraction never write any of this, and regenerating derived files never overwrites it.</p>
+</header>
+
+<section id="overview">
+<h2>How they fit</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 360" role="img" aria-label="Organize commands and the files they own. Project-scoped: /ref:project creates projects/slug/project.yaml with questions and papers.yaml with membership; /ref:queue edits reading_status, priority and why_saved on a membership; /ref:screen appends to screening.jsonl and mirrors the latest decision onto the membership. Paper-scoped: /ref:note appends to papers/pmid/notes.md; /ref:verify appends to papers/pmid/corrections.json, and for grant links, author contributions and person identity also updates grants, authorship.json or people records. Library-scoped: /ref:study appends to studies/studies.jsonl, datasets.jsonl and methods.jsonl. The project, screening and study files feed the selectors --project, --screened, --read, --queue and --study.">
+  <defs>
+    <marker id="oArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="oArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+
+  <!-- column labels -->
+  <text x="14" y="22" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">PER PROJECT · projects/&lt;slug&gt;/</text>
+  <text x="400" y="22" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">PER PAPER · papers/&lt;pmid&gt;/</text>
+  <text x="706" y="22" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">LIBRARY-WIDE · studies/</text>
+
+  <!-- project column -->
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="36" width="140" height="40" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="26" y="61" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:project</text>
+    <rect x="14" y="116" width="140" height="40" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="26" y="141" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:queue</text>
+    <rect x="14" y="196" width="140" height="40" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="26" y="221" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:screen</text>
+
+    <rect x="190" y="36" width="170" height="40" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="202" y="54" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">project.yaml</text>
+    <text x="202" y="69" fill-opacity=".65">scope · questions[]</text>
+    <rect x="190" y="96" width="170" height="84" rx="6" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="202" y="115" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">papers.yaml</text>
+    <text x="202" y="133" fill-opacity=".65">one membership per PMID:</text>
+    <text x="202" y="148" fill-opacity=".65">relevance · priority</text>
+    <text x="202" y="163" fill-opacity=".65">reading_status · why_saved</text>
+    <text x="202" y="176" fill-opacity=".65">screening (latest)</text>
+    <rect x="190" y="200" width="170" height="40" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="202" y="218" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">screening.jsonl</text>
+    <text x="202" y="233" fill-opacity=".65">append-only history</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <line x1="154" y1="56" x2="186" y2="56" marker-end="url(#oArr)"/>
+    <line x1="154" y1="64" x2="186" y2="112" marker-end="url(#oArr)"/>
+    <line x1="154" y1="136" x2="186" y2="136" marker-end="url(#oArr)"/>
+    <line x1="154" y1="216" x2="186" y2="216" marker-end="url(#oArr)"/>
+    <line x1="154" y1="208" x2="186" y2="170" stroke-dasharray="4 3" marker-end="url(#oArr)"/>
+  </g>
+
+  <!-- paper column -->
+  <g font-size="11" fill="currentColor">
+    <rect x="400" y="36" width="130" height="40" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="412" y="61" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:note</text>
+    <rect x="556" y="36" width="130" height="40" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="568" y="54" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">notes.md</text>
+    <text x="568" y="69" fill-opacity=".65">dated entries, yours</text>
+
+    <rect x="400" y="116" width="130" height="40" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="412" y="141" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:verify</text>
+    <rect x="556" y="96" width="130" height="80" rx="6" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+    <text x="568" y="115" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">corrections.json</text>
+    <text x="568" y="133" fill-opacity=".7">overlay on claims.json</text>
+    <text x="568" y="148" fill-opacity=".7">active ↔ pending_review</text>
+    <text x="568" y="163" fill-opacity=".7">when evidence changes</text>
+    <rect x="400" y="196" width="286" height="44" rx="6" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="412" y="215" fill-opacity=".75">also updates: grants/&lt;slug&gt;.json · authorship.json</text>
+    <text x="412" y="231" fill-opacity=".75">· person records (via person.py)</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <line x1="530" y1="56" x2="552" y2="56" marker-end="url(#oArr)"/>
+    <line x1="530" y1="136" x2="552" y2="136" marker-end="url(#oArr)"/>
+    <line x1="465" y1="156" x2="465" y2="192" stroke-dasharray="4 3" marker-end="url(#oArr)"/>
+  </g>
+
+  <!-- study column -->
+  <g font-size="11" fill="currentColor">
+    <rect x="706" y="36" width="130" height="40" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="718" y="61" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:study</text>
+    <rect x="706" y="96" width="220" height="40" rx="6" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="718" y="114" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">studies.jsonl</text>
+    <text x="718" y="129" fill-opacity=".65">grouping + confidence + evidence</text>
+    <rect x="706" y="146" width="220" height="40" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="718" y="164" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">datasets.jsonl</text>
+    <text x="718" y="179" fill-opacity=".65">reuse ≠ same study</text>
+    <rect x="706" y="196" width="220" height="40" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="718" y="214" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">methods.jsonl</text>
+    <text x="718" y="229" fill-opacity=".65">context · source locator</text>
+  </g>
+  <path d="M836 56 L 900 56 L 900 92" stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#oArr)"/>
+
+  <!-- selectors band -->
+  <rect x="14" y="282" width="912" height="62" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="30" y="306" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">§5c selectors read these files</text>
+  <text x="30" y="327" font-size="11" fill="currentColor" fill-opacity=".75">--project · --screened · --read · --queue    ←  papers.yaml          --study  ←  studies.jsonl          rejected claims drop out of /ref:ask, /ref:compare, …</text>
+  <g stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3" fill="none">
+    <line x1="275" y1="240" x2="275" y2="278" marker-end="url(#oArrA)"/>
+    <line x1="621" y1="176" x2="621" y2="278" marker-end="url(#oArrA)"/>
+    <line x1="816" y1="236" x2="816" y2="278" marker-end="url(#oArrA)"/>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>slash command</span>
+  <span><span class="sw"></span>file it owns</span>
+  <span><span class="sw amber"></span>correction overlay</span>
+  <span><span class="sw dash"></span>side effect</span>
+</div>
+<figcaption>State lives where it belongs. Reading status and screening are per project, so one paper can be <code>read</code> and <code>included</code> in one project while still <code>to_screen</code> in another. Notes and corrections are per paper, and study groupings are library-wide. Commands that work on a set of papers read this state through the <a href="find.html#selectors">selector grammar</a>.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>Commands</h2>
+
+<article class="cmd" id="project">
+  <div class="cmd-head"><h3>/ref:project</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>
+  <p class="summary">Create research projects, give them questions, and add papers with project-specific relevance, priority, and reading state.</p>
+  <div class="synopsis">/ref:project create &lt;slug&gt; [--scope "&lt;text&gt;"]
+/ref:project add-question &lt;slug&gt; --id &lt;qid&gt; --text "&lt;text&gt;"
+/ref:project add-paper &lt;slug&gt; &lt;pmid&gt; [--relevance "&lt;text&gt;"] [--priority N] [--reading-status &lt;state&gt;]
+/ref:project show &lt;slug&gt;
+/ref:project list</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>create &lt;slug&gt;</dt><dd>Creates <code>projects/&lt;slug&gt;/project.yaml</code> and an empty <code>papers.yaml</code>. The slug is validated, and a duplicate is refused with the existing project named.</dd>
+    <dt>add-question &lt;slug&gt;</dt><dd><code>--id &lt;qid&gt;</code> (passed to the script as <code>--question-id</code>) and <code>--text</code>. Question IDs only need to be unique within their project.</dd>
+    <dt>add-paper &lt;slug&gt; &lt;pmid&gt;</dt><dd>Adds a membership record. <code>--reading-status</code> is one of <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. If the paper is already a member, the existing record is returned unchanged.</dd>
+    <dt>show &lt;slug&gt;</dt><dd>Prints the project and its membership list.</dd>
+    <dt>list</dt><dd>Prints each project's slug, scope, and question count.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root, then runs the matching <code>project.py</code> action.</li>
+    <li>Prints the JSON result verbatim. On a slug collision, Claude asks you for another name instead of adding a suffix, so references never point at a surprise project.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>projects/&lt;slug&gt;/project.yaml</code> and <code>papers.yaml</code>. Both are JSON despite the extension, and both are written atomically. Membership is one record per PMID per project, so each project's relevance, priority, and reading state are independent.</p>
+  <h4>Examples</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:project create thesis-ch3 --scope "Cortical thickness in autism"</span>
+<span class="o">{
+  "slug": "thesis-ch3",
+  "scope": "Cortical thickness in autism",
+  "questions": []
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:project add-paper thesis-ch3 31000001 --relevance "Core adult evidence" --priority 1 --reading-status to_read</span>
+<span class="o">{
+  "pmid": "31000001",
+  "relevance": "Core adult evidence",
+  "priority": 1,
+  "reading_status": "to_read",
+  "why_saved": null,
+  "screening": null,
+  "added_at": "2026-09-15T10:14:33.760136+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:project create thesis-ch3</span>
+<span class="w">error: project 'thesis-ch3' already exists at projects/thesis-ch3</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>project.py create|add-question|add-paper|show|list --repo … [--slug …] [--question-id …] [--text …] [--pmid …] [--relevance …] [--priority N] [--reading-status …]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#queue"><code>/ref:queue</code></a> · <a href="#screen"><code>/ref:screen</code></a> · <a href="find.html#selectors">selector grammar</a> · <a href="../tutorials/thesis-chapter.html">Thesis chapter tutorial</a></p>
+</article>
+
+<article class="cmd" id="queue">
+  <div class="cmd-head"><h3>/ref:queue</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>
+  <p class="summary">Set or show a paper's reading state, priority, and why-saved note within one project.</p>
+  <div class="synopsis">/ref:queue set --project &lt;slug&gt; --pmid &lt;pmid&gt; [--status &lt;state&gt;] [--priority N] [--why "&lt;text&gt;"]
+/ref:queue show --project &lt;slug&gt; [--pmid &lt;pmid&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>set</dt><dd>Updates only the fields you pass. <code>--status</code> is one of <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. <code>--why</code> sets <code>why_saved</code>.</dd>
+    <dt>show</dt><dd>With <code>--pmid</code>, prints that one membership. Without it, prints the whole project queue.</dd>
+    <dt>--project &lt;slug&gt;</dt><dd>Required for both.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Finds the paper's membership record in <code>papers.yaml</code> and updates it in place.</li>
+    <li>If the PMID is not a member yet, the command errors and points you to <code>/ref:project add-paper</code>.</li>
+  </ol>
+  <p class="writes">Why only here: reading state records what a human has actually read. Fetching full text or promoting claims never sets it, so <code>--read</code> selects papers you have read, not papers a model processed.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads and writes <code>projects/&lt;slug&gt;/papers.yaml</code>.</p>
+  <h4>Examples</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:queue set --project thesis-ch3 --pmid 31000001 --status reading --why "Largest adult sample"</span>
+<span class="o">{
+  "added_at": "2026-09-15T10:14:33.760136+00:00",
+  "pmid": "31000001",
+  "priority": 1,
+  "reading_status": "reading",
+  "relevance": "Core adult evidence",
+  "screening": null,
+  "why_saved": "Largest adult sample"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:queue set --project thesis-ch3 --pmid 31000003 --status read</span>
+<span class="w">error: pmid '31000003' is not a member of project 'thesis-ch3' (add it first via /ref:project)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>queue.py set|show --repo … --project … [--pmid …] [--status …] [--priority N] [--why …]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#project"><code>/ref:project</code></a> · <a href="maintain.html#status"><code>/ref:status</code></a></p>
+</article>
+
+<article class="cmd" id="screen">
+  <div class="cmd-head"><h3>/ref:screen</h3><div class="chips"><span class="tag phase">phase 2</span></div></div>
+  <p class="summary">Record a project-specific include, exclude, or pending decision, with a reason, for one paper.</p>
+  <div class="synopsis">/ref:screen --project &lt;slug&gt; --pmid &lt;pmid&gt; --decision included|excluded|pending --reason "&lt;text&gt;" [--run &lt;query-run-id&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--project &lt;slug&gt;</dt><dd>Required.</dd>
+    <dt>--pmid &lt;pmid&gt;</dt><dd>Required. The paper does not have to be in the library or the project yet.</dd>
+    <dt>--decision</dt><dd>Required: <code>included</code>, <code>excluded</code>, or <code>pending</code>.</dd>
+    <dt>--reason "&lt;text&gt;"</dt><dd>Required, so every exclusion can be explained later, for example in a PRISMA flow.</dd>
+    <dt>--run &lt;id&gt;</dt><dd>Optional. Links the decision to the saved search run it came from, stored as <code>search_run</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Appends a <code>{pmid, decision, reason, timestamp[, search_run]}</code> record to <code>screening.jsonl</code>. Earlier decisions stay in the log.</li>
+    <li>Mirrors the latest decision onto the membership's <code>screening</code> field, so <code>--screened</code> can filter without replaying the log.</li>
+    <li>If the PMID is not a member yet, it is added with no relevance note. You can screen first and annotate later.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Appends to <code>projects/&lt;slug&gt;/screening.jsonl</code> and updates <code>papers.yaml</code>. The script also has a <code>history</code> action that the command file does not expose.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:screen --project thesis-ch3 --pmid 31000002 --decision included --reason "Reports adult cortical thickness"</span>
+<span class="o">{
+  "pmid": "31000002",
+  "decision": "included",
+  "reason": "Reports adult cortical thickness",
+  "timestamp": "2026-09-15T10:14:34.166756+00:00"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>screen.py decide --repo … --project … --pmid … --decision … --reason "…" [--run …]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+</article>
+
+<article class="cmd" id="note">
+  <div class="cmd-head"><h3>/ref:note</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>
+  <p class="summary">Append your own dated thoughts to a paper's <code>notes.md</code>, or print what is already there.</p>
+  <div class="synopsis">/ref:note &lt;pmid&gt; &lt;text&gt;
+/ref:note &lt;pmid&gt; --show</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt; &lt;text&gt;</dt><dd>Appends <code>&lt;text&gt;</code> as a new entry, separated by <code>---</code> and a UTC timestamp.</dd>
+    <dt>&lt;pmid&gt; --show</dt><dd>Prints the whole notes file, or nothing if it doesn't exist yet.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Checks that <code>papers/&lt;pmid&gt;/</code> exists. If not, it errors and suggests <code>/ref:add</code>.</li>
+    <li>Appends the entry or prints the file.</li>
+  </ol>
+  <p class="writes"><code>notes.md</code> is authoritative user content. This is the only command that writes to it, and no generated view ever overwrites it. <code>/ref:search --scope notes</code> labels its matches <code>personal_note</code>, never <code>evidence</code>.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Appends to <code>papers/&lt;pmid&gt;/notes.md</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:note 31000001 Check whether site effects were modelled.</span>
+<span class="o">appended to &lt;library&gt;/papers/31000001/notes.md</span>
+<span class="p">›</span> <span class="cmd">/ref:note 31000001 --show</span>
+<span class="o">
+---
+2026-09-15T10:14:34.335329+00:00
+
+Check whether site effects were modelled.</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>note.py append|show --repo … --pmid … [--text "…"]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="find.html#search"><code>/ref:search --scope notes</code></a> · <a href="maintain.html#pull-annotations"><code>/ref:pull-annotations</code></a></p>
+</article>
+
+<article class="cmd" id="verify">
+  <div class="cmd-head"><h3>/ref:verify</h3><div class="chips"><span class="tag phase">phase 4</span></div></div>
+  <p class="summary">Record a human review decision as a correction overlay: accept, edit, or reject a claim, and review grant links, author contributions, and identity matches.</p>
+  <div class="synopsis">/ref:verify claim &lt;pmid&gt; &lt;claim_id&gt; accept|edit|reject [--replacement &lt;json-file&gt;] [--rationale "…"] [--reviewer "…"]
+/ref:verify grant-link &lt;pmid&gt; &lt;grant-slug&gt; accept|reject --evidence-locator "…" [--award-number "…"] [--rationale "…"] [--reviewer "…"]
+/ref:verify author-contribution &lt;pmid&gt; &lt;author_index&gt; shared_first|shared_senior|corresponding --evidence "&lt;statement&gt;" [--reviewer "…"]
+/ref:verify person-identity &lt;pmid&gt; &lt;person-slug&gt; &lt;author_index&gt; accept|reject [--rationale "…"] [--reviewer "…"]
+/ref:verify show &lt;pmid&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>claim</dt><dd>Reviews one claim from the paper's registry. An unknown <code>claim_id</code> is refused. Reviewing a superseded claim is allowed. <code>reject</code> also marks the claim in the registry, so it drops out of default synthesis. <code>edit</code> takes a replacement JSON file.</dd>
+    <dt>grant-link</dt><dd>Records a reviewed link on <code>grants/&lt;slug&gt;.json</code>, replacing any earlier link for that PMID, with <code>match_method: "manual_review"</code>. It never adds the award number to the grant's aliases. That takes a deliberate <a href="people.html#grant"><code>/ref:grant add-alias</code></a>.</dd>
+    <dt>author-contribution</dt><dd>Sets an independent <code>shared_first</code>, <code>shared_senior</code>, or <code>corresponding</code> flag in <code>authorship.json</code>. It <strong>refuses without an explicit evidence statement</strong>, because these roles are never inferred from author position. <code>author_index</code> is 0-based.</dd>
+    <dt>person-identity</dt><dd>Accepts or rejects that author N is a given person. It delegates to <a href="people.html#person"><code>/ref:person</code></a>'s confirm/reject machinery, then logs a correction record so the audit trail matches the other review kinds.</dd>
+    <dt>show &lt;pmid&gt;</dt><dd>Revalidates all corrections against the current claim registry, then prints them. Corrections whose evidence changed show as <code>pending_review</code>.</dd>
+    <dt>--reviewer</dt><dd>Defaults to <code>user</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Validates the target, then appends a record to <code>corrections.json</code> with <code>correction_id</code>, <code>target_type</code>, <code>target_id</code>, <code>decision</code>, <code>original_value</code>, <code>replacement_value</code>, <code>rationale</code>, <code>reviewer</code>, <code>timestamp</code>, <code>evidence_locator</code>, and <code>status</code>.</li>
+    <li>Applies any side effects for that kind: registry reject, grant link, authorship flag, or person link.</li>
+    <li>Corrections are an overlay, not an edit to extracted data. If re-extraction leaves the evidence unchanged, they carry over. If it materially changes, they flip to <code>pending_review</code>, never silently reapplied or dropped.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Appends to <code>papers/&lt;pmid&gt;/corrections.json</code>. Depending on the kind, also writes the claim registry, <code>grants/&lt;slug&gt;.json</code>, <code>papers/&lt;pmid&gt;/authorship.json</code>, or person records. <code>verify.py</code> also has a <code>review-appraisal</code> action for RoB2, NOS, and AMSTAR-2 domains, which <a href="write.html#review"><code>/ref:review</code></a> calls.</p>
+  <h4>Examples</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:verify author-contribution 31000001 0 shared_first --evidence ""</span>
+<span class="w">error: author_contribution flag 'shared_first' refused: an explicit evidence statement is required, never inferred from author position (§3c)</span>
+<span class="p">›</span> <span class="cmd">/ref:verify author-contribution 31000001 0 shared_first --evidence "These authors contributed equally to this work."</span>
+<span class="o">{
+  "author_index": 0,
+  "flag": "shared_first",
+  "evidence_statement": "These authors contributed equally to this work.",
+  "reviewer": "user",
+  "timestamp": "2026-09-15T10:14:35.548943+00:00"
+}</span></pre>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:verify claim 31000001 &lt;claim_id&gt; reject --rationale "Effect reported for adolescents, not adults"</span>
+<span class="o">{
+  "correction_id": "cor-…",
+  "target_type": "claim",
+  "target_id": "&lt;claim_id&gt;",
+  "decision": "reject",
+  "original_value": { "population": "…", "intervention": "…", "comparator": "…", "outcome": "…" },
+  "replacement_value": null,
+  "rationale": "Effect reported for adolescents, not adults",
+  "reviewer": "user",
+  "timestamp": "…",
+  "evidence_locator": "…",
+  "status": "active"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>verify.py review-claim | review-grant-link | review-author-contribution | review-person-identity | show --repo … --pmid …</code>. Command words map to script flags: <code>--replacement</code> → <code>--replacement-file</code>, <code>--evidence</code> → <code>--evidence-statement</code>, the flag word → <code>--flag</code>, the grant slug → <code>--grant</code>, the person slug → <code>--person</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#extract"><code>/ref:extract</code></a> · <a href="people.html#grant"><code>/ref:grant</code></a> · <a href="people.html#person"><code>/ref:person</code></a> · <a href="people.html#report"><code>/ref:report</code></a> · <a href="../concepts.html">Concepts</a></p>
+</article>
+
+<article class="cmd" id="study">
+  <div class="cmd-head"><h3>/ref:study</h3><div class="chips"><span class="tag phase">phase 5</span></div></div>
+  <p class="summary">Group PMIDs that report the same underlying investigation, and record the datasets and methods papers share.</p>
+  <div class="synopsis">/ref:study create-study &lt;study-id&gt; --pmid &lt;pmid…&gt; --confidence confirmed|likely|uncertain --evidence "&lt;why&gt;"
+/ref:study create-dataset &lt;dataset-id&gt; --name "&lt;display name&gt;" [--pmid &lt;pmid…&gt;] [--notes "…"]
+/ref:study create-method &lt;method-id&gt; --name "&lt;display name&gt;" [--pmid &lt;pmid…&gt;] [--context "…"] [--locator "…"]
+/ref:study list-studies | list-datasets | list-methods</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>create-study</dt><dd>Needs at least one PMID, a confidence, and a non-empty <code>--evidence</code> such as a shared trial registration or an explicit "we previously reported…". It is refused without evidence. New studies start with <code>review_state: "unreviewed"</code>.</dd>
+    <dt>create-dataset</dt><dd>Records a cohort or dataset that papers reuse. Linking two papers to the same dataset does <em>not</em> make them one study.</dd>
+    <dt>create-method</dt><dd>Records a protocol, tool, or control, with optional context and a source locator.</dd>
+    <dt>list-studies · list-datasets · list-methods</dt><dd>Print the corresponding JSONL file as a JSON array.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Allocates the ID as a library-global slug. A collision is refused with the conflicting record named, never silently suffixed.</li>
+    <li>Appends the row under the library lock.</li>
+  </ol>
+  <p class="writes">Why grouping is explicit: several papers from one trial shouldn't count as independent evidence, but shared authors or a shared dataset don't prove two papers report the same trial. <a href="write.html#compare"><code>/ref:compare</code></a> and <code>--study &lt;id&gt;</code> therefore only trust groupings you have stated.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Appends to <code>studies/studies.jsonl</code>, <code>studies/datasets.jsonl</code>, or <code>studies/methods.jsonl</code>.</p>
+  <h4>Examples</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:study create-study asd-multisite --pmid 31000001 31000002 --confidence likely --evidence "Same cohort registration cited in both methods sections"</span>
+<span class="o">{
+  "study_id": "asd-multisite",
+  "pmids": [
+    "31000001",
+    "31000002"
+  ],
+  "confidence": "likely",
+  "evidence": "Same cohort registration cited in both methods sections",
+  "review_state": "unreviewed",
+  "created_at": "2026-09-15T10:14:35.054841+00:00",
+  "updated_at": "2026-09-15T10:14:35.054841+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:study create-study asd-x --pmid 31000001 --confidence likely --evidence ""</span>
+<span class="w">error: evidence is required: why these PMIDs are the same investigation (§3b)</span>
+<span class="p">›</span> <span class="cmd">/ref:study create-dataset abide-ii --name "ABIDE II" --pmid 31000001</span>
+<span class="o">{
+  "dataset_id": "abide-ii",
+  "name": "ABIDE II",
+  "pmids": [
+    "31000001"
+  ],
+  "notes": null,
+  "created_at": "2026-09-15T10:14:35.247166+00:00"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>study.py create-study|create-dataset|create-method|list-studies|list-datasets|list-methods --repo … [--id …] [--pmid …] [--confidence …] [--evidence …] [--name …] [--notes …] [--context …] [--locator …]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="write.html#compare"><code>/ref:compare</code></a> · <a href="write.html#methods"><code>/ref:methods</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="find.html#selectors"><code>--study</code> selector</a></p>
+</article>
+
+</section>
+
+<nav class="pager">
+  <a href="find.html"><small>Previous</small>Find</a>
+  <a href="write.html"><small>Next</small>Write</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

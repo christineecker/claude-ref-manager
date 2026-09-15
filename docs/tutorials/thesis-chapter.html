@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thesis chapter · ref-manager tutorials</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>Journey</h4>
+  <ol>
+    <li><a href="#journey">Map</a></li>
+    <li><a href="#t-project">1 · Project &amp; question</a></li>
+    <li><a href="#t-add">2 · Add papers</a></li>
+    <li><a href="#t-screen">3 · Screen &amp; queue</a></li>
+    <li><a href="#t-attach">4 · Attach / fetch</a></li>
+    <li><a href="#t-extract">5 · Extract</a></li>
+    <li><a href="#t-verify">6 · Verify claims</a></li>
+    <li><a href="#t-study">7 · Group studies</a></li>
+    <li><a href="#t-compare">8 · Compare</a></li>
+    <li><a href="#t-brief">9 · Ask &amp; brief</a></li>
+    <li><a href="#t-check">10 · Check citations</a></li>
+    <li><a href="#t-export">11 · Export</a></li>
+    <li><a href="#t-done">Acceptance check</a></li>
+  </ol>
+</aside>
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial · PhD acceptance test</p>
+  <h1>From 20 papers to a paragraph you can defend</h1>
+  <p class="lede">PLAN.md §8 defines the PhD acceptance test as: <em>take 20 papers for one thesis question, identify what they establish, inspect disagreements, and produce a paragraph whose citations can be verified.</em> This tutorial walks through that whole test using project membership, local attachment, claim correction, evidence comparison, and bibliography export.</p>
+</header>
+
+<div class="note warn"><strong>Example data.</strong> Four fictional papers (<code>99100001</code>–<code>99100004</code>) stand in for your 20. The same slugs are used throughout: project <code>thesis-ch3</code>, question <code>q1</code>, study <code>moreno-mri-cohort</code>, table <code>ch3-matrix</code>, brief <code>ch3-thickness</code>, bibliography <code>ch3-bib</code>. Blocks marked <em>output from a scratch library</em> are real script output. Where a step depends on a subagent or your own judgment, the JSON it would produce was written by hand in the documented shape and then passed to the real script. Long JSON is trimmed at <code>…</code>.</div>
+
+<section id="journey">
+<h2>Journey map</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 330" role="img" aria-label="Journey map of eleven steps and the artifacts each writes. Row one: 1 project create writes projects/thesis-ch3/project.yaml; 2 add writes papers/&lt;pmid&gt;/meta.json; 3 screen and queue (your decision) write papers.yaml and screening.jsonl; 4 attach or fetch writes raw/&lt;sha&gt; and versions/&lt;id&gt;/source.md; 5 extract writes claims.json and claim_registry.json; 6 verify (your decision) writes corrections.json. Row two: 7 study (your decision) writes studies/studies.jsonl; 8 compare writes projects/thesis-ch3/tables/ch3-matrix; 9 ask and brief writes projects/thesis-ch3/briefs/ch3-thickness; 10 check-citations writes projects/thesis-ch3/checks/check-&lt;id&gt;; 11 export writes exports/ch3-bib with references.bib.">
+  <defs>
+    <marker id="thArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+
+  <text x="14" y="22" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">GATHER · READ · CORRECT</text>
+
+  <!-- row 1 -->
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="34" width="138" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="26" y="56" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 project</text>
+    <text x="26" y="84" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">projects/</text>
+    <text x="26" y="99" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">thesis-ch3/</text>
+    <text x="26" y="114" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">project.yaml</text>
+
+    <rect x="170" y="34" width="138" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="182" y="56" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 add</text>
+    <text x="182" y="84" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">papers/&lt;pmid&gt;/</text>
+    <text x="182" y="99" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">meta.json</text>
+    <text x="182" y="120" font-size="10.5" fill-opacity=".6">citekey · abstract tier</text>
+
+    <rect x="326" y="34" width="138" height="104" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="338" y="56" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">3 screen·queue</text>
+    <text x="338" y="84" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">papers.yaml</text>
+    <text x="338" y="99" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">screening.jsonl</text>
+    <text x="338" y="120" font-size="10.5" fill-opacity=".6">your decision</text>
+
+    <rect x="482" y="34" width="138" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="494" y="56" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">4 attach·fetch</text>
+    <text x="494" y="84" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">raw/&lt;sha256&gt;/</text>
+    <text x="494" y="99" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">versions/&lt;id&gt;/</text>
+    <text x="494" y="114" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">source.md</text>
+
+    <rect x="638" y="34" width="138" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="650" y="56" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">5 extract</text>
+    <text x="650" y="84" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">claims.json</text>
+    <text x="650" y="99" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">claim_registry</text>
+    <text x="650" y="120" font-size="10.5" fill-opacity=".6">ref-extractor × N</text>
+
+    <rect x="794" y="34" width="138" height="104" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="806" y="56" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">6 verify</text>
+    <text x="806" y="84" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">corrections.json</text>
+    <text x="806" y="105" font-size="10.5" fill-opacity=".6">accept · edit ·</text>
+    <text x="806" y="120" font-size="10.5" fill-opacity=".6">reject</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="152" y1="86" x2="166" y2="86" marker-end="url(#thArr)"/>
+    <line x1="308" y1="86" x2="322" y2="86" marker-end="url(#thArr)"/>
+    <line x1="464" y1="86" x2="478" y2="86" marker-end="url(#thArr)"/>
+    <line x1="620" y1="86" x2="634" y2="86" marker-end="url(#thArr)"/>
+    <line x1="776" y1="86" x2="790" y2="86" marker-end="url(#thArr)"/>
+  </g>
+  <path d="M863 138 L863 160 L83 160 L83 196" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#thArr)"/>
+
+  <text x="120" y="186" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">GROUP · COMPARE · WRITE · CHECK</text>
+
+  <!-- row 2 : accent = project artifacts -->
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="200" width="160" height="104" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="26" y="222" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">7 study</text>
+    <text x="26" y="250" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">studies/</text>
+    <text x="26" y="265" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">studies.jsonl</text>
+    <text x="26" y="286" font-size="10.5" fill-opacity=".6">evidence required</text>
+
+    <rect x="203" y="200" width="160" height="104" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="215" y="222" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">8 compare</text>
+    <text x="215" y="250" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">tables/ch3-matrix/</text>
+    <text x="215" y="265" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">table.json</text>
+    <text x="215" y="286" font-size="10.5" fill-opacity=".6">frozen membership</text>
+
+    <rect x="392" y="200" width="160" height="104" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="404" y="222" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">9 ask · brief</text>
+    <text x="404" y="250" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">briefs/</text>
+    <text x="404" y="265" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">ch3-thickness/</text>
+    <text x="404" y="286" font-size="10.5" fill-opacity=".6">ref-synthesizer × 1</text>
+
+    <rect x="581" y="200" width="160" height="104" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="593" y="222" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">10 check-cit.</text>
+    <text x="593" y="250" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">checks/</text>
+    <text x="593" y="265" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">check-&lt;id&gt;/</text>
+    <text x="593" y="286" font-size="10.5" fill-opacity=".6">input.md kept verbatim</text>
+
+    <rect x="770" y="200" width="160" height="104" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="782" y="222" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">11 export</text>
+    <text x="782" y="250" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">exports/ch3-bib/</text>
+    <text x="782" y="265" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".75">references.bib</text>
+    <text x="782" y="286" font-size="10.5" fill-opacity=".6">+ csl.json · manifest</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="174" y1="252" x2="199" y2="252" marker-end="url(#thArr)"/>
+    <line x1="363" y1="252" x2="388" y2="252" marker-end="url(#thArr)"/>
+    <line x1="552" y1="252" x2="577" y2="252" marker-end="url(#thArr)"/>
+    <line x1="741" y1="252" x2="766" y2="252" marker-end="url(#thArr)"/>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw amber"></span>your decision, recorded with a reason</span>
+  <span><span class="sw solid"></span>saved artifact under <code>projects/thesis-ch3/</code></span>
+  <span><span class="sw"></span>paper or library record</span>
+</div>
+<figcaption>Every artifact in the second row records the set of papers it was built from. Re-running with the same label reuses that saved set, and only <code>--refresh</code> changes it. That way a conclusion never quietly shifts because the papers behind it changed.</figcaption>
+</figure>
+</section>
+
+<section>
+<ol class="steps">
+
+<li id="t-project">
+<h3>Frame the chapter: project and question</h3>
+<p>A project keeps its question separate from the papers. Question IDs only need to be unique within their project, so <code>q1</code> is fine here even if another project also has a <code>q1</code>.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:project create thesis-ch3 --scope "Cortical thickness in autistic adults"</span>
+<span class="o">{
+  "slug": "thesis-ch3",
+  "scope": "Cortical thickness in autistic adults",
+  "questions": []
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:project add-question thesis-ch3 --id q1 --text "Is cortical thickness altered in autistic adults?"</span>
+<span class="c">  # prints the updated project record with q1 in "questions"</span></pre>
+</li>
+
+<li id="t-add">
+<h3>Add the papers</h3>
+<p>Paste all 20 PMIDs into a single <a href="../commands/acquire.html#add"><code>/ref:add</code></a>. Metadata comes from the PubMed connector in one call, and you get one result line per PMID. Then add each paper to the project.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99100001 99100002 99100003 99100004</span>
+<span class="o">99100001: added (citekey=moreno2021increased)
+99100002: added (citekey=haddad2022no)
+99100003: added (citekey=moreno2023cortical)
+99100004: added (citekey=okafor2020age)</span>
+<span class="p">›</span> <span class="cmd">/ref:project add-paper thesis-ch3 99100001 --reading-status to_screen</span>
+<span class="c">  # … repeated for 99100002–99100004</span></pre>
+<p class="muted">If you're starting from a search rather than a PMID list, <a href="../commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a> saves the query and runs it. The <a href="systematic-review.html">systematic review tutorial</a> covers that route.</p>
+</li>
+
+<li id="t-screen">
+<h3>Screen, then queue what you'll read</h3>
+<p>A screening decision belongs to this project only. Excluding a paper here doesn't remove it from the library or from other projects. Every decision needs a reason and is appended to <code>screening.jsonl</code>, which is never rewritten. The latest decision is also copied onto the paper's project entry, so the <code>--screened</code> selector can find it.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:screen --project thesis-ch3 --pmid 99100001 --decision included --reason "Adult sample, cortical thickness outcome"</span>
+<span class="o">{
+  "pmid": "99100001",
+  "decision": "included",
+  "reason": "Adult sample, cortical thickness outcome",
+  "timestamp": "2026-09-15T10:17:14.530791+00:00"
+}</span>
+<span class="c">  # 99100002 and 99100003 included the same way</span>
+<span class="p">›</span> <span class="cmd">/ref:screen --project thesis-ch3 --pmid 99100004 --decision excluded --reason "Mixed-age sample; adults not reported separately"</span>
+<span class="o">{
+  "pmid": "99100004",
+  "decision": "excluded",
+  "reason": "Mixed-age sample; adults not reported separately",
+  "timestamp": "2026-09-15T10:17:14.762938+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:queue set --project thesis-ch3 --pmid 99100001 --status to_read --priority 1 --why "Anchor positive finding"</span>
+<span class="o">{
+  "added_at": "2026-09-15T10:17:14.059080+00:00",
+  "pmid": "99100001",
+  "priority": 1,
+  "reading_status": "to_read",
+  "relevance": null,
+  "screening": {
+    "decision": "included",
+    "reason": "Adult sample, cortical thickness outcome",
+    "timestamp": "2026-09-15T10:17:14.530791+00:00"
+  },
+  "why_saved": "Anchor positive finding"
+}</span></pre>
+</li>
+
+<li id="t-attach">
+<h3>Bring in full text: attach your PDFs, fetch the rest</h3>
+<p>Most thesis PDFs come from your university's access, so <a href="../commands/acquire.html#attach"><code>/ref:attach</code></a> takes pairs of PMID and file path. Before storing anything, it looks for the paper's DOI or a run of title words in the PDF's first two pages. In this example the second PDF belongs to a different paper, and it's refused:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:attach 99100001 ~/Downloads/moreno2021.pdf 99100002 ~/Downloads/wrong.pdf</span>
+<span class="o">99100001: attached</span>
+<span class="w">  diagnostic: PDF conversion unavailable: anydoc not installed (D16 supersedes pdf2md; no substitute converter is used)</span>
+<span class="w">99100002: refused -- neither DOI nor a run of the title text was found in the PDF's first 2 page(s) -- refusing silent attachment (§6)</span>
+<span class="p">›</span> <span class="cmd">/ref:attach 99100001 ~/Downloads/moreno2021.pdf</span>
+<span class="o">99100001: duplicate_noop</span></pre>
+<p>The PDF is now stored under <code>raw/&lt;sha256&gt;/source.pdf</code>, and attaching the same file again does nothing. This machine has no anydoc, so no <code>source.md</code> was produced and the paper stays at the abstract tier. The diagnostic tells you that instead of hiding it. For open-access papers, use <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a>:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:fetch 99100002</span>
+<span class="o">99100002: acquired (source=plain_text)</span>
+<span class="w">  diagnostic: source has no markup (plain extracted text); section/heading structure and figures are not recoverable</span></pre>
+</li>
+
+<li id="t-extract">
+<h3>Extract what each paper claims</h3>
+<p><a href="../commands/acquire.html#extract"><code>/ref:extract</code></a> runs one <code>ref-extractor</code> subagent per paper, in parallel. A failure on one paper doesn't block the others. Papers with full text get full-tier claims and the rest get abstract-tier claims, and each claim records which tier it came from.</p>
+<p class="term-label">output from a scratch library · subagent JSON written by hand</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 99100001 99100002 99100003</span>
+<span class="o">99100001: extracted (study_type=imaging, claims=2)
+99100002: extracted (study_type=imaging, claims=1)
+99100003: extracted (study_type=cohort, claims=1)</span></pre>
+<p>99100001 produced two claims from its abstract. One is correct (<code>c-c30763f4756d</code>, frontal thickness, <em>d</em> = 0.41). The other (<code>c-5a2acb6872de</code>) says the effect is whole-brain, which the paper doesn't say. That's exactly the kind of error you correct in the next step.</p>
+</li>
+
+<li id="t-verify">
+<h3>Verify claims: accept, edit, reject</h3>
+<p>This step is what "identify what they establish" means in practice: you review the extracted claims. Each decision goes into <code>papers/&lt;pmid&gt;/corrections.json</code> as a separate record. The raw extraction itself is never overwritten.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:verify claim 99100001 c-c30763f4756d accept --rationale "Matches abstract" --reviewer ana</span>
+<span class="o">{
+  "correction_id": "cor-a0c755ad1e36",
+  "target_type": "claim",
+  "target_id": "c-c30763f4756d",
+  "decision": "accept",
+  …
+  "status": "active"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:verify claim 99100001 c-5a2acb6872de reject --rationale "Paper reports frontal regions only, not whole-brain" --reviewer ana</span>
+<span class="o">{
+  "correction_id": "cor-4537f675779b",
+  "target_type": "claim",
+  "target_id": "c-5a2acb6872de",
+  "decision": "reject",
+  "original_value": {
+    "population": "autistic adults",
+    "intervention": "autism diagnosis",
+    "comparator": "non-autistic controls",
+    "outcome": "whole-brain cortical thickness"
+  },
+  "replacement_value": null,
+  "rationale": "Paper reports frontal regions only, not whole-brain",
+  "reviewer": "ana",
+  "timestamp": "2026-09-15T10:17:16.039966+00:00",
+  "evidence_locator": "abstract",
+  "status": "active"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:verify claim 99100002 c-1dd89ae7ddbe edit --replacement repl.json --rationale "Population restricted in Methods"</span>
+<span class="c">  # repl.json: {"population": "autistic adults (full-scale IQ &gt; 70)"}</span>
+<span class="o">{
+  "correction_id": "cor-b90989775dcf",
+  "decision": "edit",
+  …
+  "replacement_value": {
+    "population": "autistic adults (full-scale IQ &gt; 70)"
+  },
+  …
+}</span></pre>
+<ul>
+  <li>A rejected claim is marked <code>excluded_from_synthesis</code>, so <code>/ref:ask</code> and <code>/ref:brief</code> no longer retrieve it. It stays on file for audit.</li>
+  <li>Your decisions survive a re-extraction as long as the evidence hasn't changed. If a re-extraction supersedes the claim, the correction switches to <code>pending_review</code> so you look at it again, rather than being applied or dropped without telling you. <code>/ref:verify show &lt;pmid&gt;</code> re-checks the corrections first, then lists them.</li>
+</ul>
+</li>
+
+<li id="t-study">
+<h3>Group papers that report the same study</h3>
+<p>99100003 is the five-year follow-up of the cohort in 99100001. Counting them as two independent findings would make the positive result look stronger than it is. A study grouping needs a stated reason, and shared authors or a shared dataset aren't enough on their own:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:study create-study moreno-mri-cohort --pmid 99100001 99100003 --confidence confirmed --evidence "99100003 states it is the five-year follow-up of the cohort reported in 99100001"</span>
+<span class="o">{
+  "study_id": "moreno-mri-cohort",
+  "pmids": ["99100001", "99100003"],
+  "confidence": "confirmed",
+  "evidence": "99100003 states it is the five-year follow-up of the cohort reported in 99100001",
+  "review_state": "unreviewed",
+  …
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:study create-study bad-grouping --pmid 99100001 99100002 --confidence likely</span>
+<span class="w">error: evidence is required: why these PMIDs are the same investigation (§3b)</span></pre>
+</li>
+
+<li id="t-compare">
+<h3>Inspect disagreements with a comparison matrix</h3>
+<p><a href="../commands/write.html#compare"><code>/ref:compare</code></a> builds a table over any selection of papers. Papers in the same study share a row. Every cell either points to the claims behind it or says why it's empty.</p>
+<p class="term-label">output from a scratch library · trimmed</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:compare --project thesis-ch3 --screened included --batch ch3-matrix</span>
+<span class="o">{
+  "status": "created",
+  "batch": "ch3-matrix",
+  "manifest": {
+    "selector_expression": "--project thesis-ch3 --screened included",
+    "pmids": ["99100001", "99100002", "99100003"],
+    "report": { "count": 3, "by_extraction_tier": { "abstract": 2, "full": 1, … } }, …
+  },
+  "rows": [
+    { "pmids": ["99100001", "99100003"],
+      "study": { "study_id": "moreno-mri-cohort", "confidence": "confirmed", … },
+      "cells": {
+        "99100001": {
+          "results":     { "value": ["increase", "increase / 0.41 / Cohen's d"], "claim_ids": ["c-5a2acb6872de", "c-c30763f4756d"] },
+          "uncertainty": { "value": "not_reported" },
+          "sample_size": { "value": "not_extracted" }, … },
+        "99100003": {
+          "design":  { "value": ["longitudinal cohort"], "claim_ids": ["c-9c38d0dd8322"] },
+          "results": { "value": ["increase"], "claim_ids": ["c-9c38d0dd8322"] }, … } } },
+    { "pmids": ["99100002"], "study": null,
+      "cells": { "99100002": {
+          "design":      { "value": ["consortium mega-analysis"], "claim_ids": ["c-1dd89ae7ddbe"] },
+          "results":     { "value": ["no significant difference / 0.03 / Cohen's d"], "claim_ids": ["c-1dd89ae7ddbe"] },
+          "uncertainty": { "value": ["95% CI -0.07 to 0.13"], "claim_ids": ["c-1dd89ae7ddbe"] }, … } } }
+  ]
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:compare --project thesis-ch3 --screened included --batch ch3-matrix</span>
+<span class="o">{
+  "status": "reused_frozen_table", …</span></pre>
+<p>The disagreement is now easy to see. One cohort, reported twice, finds <em>increased frontal</em> thickness. A larger consortium sample finds <em>no difference in mean</em> thickness. Those outcomes aren't the same measurement, which is why the plan says a mismatched outcome doesn't count as a contradiction.</p>
+<ul>
+  <li><code>not_reported</code> means a claim exists but the paper doesn't give that field. <code>not_extracted</code> means no claim covers it: sample size, limitations, and relevance are never extracted in this phase. Treat these as two different gaps.</li>
+  <li>The table is saved in <code>projects/thesis-ch3/tables/ch3-matrix/</code>. <code>--edit-pmid/--edit-column/--edit-value</code> overrides a single cell. If the evidence behind that cell changes later, a <code>--refresh</code> flags the override as <code>stale</code>.</li>
+</ul>
+<div class="note warn"><strong>Current behaviour.</strong> <code>compare.py</code> builds cells from every claim whose <code>status</code> is <code>active</code>. That's why the rejected claim <code>c-5a2acb6872de</code> still appears under 99100001 above, and why the <em>edit</em> from step 6 doesn't change the population cell. Retrieval for <code>/ref:ask</code> and <code>/ref:brief</code> does skip rejected claims. For now, check <code>/ref:verify show</code> alongside the table.</div>
+</li>
+
+<li id="t-brief">
+<h3>Ask the question, then save the answer as a brief</h3>
+<p><a href="../commands/find.html#ask"><code>/ref:ask</code></a> retrieves only from the selected papers. The rejected claim is gone: 99100001 now contributes only its accepted claim.</p>
+<p class="term-label">output from a scratch library · retrieval step, trimmed</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:ask "Is cortical thickness altered in autistic adults?" --project thesis-ch3 --screened included</span>
+<span class="c">  # ask_retrieve.py … --expand "cortical thinning" "autism spectrum disorder"</span>
+<span class="o">candidates (pmid · claim_id · tier · retraction):
+  99100003  c-9c38d0dd8322  abstract  unknown
+  99100001  c-c30763f4756d  abstract  none
+  99100002  c-1dd89ae7ddbe  full      none
+"report": { "total_matches_before_limits": 3, "returned": 3, "insufficient_coverage": false, "selector_constrained": true, … }</span></pre>
+<p>The <code>ref-synthesizer</code> subagent writes an answer that cites only those candidates. <code>validate_citations.py</code> then checks that every <code>[^pmid]</code> in the answer points to one of them:</p>
+<p class="term-label">output from a scratch library · answer text written by hand</p>
+<pre class="term"><span class="o">Evidence is mixed. One multi-site cohort reports increased frontal cortical thickness in autistic adults [^99100001],
+persisting at five-year follow-up [^99100003], but a larger consortium sample found no difference in mean thickness [^99100002].</span>
+<span class="o">{
+  "cited_pmids": ["99100001", "99100002", "99100003"],
+  "resolved": ["99100001", "99100002", "99100003"],
+  "unresolved": [],
+  "all_resolved": true
+}</span></pre>
+<p>To keep the answer for your chapter, run the same flow through <a href="../commands/write.html#brief"><code>/ref:brief</code></a>. It saves the answer, its evidence, and the questions still open:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:brief "Is cortical thickness altered in autistic adults?" --key ch3-thickness --project thesis-ch3</span>
+<span class="o">{
+  "status": "created",
+  "snapshot_id": "brief-17ae6fa70deb",
+  "manifest": {
+    "snapshot_id": "brief-17ae6fa70deb",
+    "key": "ch3-thickness",
+    "project": "thesis-ch3",
+    "question": "Is cortical thickness altered in autistic adults?",
+    "selector_expression": "&lt;all&gt;",
+    "pmids_at_resolution": null,
+    "unresolved_questions": [
+      "Do regional and mean-thickness findings conflict, or measure different things?"
+    ],
+    "evidence_hash": "c890aeb2592d6b6b3753e9841eb8a5f53ef488fbe5a5b13a457fde0623315b7b", …
+  }, …
+}</span></pre>
+<p>The files land in <code>projects/thesis-ch3/briefs/ch3-thickness/</code>. After you add papers or make corrections, <code>--refresh</code> saves a new snapshot and reports <code>added_support_claim_ids</code>, <code>new_pmids</code>, <code>withdrawn_evidence</code>, and <code>retraction_status_changes</code>. Your own <code>--edit</code> text is kept through a refresh, and marked <code>"stale": true</code> if the evidence under it changed. (This brief was saved without a retrieval selector, so the manifest reads <code>&lt;all&gt;</code>. When a selector resolution is passed in, the manifest records the selector and the resolved PMIDs.)</p>
+</li>
+
+<li id="t-check">
+<h3>Check the draft paragraph's citations</h3>
+<p>Now write your own paragraph and give it to <a href="../commands/write.html#check-citations"><code>/ref:check-citations</code></a>. Claude splits it into assertions and gives each one a verdict: <code>supported</code>, <code>overstated</code>, <code>conflicting</code>, <code>insufficient</code>, or <code>unavailable</code>. It also checks that each existing <code>[^pmid]</code> actually supports the sentence it's attached to. Your paragraph is stored exactly as written and is never rewritten.</p>
+<pre class="code">Autistic adults have thicker frontal cortex than non-autistic adults [^99100001]. This difference is present across the whole cortex [^99100002]. It persists into later adulthood.</pre>
+<p class="term-label">output from a scratch library · findings written by hand</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:check-citations --file draft.md --project thesis-ch3 --export-bib</span>
+<span class="o">{
+  "check_id": "check-14fa5e5cc350",
+  "manifest": {
+    "referenced_pmids": ["99100001", "99100002", "99100003"],
+    "verdict_counts": { "supported": 1, "overstated": 1, "conflicting": 1, "insufficient": 0, "unavailable": 0 },
+    "bibliography_exported": true, …
+  },
+  "findings": [
+    { "assertion_text": "Autistic adults have thicker frontal cortex than non-autistic adults",
+      "verdict": "supported", "evidence": [{ "pmid": "99100001", "claim_id": "c-c30763f4756d" }] },
+    { "assertion_text": "This difference is present across the whole cortex",
+      "verdict": "conflicting", "evidence": [{ "pmid": "99100002", "claim_id": "c-1dd89ae7ddbe" }],
+      "citation_mismatch": true, "existing_citation_pmid": "99100002" },
+    { "assertion_text": "It persists into later adulthood",
+      "verdict": "overstated", "evidence": [{ "pmid": "99100003", "claim_id": "c-9c38d0dd8322" }] }
+  ],
+  "caveat": "Available library coverage does not establish a comprehensive literature check (§5a) -- an 'unavailable' or 'insufficient' verdict means this library doesn't have evidence either way, not that none exists."
+}</span></pre>
+<ul>
+  <li>The second sentence cites a paper that contradicts it, which is flagged as <code>citation_mismatch</code>. The third sentence says more than a single five-year follow-up can support.</li>
+  <li><code>check_citations.py</code> refuses a finding whose <code>assertion_text</code> isn't an exact substring of your paragraph. It also refuses evidence references that weren't among the retrieved candidates.</li>
+  <li>The report goes to <code>projects/thesis-ch3/checks/check-14fa5e5cc350/</code> as <code>input.md</code>, <code>findings.json</code>, <code>manifest.json</code>, and, because of <code>--export-bib</code>, <code>references.bib</code> and <code>references.csl.json</code> for the PMIDs it cites.</li>
+</ul>
+</li>
+
+<li id="t-export">
+<h3>Export the chapter bibliography</h3>
+<p>Export the included papers under a named batch. The PMID set is saved at this point, so the chapter's reference list only changes when you pass <code>--refresh</code>.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export --project thesis-ch3 --screened included --batch ch3-bib</span>
+<span class="o">{
+  "status": "created",
+  "batch": "ch3-bib",
+  "manifest": {
+    "batch": "ch3-bib",
+    "selector_expression": "--project thesis-ch3 --screened included",
+    "pmids": ["99100001", "99100002", "99100003"],
+    "citekeys": ["moreno2021increased", "haddad2022no", "moreno2023cortical"],
+    "resolved_at": "2026-09-15T10:17:17.791951+00:00",
+    "report": {
+      "count": 3,
+      "by_extraction_tier": { "abstract": 2, "full": 1, "unavailable": 0, "missing_record": 0 },
+      "by_human_verification_state": { "not_yet_tracked": 3 },
+      "by_retraction_errata_status": { "none": 2, "unknown": 1 }
+    }
+  }
+}</span></pre>
+<p>Cite the papers in your manuscript as <code>@moreno2021increased</code> and so on (<a href="../commands/write.html#cite"><code>/ref:cite</code></a> prints the key for any PMID), and point your writing tool at <code>exports/ch3-bib/references.bib</code>. The report shows that one included paper has retraction status <code>unknown</code>. Before submitting, <a href="../commands/maintain.html#audit"><code>/ref:audit</code></a> can refresh that status. The verification-state count still reads <code>not_yet_tracked</code> in this version, even after the reviews in step 6.</p>
+</li>
+
+</ol>
+</section>
+
+<section id="t-done">
+<h2>Acceptance check</h2>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>The test asks you to…</th><th>Where it happened</th></tr></thead>
+  <tbody>
+    <tr><td>take papers for one question</td><td>Project <code>thesis-ch3</code>, question <code>q1</code>, and screening recorded with reasons in <code>screening.jsonl</code>.</td></tr>
+    <tr><td>identify what they establish</td><td>Claims extracted with locators and quotes, then accepted, edited, or rejected in <code>corrections.json</code>. The follow-up paper was grouped as one study.</td></tr>
+    <tr><td>inspect disagreements</td><td>The <code>ch3-matrix</code> table puts regional increases next to a null result on mean thickness, each linked to its claim IDs.</td></tr>
+    <tr><td>a paragraph whose citations can be verified</td><td>The <code>ch3-thickness</code> brief and a citation check where every verdict points to a <code>pmid</code> and <code>claim_id</code>, plus the bibliography frozen in <code>ch3-bib</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>To go further, <a href="../commands/graph.html#weave"><code>/ref:weave</code></a> turns the claims into concept and relation edges, and marks opposite directions in comparable settings as <code>potential_conflict</code>. The <a href="graph-discovery.html">graph discovery tutorial</a> picks up from there.</p>
+</section>
+
+<nav class="pager" aria-label="Pager">
+  <a href="index.html"><small>Previous</small>Tutorials</a>
+  <a href="systematic-review.html" style="text-align:right"><small>Next</small>Systematic review</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

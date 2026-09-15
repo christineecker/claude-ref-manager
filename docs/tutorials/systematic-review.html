@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Systematic review · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>A systematic review, from saved search to PRISMA flow</h1>
+  <p class="lede">You'll run a PubMed search you can reproduce, screen the hits with a written reason for every decision, get full text, render a PRISMA 2020 flow record from what's on disk, and then run an appraised review over the included set. Commands used: <code>/ref:project</code>, <code>/ref:search-pubmed</code>, <code>/ref:update-queries</code>, <code>/ref:add</code>, <code>/ref:screen</code>, <code>/ref:fetch</code>, <code>/ref:attach</code>, <code>/ref:review --prisma</code>, and <code>/ref:review</code>.</p>
+</header>
+
+<section>
+<h2>The journey</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 300" role="img" aria-label="Journey map in six steps. /ref:search-pubmed and /ref:update-queries write immutable runs to queries/slug.yaml. /ref:add writes papers/pmid/meta.json. /ref:screen appends to projects/slug/screening.jsonl. /ref:fetch and /ref:attach add full text and set the full_text flag. /ref:review --prisma reads all of these and writes projects/slug/prisma/snapshot-id/. /ref:review with --screened included writes projects/slug/reviews/batch/.">
+  <defs>
+    <marker id="srArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="srArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+  </defs>
+  <g font-size="11" fill="currentColor">
+    <!-- step boxes -->
+    <rect x="14" y="30" width="138" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="26" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 SEARCH</text>
+    <text x="26" y="70" fill-opacity=".7">search-pubmed</text>
+    <text x="26" y="85" fill-opacity=".7">update-queries</text>
+
+    <rect x="168" y="30" width="138" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="180" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 ADD</text>
+    <text x="180" y="70" fill-opacity=".7">the hits you want</text>
+    <text x="180" y="85" fill-opacity=".7">a record for</text>
+
+    <rect x="322" y="30" width="138" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="334" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">3 SCREEN</text>
+    <text x="334" y="70" fill-opacity=".7">your decision</text>
+    <text x="334" y="85" fill-opacity=".7">+ a reason</text>
+
+    <rect x="476" y="30" width="138" height="70" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="488" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">4 FULL TEXT</text>
+    <text x="488" y="70" fill-opacity=".7">fetch · attach</text>
+    <text x="488" y="85" fill-opacity=".7">(extract for claims)</text>
+
+    <rect x="630" y="30" width="138" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="642" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">5 PRISMA</text>
+    <text x="642" y="70" fill-opacity=".7">review --prisma</text>
+    <text x="642" y="85" fill-opacity=".7">counts only</text>
+
+    <rect x="784" y="30" width="142" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="796" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">6 APPRAISE</text>
+    <text x="796" y="70" fill-opacity=".7">review --screened</text>
+    <text x="796" y="85" fill-opacity=".7">included</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="152" y1="65" x2="164" y2="65" marker-end="url(#srArr)"/>
+    <line x1="306" y1="65" x2="318" y2="65" marker-end="url(#srArr)"/>
+    <line x1="460" y1="65" x2="472" y2="65" marker-end="url(#srArr)"/>
+    <line x1="614" y1="65" x2="626" y2="65" marker-end="url(#srArr)"/>
+    <line x1="768" y1="65" x2="780" y2="65" marker-end="url(#srArr)"/>
+  </g>
+
+  <text x="14" y="140" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">WHAT EACH STEP LEAVES ON DISK</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <rect x="14" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="24" y="172">queries/</text><text x="24" y="188">&lt;slug&gt;.yaml</text>
+    <rect x="168" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="178" y="172">papers/&lt;pmid&gt;/</text><text x="178" y="188">meta.json</text>
+    <rect x="322" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="332" y="172">projects/&lt;slug&gt;/</text><text x="332" y="188">screening.jsonl</text>
+    <rect x="476" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="486" y="172">raw/ · versions/</text><text x="486" y="188">full_text: true</text>
+    <rect x="630" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="640" y="172">prisma/&lt;id&gt;/</text><text x="640" y="188">flow.md · .csv</text>
+    <rect x="784" y="152" width="142" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="794" y="172">reviews/&lt;batch&gt;/</text><text x="794" y="188">grade.json</text>
+  </g>
+  <g stroke="currentColor" stroke-opacity=".45" stroke-dasharray="3 3">
+    <line x1="83" y1="100" x2="83" y2="152"/><line x1="237" y1="100" x2="237" y2="152"/>
+    <line x1="391" y1="100" x2="391" y2="152"/><line x1="545" y1="100" x2="545" y2="152"/>
+    <line x1="699" y1="100" x2="699" y2="152"/><line x1="855" y1="100" x2="855" y2="152"/>
+  </g>
+
+  <!-- prisma reads everything -->
+  <path d="M83 198 L83 240 L690 240 L690 204" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#srArrA)"/>
+  <line x1="237" y1="198" x2="237" y2="240" stroke="var(--accent)" stroke-width="1.5"/>
+  <line x1="391" y1="198" x2="391" y2="240" stroke="var(--accent)" stroke-width="1.5"/>
+  <line x1="545" y1="198" x2="545" y2="240" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="300" y="264" font-size="11" fill="var(--accent)">/ref:review --prisma only reads what these steps committed — it never re-runs a search</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>deterministic, writes committed state</span>
+  <span><span class="sw amber"></span>network acquisition, per paper</span>
+  <span><span class="sw dash"></span>your judgement</span>
+</div>
+<figcaption>Each step writes one kind of record, and the PRISMA flow is just a count over those records. That's why the order matters less than you might expect: you can screen before adding, or add before screening. The flow reports whatever is actually on disk.</figcaption>
+</figure>
+<p class="muted">The example project is <code>tdcs-review</code>, the saved queries are <code>tdcs-wm</code> and <code>tdcs-wm-adhd</code>, and the PMIDs <code>38000101</code>…<code>38000107</code> are placeholders. Blocks labelled <em>output from a scratch library</em> were produced by running the plugin's scripts against a throwaway library. In those runs, PMID lists we supplied by hand stood in for the PubMed MCP call.</p>
+</section>
+
+<section>
+<h2>Steps</h2>
+<ol class="steps">
+
+<li>
+<h3>Create the review project</h3>
+<p>Screening decisions belong to a project. The same paper can be included in one review and excluded from another without conflict.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:project create tdcs-review --scope "tDCS and working memory"</span>
+<span class="o">{
+  "slug": "tdcs-review",
+  "scope": "tDCS and working memory",
+  "questions": []
+}</span></pre>
+</li>
+
+<li>
+<h3>Search PubMed into a saved query</h3>
+<p>Give Claude a question or an explicit PubMed expression. Claude writes the boolean query, runs it through the PubMed MCP tool, and then saves the exact expression, the source, a timestamp and the result PMIDs. Pass <code>--create</code> on the first run of a new slug.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-pubmed "Does tDCS improve working memory?" --slug tdcs-wm --create</span>
+<span class="c"># Claude translates the question into this expression, runs it, then saves the run:</span>
+<span class="o">{
+  "run_id": "run-004c50fe5cfa",
+  "query": "(\"transcranial direct current stimulation\"[MeSH] OR tDCS) AND \"working memory\"",
+  "source": "pubmed",
+  "retrieved_at": "2026-09-15T10:15:58.976036+00:00",
+  "pmids": ["38000101", "38000102", "38000103", "38000104", "38000105"]
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:search-pubmed "tDCS AND ADHD" --slug tdcs-wm-adhd --create</span>
+<span class="o">{
+  "run_id": "run-d5d8e9f70664",
+  "query": "tDCS AND ADHD",
+  …
+  "pmids": ["38000102", "38000106", "38000107"]
+}</span></pre>
+<div class="note"><strong>Why the run is frozen.</strong> The script doesn't parse PICO and doesn't call PubMed. It stores exactly what it's handed. Later, <code>--query tdcs-wm --run run-004c50fe5cfa</code> always means these five PMIDs, so a comparison or flow built on that run can't quietly change membership.</div>
+</li>
+
+<li>
+<h3>Re-run the search when you choose to</h3>
+<p><code>/ref:update-queries</code> re-runs the <em>stored</em> expression. It doesn't re-derive a query from your original question. It appends a new run and lists what changed since the previous one. Nothing re-runs on a schedule.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-queries tdcs-wm</span>
+<span class="o">{
+  "run": {
+    "run_id": "run-9ff45f72904c",
+    "query": "(\"transcranial direct current stimulation\"[MeSH] OR tDCS) AND \"working memory\"",
+    "source": "pubmed",
+    "retrieved_at": "2026-09-15T10:15:59.067749+00:00",
+    "pmids": ["38000101", "38000102", "38000103", "38000104", "38000105", "38000106"]
+  },
+  "added": ["38000106"],
+  "removed": []
+}</span></pre>
+</li>
+
+<li>
+<h3>Add the hits you want a record for</h3>
+<p>A search run is only a list of PMIDs. <code>/ref:add</code> is still the only way a paper enters the library. The PRISMA "reports sought" count comes from <code>meta.json</code>, so add every paper you include.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 38000101 38000102 38000103</span>
+<span class="o">38000101: added (citekey=rivera2023transcranial)
+38000102: added (citekey=lindqvist2024working)
+38000103: added (citekey=chen2024stimulation) — no abstract available — metadata-only record, not fabricated (§3a)</span></pre>
+</li>
+
+<li>
+<h3>Screen, with a reason every time</h3>
+<p>Every decision needs a <code>--reason</code>. Decisions are <code>included</code>, <code>excluded</code> or <code>pending</code>. <code>--run</code> is optional and links the decision to the search run the paper came from. If you screen a PMID that isn't a project member yet, it becomes one.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:screen --project tdcs-review --pmid 38000101 --decision included --reason "RCT, adult population, WM outcome"</span>
+<span class="o">{
+  "pmid": "38000101",
+  "decision": "included",
+  "reason": "RCT, adult population, WM outcome",
+  "timestamp": "2026-09-15T10:15:59.382605+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:screen --project tdcs-review --pmid 38000102 --decision included --reason "cohort, WM outcome"</span>
+<span class="p">›</span> <span class="cmd">/ref:screen --project tdcs-review --pmid 38000103 --decision excluded --reason "wrong outcome"</span>
+<span class="p">›</span> <span class="cmd">/ref:screen --project tdcs-review --pmid 38000104 --decision excluded --reason "wrong outcome"</span>
+<span class="p">›</span> <span class="cmd">/ref:screen --project tdcs-review --pmid 38000199 --decision pending --reason "sent by a colleague"</span></pre>
+<div class="note"><strong>History, not state.</strong> <code>screening.jsonl</code> is append-only. Change your mind and the new line wins, but the old decision stays on file. Word reasons consistently, because the flow groups exclusions by their exact reason text.</div>
+<div class="note warn"><strong>Pending still counts as screened.</strong> The flow counts every PMID with any latest decision, <code>pending</code> included. <code>38000199</code> above also never appeared in a saved run, so the flow will flag it as unevidenced instead of silently counting it.</div>
+</li>
+
+<li>
+<h3>Get full text for the included papers</h3>
+<p>Fetch works through PMC OA, then Unpaywall, then publisher HTML, and falls back to abstract-only. Attach is for PDFs you already have. Both report one result per PMID, and one failure never blocks the rest.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:fetch 38000101 38000102</span>
+<span class="c"># one line per PMID: acquired / oa_location_found / abstract_only / failed,</span>
+<span class="c"># plus any diagnostic: lines about incomplete conversion</span>
+<span class="p">›</span> <span class="cmd">/ref:attach 38000102 ~/Downloads/lindqvist-2024.pdf</span>
+<span class="c"># per pair: attached / duplicate_noop / refused (identity check failed) / failed</span>
+<span class="p">›</span> <span class="cmd">/ref:extract 38000101 38000102</span>
+<span class="c"># full-tier claims, which the appraisal in step 8 reads</span></pre>
+<div class="note"><strong>Abstract-only is not a failure.</strong> For PRISMA, a paper without full text counts as a report <em>not retrieved</em>, which is exactly what the flow should say.</div>
+</li>
+
+<li>
+<h3>Render the PRISMA 2020 flow</h3>
+<p>Name the saved queries that feed this review. A project has no stored link to its queries, so you pass them each time. <code>--query slug:run_id</code> pins a specific run, and a bare slug uses the latest run.</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review --prisma --project tdcs-review --query tdcs-wm --query tdcs-wm-adhd</span>
+<span class="o">{
+  "status": "created",
+  "snapshot_id": "prisma-0c8322f37193",
+  "manifest": {
+    …
+    "flow": {
+      "identified": {
+        "per_source": { "pubmed": { "count": 9, "runs": [ …tdcs-wm: 6…, …tdcs-wm-adhd: 3… ] } },
+        "total_raw": 9,
+        "note": null
+      },
+      "duplicates_removed": 2,
+      "unresolved_query_specs": [],
+      "screened": 5,
+      "excluded": { "count": 2, "by_reason": { "wrong outcome": 2 } },
+      "unevidenced_screened_pmids": ["38000199"],
+      "reports": {
+        "sought": 2,
+        "not_retrieved": 2,
+        "not_retrieved_pmids": ["38000101", "38000102"],
+        "unevidenced_sought_pmids": []
+      },
+      "included": {
+        "publications_count": 2,
+        "publications": ["38000101", "38000102"],
+        "studies_count": "unknown",
+        "studies_note": "studies/studies.jsonl not available -- included-studies count is unknown, not assumed equal to included-publications count",
+        …
+      }
+    }
+  }
+}</span></pre>
+<p>This scratch run happened before step 6 had acquired anything, so both included papers read as not retrieved. Here's the same data as a flow diagram:</p>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 640" role="img" aria-label="PRISMA 2020 style flow diagram with example numbers. Identification: 9 records identified from PubMed, from the latest runs of queries tdcs-wm (6) and tdcs-wm-adhd (3); 2 duplicates removed by PMID. Screening: 5 records screened from screening.jsonl latest decisions; 2 excluded, reason wrong outcome; 1 screened PMID not in any identified run, reported as unevidenced. Reports sought: 2, from included PMIDs with meta.json; not retrieved: 2, where meta.json full_text is not true. Included: 2 publications from included decisions; studies count unknown because studies/studies.jsonl is absent.">
+  <defs>
+    <marker id="prArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+
+  <!-- example banner -->
+  <rect x="560" y="10" width="366" height="30" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="743" y="30" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor" font-weight="500">EXAMPLE NUMBERS · scratch library above</text>
+
+  <!-- band labels -->
+  <g font-family="IBM Plex Mono,monospace" font-size="10.5" fill="var(--accent)" font-weight="500" letter-spacing="1">
+    <rect x="14" y="56" width="26" height="100" rx="4" fill="var(--accent-soft)"/>
+    <text transform="translate(31 106) rotate(-90)" text-anchor="middle">IDENTIFICATION</text>
+    <rect x="14" y="176" width="26" height="286" rx="4" fill="var(--accent-soft)"/>
+    <text transform="translate(31 319) rotate(-90)" text-anchor="middle">SCREENING</text>
+    <rect x="14" y="482" width="26" height="140" rx="4" fill="var(--accent-soft)"/>
+    <text transform="translate(31 552) rotate(-90)" text-anchor="middle">INCLUDED</text>
+  </g>
+
+  <g font-size="11" fill="currentColor">
+    <!-- identified -->
+    <rect x="60" y="56" width="400" height="100" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="76" y="80" font-size="12" font-weight="600">Records identified from PubMed  n = 9</text>
+    <text x="76" y="102" font-family="IBM Plex Mono,monospace" fill-opacity=".75">queries/tdcs-wm.yaml         latest run  6</text>
+    <text x="76" y="120" font-family="IBM Plex Mono,monospace" fill-opacity=".75">queries/tdcs-wm-adhd.yaml    latest run  3</text>
+    <text x="76" y="142" fill-opacity=".6">from --query args; none given → "unknown"</text>
+
+    <rect x="560" y="56" width="366" height="100" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="576" y="80" font-size="12" font-weight="600">Duplicates removed  n = 2</text>
+    <text x="576" y="102" fill-opacity=".75">raw run PMIDs minus the de-duplicated set</text>
+    <text x="576" y="120" fill-opacity=".75">(38000102, 38000106 appear in both runs)</text>
+    <text x="576" y="142" fill-opacity=".6">PMID is identity, so no fuzzy matching</text>
+
+    <!-- screened -->
+    <rect x="60" y="186" width="400" height="84" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="76" y="210" font-size="12" font-weight="600">Records screened  n = 5</text>
+    <text x="76" y="232" font-family="IBM Plex Mono,monospace" fill-opacity=".75">projects/tdcs-review/screening.jsonl</text>
+    <text x="76" y="252" fill-opacity=".6">latest decision per PMID, pending included</text>
+
+    <rect x="560" y="186" width="366" height="84" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="576" y="210" font-size="12" font-weight="600">Records excluded  n = 2</text>
+    <text x="576" y="232" font-family="IBM Plex Mono,monospace" fill-opacity=".75">screening.jsonl  decision = excluded</text>
+    <text x="576" y="252" fill-opacity=".6">by reason: "wrong outcome" 2</text>
+
+    <rect x="560" y="286" width="366" height="64" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-dasharray="5 4"/>
+    <text x="576" y="310" font-size="12" font-weight="600">Screened, in no identified run  1</text>
+    <text x="576" y="330" font-family="IBM Plex Mono,monospace" fill-opacity=".8">unevidenced_screened_pmids: 38000199</text>
+
+    <!-- sought -->
+    <rect x="60" y="370" width="400" height="84" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="76" y="394" font-size="12" font-weight="600">Reports sought for retrieval  n = 2</text>
+    <text x="76" y="416" font-family="IBM Plex Mono,monospace" fill-opacity=".75">included PMIDs with papers/&lt;pmid&gt;/meta.json</text>
+    <text x="76" y="436" fill-opacity=".6">included but never added → unevidenced_sought</text>
+
+    <rect x="560" y="370" width="366" height="84" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="576" y="394" font-size="12" font-weight="600">Reports not retrieved  n = 2</text>
+    <text x="576" y="416" font-family="IBM Plex Mono,monospace" fill-opacity=".75">meta.json  full_text is not true</text>
+    <text x="576" y="436" fill-opacity=".6">before /ref:fetch had run</text>
+
+    <!-- included -->
+    <rect x="60" y="492" width="400" height="84" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="76" y="516" font-size="12" font-weight="600">Publications included  n = 2</text>
+    <text x="76" y="538" font-family="IBM Plex Mono,monospace" fill-opacity=".75">screening.jsonl  decision = included</text>
+    <text x="76" y="558" fill-opacity=".6">38000101 · 38000102</text>
+
+    <rect x="560" y="492" width="366" height="84" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-dasharray="5 4"/>
+    <text x="576" y="516" font-size="12" font-weight="600">Studies included  unknown</text>
+    <text x="576" y="538" font-family="IBM Plex Mono,monospace" fill-opacity=".8">studies/studies.jsonl absent</text>
+    <text x="576" y="558" fill-opacity=".7">never assumed equal to publications</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="260" y1="156" x2="260" y2="182" marker-end="url(#prArr)"/>
+    <line x1="460" y1="106" x2="556" y2="106" marker-end="url(#prArr)"/>
+    <line x1="260" y1="270" x2="260" y2="366" marker-end="url(#prArr)"/>
+    <line x1="460" y1="228" x2="556" y2="228" marker-end="url(#prArr)"/>
+    <line x1="260" y1="454" x2="260" y2="488" marker-end="url(#prArr)"/>
+    <line x1="460" y1="412" x2="556" y2="412" marker-end="url(#prArr)"/>
+    <line x1="460" y1="534" x2="556" y2="534" stroke-dasharray="4 3" marker-end="url(#prArr)"/>
+  </g>
+  <path d="M460 250 Q510 250 510 318 L556 318" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#prArr)"/>
+
+  <text x="60" y="610" font-size="11" fill="currentColor" fill-opacity=".6">Boxes don't have to balance: 9 − 2 = 7 unique identified, but only 5 screened, and one of those came from outside the runs.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>final included count</span>
+  <span><span class="sw amber dash"></span>unknown or unevidenced: reported, not balanced away</span>
+</div>
+<figcaption>Each box names the committed file its count comes from. The script never estimates. A count with no evidence behind it reads <code>"unknown"</code>, and a PMID that can't be traced to a run is listed by ID. That's the honest version of PRISMA's arithmetic.</figcaption>
+</figure>
+
+<div class="note warn"><strong>Leave out <code>--query</code> and the top of the flow becomes unknown.</strong> <code>total_raw</code> and <code>duplicates_removed</code> read <code>"unknown"</code>, with the note <code>no --query given: identified counts are unknown, not zero</code>. Screening, sought, retrieved and included still render from what's committed.</div>
+<p>The flow is frozen. Running it again returns the same snapshot until you ask for a refresh:</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review --prisma --project tdcs-review</span>
+<span class="o">{
+  "status": "reused_frozen_snapshot",
+  "snapshot_id": "prisma-0c8322f37193",
+  …
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:review --prisma --project tdcs-review --query tdcs-wm --query tdcs-wm-adhd --refresh</span>
+<span class="c"># status "refreshed", a new snapshot id, plus included_added / included_removed</span>
+<span class="c"># against the prior snapshot</span></pre>
+</li>
+
+<li>
+<h3>Appraise the included set</h3>
+<p>Default-mode <code>/ref:review</code> takes any selector and a <code>--batch</code> label. <code>--screened</code> is project-scoped, so pair it with <code>--project</code>. The appraisal needs full text, and a wholly abstract-tier set is refused before any rating is drafted:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review --project tdcs-review --screened included --batch wm-appraisal</span>
+<span class="o">{
+  "status": "refused",
+  "batch": "wm-appraisal",
+  "reason": "selected set is wholly abstract-tier -- appraisal needs full-text detail; not proceeding (§8 phase-10 gate)",
+  "by_extraction_tier": { "abstract": 2, "full": 0, "unavailable": 0, "missing_record": 0 }
+}</span></pre>
+<p>Once step 6 has given at least one included paper full-tier claims, the same command drafts per-paper risk-of-bias ratings and a set-level GRADE rating. RCTs get RoB 2, cohort and case-control studies get Newcastle-Ottawa, and meta-analyses get AMSTAR-2. Any abstract-tier paper left in the set is marked <code>insufficient_information</code> rather than dropped.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review --project tdcs-review --screened included --batch wm-appraisal</span>
+<span class="o">{
+  "status": "created",
+  "batch": "wm-appraisal",
+  "manifest": { "selector_expression": "--project tdcs-review --screened included", "pmids": [ … ], … },
+  "appraisals": { "38000101": { … each domain: rating, claim_ids, note, review_status: "model_draft" … } },
+  "grade": {
+    "baseline": …,
+    "factors": {
+      …
+      "publication_bias": { "downgrade": false, "not_assessed": true,
+        "reason": "not assessable from a curated single-library snapshot (no funnel-plot/search-completeness data)" }
+    },
+    "downgrades_applied": …,
+    "certainty": …
+  }
+}</span></pre>
+<div class="note warn"><strong>Every rating is a draft.</strong> Ratings are derived deterministically from claim fields, and most methodological domains land on <code>insufficient_information</code> because the claim schema doesn't capture blinding or allocation concealment. To record your own judgement on a domain, ask Claude to review it. It runs <code>verify.py review-appraisal … --decision accept|edit|reject --rationale "…"</code>, and a <code>--refresh</code> then shows <code>human_confirmed</code>, <code>human_edited</code> or <code>human_rejected</code>. The GRADE rating belongs to the whole set, lives in <code>grade.json</code>, and has no per-paper review path.</div>
+</li>
+
+</ol>
+</section>
+
+<section>
+<h2>What you now have</h2>
+<pre class="tree">&lt;LIBRARY&gt;/
+  queries/
+    tdcs-wm.yaml                         <span class="c"># two immutable runs: the original and the manual re-run</span>
+    tdcs-wm-adhd.yaml                    <span class="c"># one run</span>
+  papers/38000101/ … 38000103/
+    meta.json · authorship.json · funding.json · raw/&lt;sha256&gt;/response.json
+    <span class="m">acquisitions.json · versions/&lt;id&gt;/  # after fetch/attach and extract</span>
+  projects/tdcs-review/
+    project.yaml · papers.yaml           <span class="c"># membership, latest screening mirrored per paper</span>
+    screening.jsonl                      <span class="c"># append-only decision history with reasons</span>
+    prisma/
+      latest.json                        <span class="c"># → prisma-0c8322f37193</span>
+      <span class="a">prisma-0c8322f37193/manifest.json    # query specs, data cutoff, full flow</span>
+      prisma-0c8322f37193/flow.md · flow.csv
+    reviews/wm-appraisal/                <span class="c"># only once the set has full-tier papers</span>
+      manifest.json · grade.json · appraisals/&lt;pmid&gt;.json</pre>
+<p>Next, the <a href="pi-report.html">PI report tutorial</a> uses the same review machinery for identity and funding evidence. For selectors and frozen sets, see <a href="../concepts.html">Concepts</a>. The full command reference is at <a href="../commands/organize.html#screen"><code>/ref:screen</code></a> and <a href="../commands/write.html#review"><code>/ref:review</code></a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="thesis-chapter.html"><small>Previous</small>Thesis chapter</a>
+  <a href="pi-report.html"><small>Next</small>PI report</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

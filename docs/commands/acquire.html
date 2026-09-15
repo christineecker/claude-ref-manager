@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Acquire commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>Acquire</h4>
+  <ol>
+    <li><a href="#overview">How they fit</a></li>
+    <li><a href="#init"><code>/ref:init</code></a></li>
+    <li><a href="#add"><code>/ref:add</code></a></li>
+    <li><a href="#fetch"><code>/ref:fetch</code></a></li>
+    <li><a href="#attach"><code>/ref:attach</code></a></li>
+    <li><a href="#extract"><code>/ref:extract</code></a></li>
+    <li><a href="#describe-figure"><code>/ref:describe-figure</code></a></li>
+  </ol>
+  <h4>Other groups</h4>
+  <ul>
+    <li><a href="find.html">Find</a></li>
+    <li><a href="organize.html">Organize</a></li>
+    <li><a href="write.html">Write</a></li>
+    <li><a href="graph.html">Graph</a></li>
+    <li><a href="people.html">People</a></li>
+    <li><a href="maintain.html">Maintain</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · Bring papers in</p>
+  <h1>Acquire</h1>
+  <p class="lede">Create a library, put papers in it by PMID, add full text when you can get it, and extract structured claims. Each step augments the record the previous one created. Nothing here blocks on a missing abstract or paywalled full text.</p>
+</header>
+
+<section id="overview">
+<h2>How they fit</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 980 360" role="img" aria-label="Acquire commands and the files they write. /ref:init creates the library root and the config file. /ref:add writes meta.json, authorship.json, funding.json and an immutable raw metadata response under papers/pmid. /ref:fetch or /ref:attach preserve raw full-text bytes and commit a version with source.md, figures.json and manifest.json. /ref:extract commits a version with claims.json and updates claim_registry.json and meta.json. /ref:describe-figure appends a model interpretation to one figure's entry in figures.json.">
+  <defs>
+    <marker id="acqArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="acqArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="acqArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- command row -->
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">
+    <rect x="14" y="24" width="176" height="46" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="102" y="52" text-anchor="middle" fill="var(--accent)">/ref:init</text>
+    <rect x="208" y="24" width="176" height="46" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="296" y="52" text-anchor="middle" fill="var(--accent)">/ref:add</text>
+    <rect x="402" y="24" width="176" height="46" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+    <text x="490" y="52" text-anchor="middle" fill="currentColor">/ref:fetch · /ref:attach</text>
+    <rect x="596" y="24" width="176" height="46" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+    <text x="684" y="52" text-anchor="middle" fill="currentColor">/ref:extract</text>
+    <rect x="790" y="24" width="176" height="46" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+    <text x="878" y="52" text-anchor="middle" fill="currentColor">/ref:describe-figure</text>
+  </g>
+  <g stroke-width="1.5">
+    <line x1="190" y1="47" x2="204" y2="47" stroke="var(--accent)" marker-end="url(#acqArrA)"/>
+    <line x1="384" y1="47" x2="398" y2="47" stroke="var(--amber)" marker-end="url(#acqArrM)"/>
+    <line x1="578" y1="47" x2="592" y2="47" stroke="var(--amber)" marker-end="url(#acqArrM)"/>
+    <line x1="772" y1="47" x2="786" y2="47" stroke="var(--amber)" marker-end="url(#acqArrM)"/>
+  </g>
+
+  <!-- papers/<pmid>/ boundary -->
+  <rect x="200" y="96" width="774" height="250" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="4 3"/>
+  <text x="214" y="116" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">papers/&lt;pmid&gt;/</text>
+
+  <!-- drop lines -->
+  <g stroke="currentColor" stroke-width="1.2" stroke-opacity=".6">
+    <line x1="102" y1="70" x2="102" y2="126" marker-end="url(#acqArr)"/>
+    <line x1="296" y1="70" x2="296" y2="126" marker-end="url(#acqArr)"/>
+    <line x1="490" y1="70" x2="490" y2="126" marker-end="url(#acqArr)"/>
+    <line x1="684" y1="70" x2="684" y2="126" marker-end="url(#acqArr)"/>
+    <line x1="878" y1="70" x2="878" y2="126" marker-end="url(#acqArr)"/>
+  </g>
+
+  <!-- file cards -->
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="130" width="176" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="26" y="152" font-family="IBM Plex Mono,monospace" font-weight="500">&lt;library_root&gt;/</text>
+    <text x="26" y="170" fill-opacity=".65">papers/ projects/ graph/</text>
+    <text x="26" y="185" fill-opacity=".65">index/ okf/ exports/ …</text>
+    <text x="26" y="200" font-family="IBM Plex Mono,monospace">log.md</text>
+    <text x="26" y="226" font-family="IBM Plex Mono,monospace" font-weight="500">~/.config/ref-manager/</text>
+    <text x="26" y="242" font-family="IBM Plex Mono,monospace">config.json</text>
+    <text x="26" y="262" fill-opacity=".65">records library_root</text>
+
+    <rect x="214" y="130" width="164" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <g font-family="IBM Plex Mono,monospace">
+      <text x="226" y="152">meta.json</text>
+      <text x="226" y="170">authorship.json</text>
+      <text x="226" y="188">funding.json</text>
+      <text x="226" y="214" fill="var(--amber)">raw/&lt;sha256&gt;/</text>
+      <text x="238" y="230" fill="var(--amber)">response.json</text>
+    </g>
+    <text x="226" y="262" fill-opacity=".65">citekey · tier · order kept</text>
+
+    <rect x="408" y="130" width="164" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <g font-family="IBM Plex Mono,monospace">
+      <text x="420" y="152" fill="var(--amber)">raw/&lt;sha256&gt;/</text>
+      <text x="432" y="168" fill="var(--amber)">source.pdf | .jats …</text>
+      <text x="420" y="192" fill="var(--accent)">versions/&lt;v&gt;/</text>
+      <text x="432" y="208">source.md</text>
+      <text x="432" y="224">figures.json</text>
+      <text x="432" y="240">manifest.json</text>
+    </g>
+    <text x="420" y="262" fill-opacity=".65">current.json → &lt;v&gt;</text>
+
+    <rect x="602" y="130" width="164" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <g font-family="IBM Plex Mono,monospace">
+      <text x="614" y="152" fill="var(--accent)">versions/&lt;v&gt;/</text>
+      <text x="626" y="168">claims.json</text>
+      <text x="626" y="184">manifest.json</text>
+      <text x="614" y="208">claim_registry.json</text>
+      <text x="614" y="226">meta.json</text>
+    </g>
+    <text x="614" y="244" fill-opacity=".65">tier ↑ · retraction_status</text>
+    <text x="614" y="262" fill-opacity=".65">current.json → &lt;v&gt;</text>
+
+    <rect x="796" y="130" width="164" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <g font-family="IBM Plex Mono,monospace">
+      <text x="808" y="152">figures.json</text>
+      <text x="820" y="168">[id].vision[]</text>
+    </g>
+    <text x="808" y="192" fill-opacity=".65">cached per</text>
+    <text x="808" y="207" fill-opacity=".65">(figure, model, prompt)</text>
+    <text x="808" y="231" fill-opacity=".65">labelled</text>
+    <text x="808" y="246" fill-opacity=".65">model_interpretation</text>
+  </g>
+
+  <!-- describe-figure reads the figures fetch recorded -->
+  <path d="M572 224 C 610 310, 760 310, 822 290" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#acqArr)"/>
+  <text x="640" y="322" font-size="11" fill="currentColor" fill-opacity=".65">figure locators recorded at conversion</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>creates the record</span>
+  <span><span class="sw amber"></span>on demand, augments an existing record</span>
+  <span><span class="sw dash"></span>reads what an earlier step recorded</span>
+</div>
+<figcaption>Amber paths under <code>raw/&lt;sha256&gt;/</code> are immutable, stored under the hash of their bytes. Teal <code>versions/&lt;v&gt;/</code> directories are committed through a staging directory and an atomic swap of <code>current.json</code>, so a crash mid-write never leaves a half-written version as current. Every multi-PMID step reports one line per paper, and one paper's failure never blocks the rest.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>Commands</h2>
+<div class="cmd-groups">
+
+<!-- ================= init ================= -->
+<article class="cmd" id="init">
+  <div class="cmd-head"><h3>/ref:init</h3><div class="chips"><span class="tag phase">phase 0</span></div></div>
+  <p class="summary">Create a library at a location you choose and record it as the active library.</p>
+  <div class="synopsis">/ref:init &lt;path&gt; [--force]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;path&gt;</dt><dd>Required. Where the library is created. If you leave it out, Claude asks for it rather than guessing; the plugin never hardcodes a location.</dd>
+    <dt>--force</dt><dd>Reconfigure even if a library is already recorded in the config file.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Refuses if <code>~/.config/ref-manager/config.json</code> already exists and <code>--force</code> was not given, naming the configured library.</li>
+    <li>Creates the library directories (<code>papers</code>, <code>projects</code>, <code>people</code>, <code>labs</code>, <code>grants</code>, <code>reports</code>, <code>studies</code>, <code>graph</code>, <code>okf</code>, <code>index</code>, <code>queries</code>, <code>exports</code> and a few subfolders) and a <code>log.md</code>. Existing directories are left alone.</li>
+    <li>Writes <code>{"library_root": …}</code> to the config file atomically.</li>
+  </ol>
+  <p>After this, no other command needs a <code>--repo</code> argument: they all resolve the active library from the config file, and fail loudly, pointing back here, if it is missing.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>&lt;path&gt;/</code> (directory skeleton, <code>log.md</code>) and <code>~/.config/ref-manager/config.json</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (paths shortened)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:init ~/scratch/lib</span>
+<span class="o">library initialized at /private/tmp/…/scratch/lib</span>
+<span class="o">config written to /private/tmp/…/scratch/.config/ref-manager/config.json</span>
+<span class="p">›</span> <span class="cmd">/ref:init ~/scratch/lib</span>
+<span class="w">error: a library is already configured at /private/tmp/…/scratch/lib (/private/tmp/…/scratch/.config/ref-manager/config.json). Pass --force to reconfigure.</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>init_repo.py &lt;path&gt; [--force]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="maintain.html#status"><code>/ref:status</code></a> · <a href="../getting-started.html">Get started</a> · <a href="../concepts.html">Concepts</a></p>
+</article>
+
+<!-- ================= add ================= -->
+<article class="cmd" id="add">
+  <div class="cmd-head"><h3>/ref:add</h3><div class="chips"><span class="tag phase">phase 1</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Resolve one or more PMIDs through PubMed and ingest them as new, deduplicated library records.</p>
+  <div class="synopsis">/ref:add &lt;pmid…&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. PMID is the identity key: every paper resolves to a PMID before anything else happens.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Claude calls the PubMed MCP tool <code>get_article_metadata</code> once for all PMIDs and normalizes each article into a JSON envelope (title, abstract, ordered authors, journal, year, DOI, PMCID, indexed grants). A PMID the tool returned nothing for is still passed on, so it is reported as failed rather than silently dropped.</li>
+    <li>The script takes a per-PMID lock. A PMID that already has <code>meta.json</code> is reported <code>already_present</code> and left untouched.</li>
+    <li>A new record gets a stable citekey (first author, year, first title word), the exact PubMed response stored under its hash, and author order preserved as published.</li>
+    <li>A paper with no abstract is still <code>added</code>, as a metadata-only record with <code>extraction_tier: "unavailable"</code>. Nothing is fabricated.</li>
+    <li>If the DOI matches a <em>different</em> existing PMID, a warning is printed and both records are kept. DOI never merges records.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>papers/&lt;pmid&gt;/meta.json</code>, <code>authorship.json</code> (<code>raw_order_preserved: true</code>), <code>funding.json</code> (indexed GrantList entries, or <code>state: "not_checked"</code>), and <code>raw/&lt;sha256&gt;/response.json</code>. Reads other papers' <code>meta.json</code> for the DOI conflict check.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 31452104 30679568 99999999</span>
+<span class="c"># the PMIDs and their metadata are made-up fixtures, not real papers</span>
+<span class="o">31452104: added (citekey=rivera2019cortical)</span>
+<span class="o">30679568: added (citekey=chen2019editorial) — no abstract available — metadata-only record, not fabricated (§3a)</span>
+<span class="w">99999999: failed — no metadata returned for PMID 99999999</span>
+<span class="p">›</span> <span class="cmd">/ref:add 31452104</span>
+<span class="o">31452104: already_present (citekey=rivera2019cortical)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code>. The script never calls the network; the command resolves metadata through PubMed MCP first and hands it the envelope documented in <code>commands/ref-add.md</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#project"><code>/ref:project</code></a> · <a href="write.html#cite"><code>/ref:cite</code></a></p>
+</article>
+
+<!-- ================= fetch ================= -->
+<article class="cmd" id="fetch">
+  <div class="cmd-head"><h3>/ref:fetch</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span><span class="tag net">Unpaywall</span></div></div>
+  <p class="summary">Try to acquire full text for papers already in the library, in a fixed priority order, and commit it as a new version.</p>
+  <div class="synopsis">/ref:fetch &lt;pmid…&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. Each must already have <code>papers/&lt;pmid&gt;/meta.json</code>. Fetch adds to a record; it never creates one.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <p>For each PMID, the first source that succeeds wins:</p>
+  <ol>
+    <li><strong>PMC open access.</strong> Claude calls <code>get_full_text_article</code>. That tool returns pre-extracted plain text, not JATS, so the text is passed as <code>plain_text</code>. Genuine JATS XML is only supplied if obtained some other way; the converter rejects malformed XML rather than silently flattening its structure.</li>
+    <li><strong>Unpaywall.</strong> With a DOI and an <code>unpaywall_email</code> in the config, the script calls the Unpaywall API itself. If it finds an OA PDF, it records the location in <code>meta.json</code> and reports <code>oa_location_found</code>. It does not download the PDF; you do that and hand it to <a href="#attach"><code>/ref:attach</code></a>.</li>
+    <li><strong>Publisher HTML.</strong> Claude fetches the article page and passes it as <code>publisher_html</code>; it is converted with trafilatura.</li>
+    <li><strong>Nothing.</strong> The paper is marked <code>full_text: false</code> and reported <code>abstract_only</code>. This is expected, not a failure.</li>
+  </ol>
+  <p>The raw input is preserved under its hash, converted into a staging version, and committed atomically. JATS sources also get funding acknowledgements scanned and appended to <code>funding.json</code>. <code>diagnostic:</code> lines flag incomplete conversion (missing tables, math, figure assets, lost structure) without failing the fetch.</p>
+  <div class="note warn"><strong>Unpaywall needs a config key.</strong> <code>/ref:init</code> writes only <code>library_root</code>. <code>unpaywall_email</code> is an optional key in <code>~/.config/ref-manager/config.json</code>; without it, the Unpaywall step is skipped.</div>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>raw/&lt;sha256&gt;/source.jats|html|plain_text</code>, <code>versions/&lt;v&gt;/source.md</code>, <code>figures.json</code> (JATS figure locators), <code>manifest.json</code>, <code>current.json</code>; updates <code>meta.json</code> (<code>full_text</code>, <code>oa_location</code>) and, for JATS, <code>funding.json</code>. Reads <code>unpaywall_email</code> from the config.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:fetch 31452104 30679568 11111111</span>
+<span class="o">31452104: acquired (source=plain_text)</span>
+<span class="w">  diagnostic: source has no markup (plain extracted text); section/heading structure and figures are not recoverable</span>
+<span class="o">30679568: abstract_only -- no full text available from any source (§6) -- abstract-only stays first-class</span>
+<span class="w">11111111: failed -- pmid 11111111 has no meta.json -- run /ref:add first</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>fetch.py --repo &lt;library_root&gt; --input-file &lt;json&gt;</code>, with converters from <code>convert.py</code> (pandoc for JATS, trafilatura for HTML, a pass-through for plain text). Apart from the single Unpaywall call, the script never fetches URLs itself.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#attach"><code>/ref:attach</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a> · <a href="../workflows.html">Workflows</a></p>
+</article>
+
+<!-- ================= attach ================= -->
+<article class="cmd" id="attach">
+  <div class="cmd-head"><h3>/ref:attach</h3><div class="chips"><span class="tag phase">phase 3</span></div></div>
+  <p class="summary">Attach PDFs you already have to existing records, after checking each PDF really is that paper.</p>
+  <div class="synopsis">/ref:attach &lt;pmid&gt; &lt;path&gt; [&lt;pmid&gt; &lt;path&gt; …] [--force]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt; &lt;path&gt;</dt><dd>One or more PMID/file pairs, required. Each PMID must already have <code>meta.json</code>.</dd>
+    <dt>--force</dt><dd>Attach even when the identity check fails. Without it, a failed check is refused.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Each pair is handled under its own per-PMID lock.</li>
+    <li>If a file with identical bytes (same SHA-256) is already stored, the result is <code>duplicate_noop</code>.</li>
+    <li><strong>Identity check:</strong> <code>pdftotext</code> reads the first two pages. The check passes if the paper's DOI, or its first eight title words (for titles of six or more words), appear in that text. Otherwise the pair is <code>refused</code>, with the reason, so a wrong PDF is never attached silently. If <code>pdftotext</code> is unavailable, identity cannot be verified and the pair is refused as well.</li>
+    <li>The PDF is stored under <code>raw/&lt;sha256&gt;/</code> with an <code>attachment.json</code> recording where it came from and how identity was checked (including whether it was forced).</li>
+    <li>The PDF is converted with anydoc into a new version and committed. If anydoc is not available, a diagnostic says so and <code>full_text</code> stays unset.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>raw/&lt;sha256&gt;/source.pdf</code>, <code>raw/&lt;sha256&gt;/attachment.json</code>, <code>versions/&lt;v&gt;/manifest.json</code> (plus <code>source.md</code> when conversion succeeds), <code>current.json</code>; updates <code>meta.json</code> (<code>full_text</code>). Reads your PDF, never modifying it.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:attach 31452104 ~/Downloads/rivera2019.pdf 30679568 ~/Downloads/wrong.pdf</span>
+<span class="o">31452104: attached</span>
+<span class="w">30679568: refused -- neither DOI nor a run of the title text was found in the PDF's first 2 page(s) -- refusing silent attachment (§6)</span>
+<span class="c"># if you're sure the second file is right:</span>
+<span class="p">›</span> <span class="cmd">/ref:attach 30679568 ~/Downloads/wrong.pdf --force</span></pre>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:attach 31452104 ~/scratch/nope.pdf</span>
+<span class="w">31452104: failed -- no such file: /private/tmp/…/scratch/nope.pdf</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>attach.py --repo &lt;library_root&gt; [--force] &lt;pmid1&gt; &lt;path1&gt; [&lt;pmid2&gt; &lt;path2&gt; …]</code>; conversion via <code>convert.py</code> (anydoc). Uses <code>pdftotext</code> (poppler) for the identity check.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a> · <a href="write.html#export-papers"><code>/ref:export-papers</code></a> · <a href="../tutorials/papers-handoff.html">Papers handoff tutorial</a></p>
+</article>
+
+<!-- ================= extract ================= -->
+<article class="cmd" id="extract">
+  <div class="cmd-head"><h3>/ref:extract</h3><div class="chips"><span class="tag phase">phase 4</span><span class="tag agent">ref-extractor</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Extract structured, quote-backed claims from each paper's best available text, one subagent per paper.</p>
+  <div class="synopsis">/ref:extract &lt;pmid…&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs, required. Each must already have <code>meta.json</code>. Full text is not required: an abstract-tier paper extracts from its abstract.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>For each PMID, Claude reads the committed full text (<code>versions/&lt;v&gt;/source.md</code>) if there is one (<code>evidence_tier: "full"</code>), otherwise the abstract (<code>"abstract"</code>).</li>
+    <li>It spawns one <span class="tag agent">ref-extractor</span> subagent per PMID, all in parallel. Each classifies the study type (<code>rct</code>, <code>cohort</code>, <code>imaging</code>, … or <code>mixed</code>/<code>unknown</code>) and returns claims with a <code>locator</code>, a verbatim <code>evidence_span</code>, and PICO+ fields. Anything it cannot determine is the literal string <code>"unknown"</code>, never a guess.</li>
+    <li>Claude re-checks retraction status with <code>get_article_metadata</code>. A failed or ambiguous check records <code>"unknown"</code>, never <code>"none"</code>.</li>
+    <li>The script validates each paper's claims, assigns stable claim IDs, and commits a version per paper. An unchanged claim at the same locator keeps its ID. When exactly one earlier claim at that locator changed, the new claim supersedes it; the old one is kept with <code>superseded_by</code>, never deleted.</li>
+    <li>The paper's tier only moves up (abstract → full), never down on a thinner rerun. Existing corrections are revalidated against the new evidence.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>meta.json</code>, the current <code>source.md</code> or abstract. Writes <code>versions/&lt;v&gt;/claims.json</code> and <code>manifest.json</code> (extractor, model, prompt version, study type), <code>current.json</code>, <code>claim_registry.json</code>; updates <code>meta.json</code> (<code>extraction_tier</code>, <code>retraction_status</code>, <code>checked_at</code>).</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (subagent JSON written by hand)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 31452104</span>
+<span class="c"># one ref-extractor subagent per PMID runs first; the script then commits its JSON</span>
+<span class="o">31452104: extracted (study_type=imaging, claims=1)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>extract.py --repo &lt;library_root&gt; --input-file &lt;json&gt; --extractor ref-extractor --model &lt;model&gt; --prompt-version 1</code>. The subagent (<span class="tag agent">ref-extractor</span>, <code>agents/ref-extractor.md</code>) only reads text and returns JSON; the script never sees full text or calls PubMed.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="organize.html#verify"><code>/ref:verify</code></a> · <a href="maintain.html#index"><code>/ref:index</code></a> · <a href="write.html#compare"><code>/ref:compare</code></a> · <a href="find.html#ask"><code>/ref:ask</code></a> · <a href="../api.html">API: subagent contracts</a></p>
+</article>
+
+<!-- ================= describe-figure ================= -->
+<article class="cmd" id="describe-figure">
+  <div class="cmd-head"><h3>/ref:describe-figure</h3><div class="chips"><span class="tag phase">phase 4</span></div></div>
+  <p class="summary">Ask for a model description of one figure, on demand, and cache it next to the figure without mixing it into the paper's own caption.</p>
+  <div class="synopsis">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt; [--model &lt;name&gt;] [--prompt &lt;text&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt;</dt><dd>Required.</dd>
+    <dt>&lt;figure-id&gt;</dt><dd>Required. An <code>id</code> in <code>figures.json</code> of the paper's current version.</dd>
+    <dt>--model &lt;name&gt;</dt><dd>Defaults to the calling model's own name.</dd>
+    <dt>--prompt &lt;text&gt;</dt><dd>Defaults to a plain "describe this figure" prompt. The cache key is the exact (figure hash, model, prompt) triple, so a different prompt is a new request.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li><code>request</code> looks the figure up and branches on status:
+      <ul>
+        <li><code>cache_hit</code>: the stored description is shown, labelled as a prior model interpretation.</li>
+        <li><code>asset_unavailable</code>: the image bytes were never fetched (common, since JATS/HTML conversion records figure locators, not bytes). There is nothing to look at, so no description is written.</li>
+        <li><code>figure_not_found</code>: the figure ID is wrong.</li>
+        <li><code>needs_description</code>: Claude looks at the actual image and writes a description. It says so if the image isn't viewable, rather than guessing from the caption.</li>
+      </ul>
+    </li>
+    <li><code>store</code> saves the description in the figure's <code>vision</code> list with <code>kind: "model_interpretation"</code>, the figure hash, model, prompt, and timestamp. It replaces any earlier entry for the same model and prompt.</li>
+  </ol>
+  <p>This never runs automatically over every figure. A description is always presented as a model interpretation, separate from the caption and the paper's reported findings.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>current.json</code> and <code>versions/&lt;v&gt;/figures.json</code>; <code>store</code> writes the <code>vision[]</code> entry back into that <code>figures.json</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:describe-figure 31452104 F2</span>
+<span class="o">{</span>
+<span class="o">  "status": "asset_unavailable",</span>
+<span class="o">  "figure_id": "F2",</span>
+<span class="o">  "reason": "figure image bytes were not fetched during conversion; nothing to describe"</span>
+<span class="o">}</span></pre>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:describe-figure 31452104 fig1</span>
+<span class="o">{</span>
+<span class="o">  "status": "figure_not_found",</span>
+<span class="o">  "figure_id": "fig1"</span>
+<span class="o">}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>vision.py request --repo &lt;library_root&gt; --pmid &lt;pmid&gt; --figure-id &lt;id&gt; --model &lt;model&gt; --prompt &lt;prompt&gt;</code>, then on a cache miss <code>vision.py store … --description "&lt;text&gt;"</code>. The script never calls a vision model; the calling agent does the looking. Both accept <code>--version</code> (default <code>current</code>).</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="organize.html#verify"><code>/ref:verify</code></a> · <a href="../concepts.html">Concepts</a></p>
+</article>
+
+</div>
+</section>
+
+<nav class="pager">
+  <a href="index.html"><small>Previous</small>All commands</a>
+  <a href="find.html"><small>Next</small>Find</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

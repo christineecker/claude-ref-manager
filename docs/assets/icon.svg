@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ref-manager icon: a friendly paper character with a teal bookmark, reading glasses, and a small amber citation spark">
+  <title>ref-manager</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15908E"/>
+      <stop offset="1" stop-color="#0B6564"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFDF8"/>
+      <stop offset="1" stop-color="#F1ECE0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#062E2E" flood-opacity=".35"/>
+    </filter>
+  </defs>
+
+  <!-- rounded app tile -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+  <circle cx="400" cy="104" r="120" fill="#fff" opacity=".06"/>
+  <circle cx="92" cy="440" r="90" fill="#000" opacity=".05"/>
+
+  <!-- back sheet of the stack -->
+  <g filter="url(#soft)">
+    <rect x="150" y="104" width="232" height="292" rx="26" fill="#E3DCCB" transform="rotate(8 266 250)"/>
+    <!-- front paper (the character) -->
+    <path d="M128 122 a26 26 0 0 1 26-26 h150 l66 66 v226 a26 26 0 0 1-26 26 H154 a26 26 0 0 1-26-26 z" fill="url(#page)"/>
+    <!-- folded corner -->
+    <path d="M304 96 v42 a24 24 0 0 0 24 24 h42 z" fill="#DDD5C2"/>
+  </g>
+
+  <!-- teal bookmark ribbon -->
+  <path d="M170 96 h38 v74 l-19-14 l-19 14 z" fill="#4FB3B0"/>
+
+  <!-- text lines on the paper, faint -->
+  <g stroke="#CFC7B4" stroke-width="10" stroke-linecap="round">
+    <line x1="170" y1="338" x2="318" y2="338"/>
+    <line x1="170" y1="362" x2="270" y2="362"/>
+  </g>
+
+  <!-- glasses -->
+  <g fill="#fff" stroke="#26231C" stroke-width="10">
+    <circle cx="205" cy="240" r="36"/>
+    <circle cx="299" cy="240" r="36"/>
+  </g>
+  <path d="M241 236 q11-10 22 0" fill="none" stroke="#26231C" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- eyes, with sparkle -->
+  <circle cx="209" cy="244" r="15" fill="#26231C"/>
+  <circle cx="303" cy="244" r="15" fill="#26231C"/>
+  <circle cx="214" cy="238" r="5" fill="#fff"/>
+  <circle cx="308" cy="238" r="5" fill="#fff"/>
+
+  <!-- blush -->
+  <ellipse cx="165" cy="292" rx="16" ry="9" fill="#F2A48F" opacity=".7"/>
+  <ellipse cx="340" cy="292" rx="16" ry="9" fill="#F2A48F" opacity=".7"/>
+
+  <!-- smile -->
+  <path d="M236 290 q16 16 32 0" fill="none" stroke="#26231C" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- amber citation spark -->
+  <g transform="translate(386 356)">
+    <circle r="50" fill="#E3A756" stroke="#FFFDF8" stroke-width="8"/>
+    <text x="0" y="17" text-anchor="middle" font-family="IBM Plex Mono, Menlo, monospace" font-size="50" font-weight="700" fill="#26231C">@</text>
+  </g>
+</svg>

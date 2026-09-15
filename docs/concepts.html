@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concepts · ref-manager docs</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/docs.css">
+<style>table.sel td:first-child{white-space:normal}</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="index.html"><img src="assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Get started</a>
+    <a href="workflows.html">Workflows</a>
+    <a href="tutorials/index.html">Tutorials</a>
+    <a href="commands/index.html">Commands</a>
+    <a href="concepts.html" aria-current="page">Concepts</a>
+    <a href="api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>On this page</h4>
+  <ol>
+    <li><a href="#layout">Library layout</a></li>
+    <li><a href="#ownership">Ownership &amp; recovery</a></li>
+    <li><a href="#tiers">Extraction tiers</a></li>
+    <li><a href="#claims">The claim contract</a></li>
+    <li><a href="#relations">Relations &amp; edges</a></li>
+    <li><a href="#corrections">Corrections overlay</a></li>
+    <li><a href="#projects">Projects, reading, screening</a></li>
+    <li><a href="#studies">Studies, datasets, methods</a></li>
+    <li><a href="#people">Researchers, funding, citations</a></li>
+    <li><a href="#ids">Identifier contract</a></li>
+    <li><a href="#selectors">Selector grammar</a></li>
+    <li><a href="#decisions">Design decisions</a></li>
+  </ol>
+</aside>
+<main>
+
+<header class="page">
+  <p class="eyebrow">Concepts · phases 0–11</p>
+  <h1>The data model</h1>
+  <p class="lede">What lives where in a library, who owns each file, how claims and edges are shaped, and the rules that keep identifiers and paper sets stable. Everything here is taken from the scripts under <code>skills/ref-manager/scripts/</code>; where the code differs from <code>PLAN.md</code>, the code is described.</p>
+</header>
+
+<!-- ============================================================ -->
+<section id="layout">
+<h2>Library layout</h2>
+<p><code>/ref:init &lt;path&gt;</code> runs <code>init_repo.py</code>, which creates these directories and an empty <code>log.md</code>, then records the root in <code>~/.config/ref-manager/config.json</code>. This is its actual output on an empty scratch library:</p>
+<pre class="term"><span class="p">$</span> <span class="cmd">python3 skills/ref-manager/scripts/init_repo.py lib</span>
+<span class="o">library initialized at …/scratchpad/concepts-api/lib
+config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</span></pre>
+<p>Everything below the top level is created by later commands, on first write. The tree marks <span class="mono" style="color:var(--accent)">created by init</span>, <span class="mono" style="color:var(--amber)">user-owned content</span>, and <span class="muted">comments</span>.</p>
+<pre class="tree"><span class="a">&lt;LIBRARY&gt;/</span>
+  <span class="a">log.md</span>                          <span class="c"># "# ref-manager log"</span>
+  <span class="a">papers/</span>
+    &lt;pmid&gt;/
+      meta.json                   <span class="c"># bibliographic authority, citekey, extraction_tier (add.py)</span>
+      authorship.json             <span class="c"># ordered author list, raw_order_preserved (add.py)</span>
+      funding.json                <span class="c"># funding observations + state (add.py, fetch.py)</span>
+      raw/&lt;sha256&gt;/               <span class="c"># immutable, content-addressed</span>
+        response.json             <span class="c">#   metadata envelope as resolved (add.py)</span>
+        source.jats | source.html | source.plain_text   <span class="c"># (fetch.py)</span>
+        source.pdf, attachment.json                     <span class="c"># (attach.py)</span>
+      current.json                <span class="c"># {"version": "v-…"} — atomic pointer</span>
+      versions/&lt;v-id&gt;/
+        manifest.json             <span class="c"># source/converter/hash, or extractor/model/prompt versions</span>
+        source.md                 <span class="c"># converted full text</span>
+        figures/  figures.json    <span class="c"># figure assets, captions, cached vision entries</span>
+        claims.json               <span class="c"># claims emitted by this extraction run</span>
+      claim_registry.json         <span class="c"># cross-version claim history, supersession links</span>
+      <span class="m">notes.md</span>                    <span class="c"># /ref:note — never touched by extraction</span>
+      <span class="m">annotations.json</span>            <span class="c"># /ref:pull-annotations — upsert, tombstones on upstream delete</span>
+      <span class="m">corrections.json</span>            <span class="c"># /ref:verify review overlays</span>
+      citations.json              <span class="c"># append-only cited-by observations (D25)</span>
+      related.json                <span class="c"># /ref:related snowball candidates</span>
+  <span class="a">projects/</span>
+    &lt;slug&gt;/
+      <span class="m">project.yaml</span>                <span class="c"># slug, scope, questions[] (JSON content, .yaml name)</span>
+      <span class="m">papers.yaml</span>                 <span class="c"># membership: relevance, priority, reading_status, screening</span>
+      <span class="m">screening.jsonl</span>             <span class="c"># append-only decisions</span>
+      tables/&lt;batch&gt;/             <span class="c"># /ref:compare: table.json, manifest.json, <span class="m">edits.json</span></span>
+      summaries/&lt;batch&gt;/          <span class="c"># /ref:summarize: summary.md, evidence.json, manifest.json</span>
+      briefs/&lt;key&gt;/               <span class="c"># /ref:brief: &lt;snapshot_id&gt;/ (answer.md, evidence.json, manifest.json), latest.json, <span class="m">edits.json</span></span>
+      reviews/&lt;batch&gt;/            <span class="c"># /ref:review: appraisals/&lt;pmid&gt;.json, grade.json, manifest.json</span>
+      checks/&lt;id&gt;/                <span class="c"># /ref:check-citations: input.md, findings.json, manifest.json (+ references.bib/.csl.json)</span>
+      prisma/&lt;snapshot&gt;/          <span class="c"># /ref:review --prisma: flow.md, flow.csv, manifest.json; latest.json</span>
+  <span class="a">people/</span>&lt;slug&gt;.json              <span class="c"># name variants, ORCID, confirmed/candidate/rejected matches</span>
+  <span class="a">labs/</span>                           <span class="c"># created, no command writes lab records yet</span>
+  <span class="a">grants/</span>&lt;slug&gt;.json              <span class="c"># funder, award_number, approved_aliases</span>
+  <span class="a">reports/</span>&lt;label&gt;/                <span class="c"># /ref:report: manifest.json, publications.csv, report.md</span>
+  <span class="a">studies/</span>
+    studies.jsonl  datasets.jsonl  methods.jsonl
+  <span class="a">graph/</span>
+    concepts.jsonl  relations.jsonl                     <span class="c"># authoritative graph records</span>
+    people_relations.jsonl                              <span class="c"># regenerated by graph_people.py</span>
+  <span class="a">okf/</span>                            <span class="c"># generated: concepts/ papers/ people/ grants/ index.md log.md</span>
+  <span class="a">index/</span>
+    catalog.sqlite                <span class="c"># rebuildable FTS5 projection</span>
+    citekeys.json                 <span class="c"># allocated citekeys</span>
+    .library.lock                 <span class="c"># library-wide flock</span>
+    <span class="a">.locks/</span>&lt;pmid&gt;.lock            <span class="c"># per-paper flock</span>
+    <span class="a">aliases/</span>&lt;kind&gt;.json            <span class="c"># slug registry: live slugs + rename aliases</span>
+  <span class="a">queries/</span>&lt;slug&gt;.yaml              <span class="c"># saved PubMed query + immutable runs[]</span>
+  <span class="a">exports/</span>
+    &lt;batch&gt;/                      <span class="c"># /ref:export: references.bib, references.csl.json, manifest.json</span>
+    <span class="a">papers/</span>&lt;batch&gt;/                <span class="c"># /ref:export-papers: references.bib, PDFs, manifest.json</span>
+    papers/note_pushes.json       <span class="c"># per-paper pushed-note hashes (D28)</span></pre>
+<p class="muted">Set-valued artifacts written without <code>--project</code> land at the library root instead (<code>tables/</code>, <code>summaries/</code>, <code>briefs/</code>, <code>reviews/</code>, <code>checks/</code>); <code>init</code> does not pre-create those. For the per-paper directory drawn as a figure, see <a href="figures/paper-repo-anatomy.html">Paper directory anatomy</a>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ownership">
+<h2>Ownership &amp; recovery</h2>
+<p>Files are the authority. SQLite and <code>okf/</code> are projections you can delete and rebuild. Content you write sits in files that regeneration never opens for writing.</p>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 420" role="img" aria-label="Ownership map with four columns. User-owned: notes.md, annotations.json, corrections.json, project.yaml and papers.yaml, screening.jsonl, and edits.json in tables and briefs; never overwritten by regeneration. Immutable raw: raw/sha256 directories holding response.json, source.pdf, source.jats, html or plain_text, and attachment.json; content-addressed, a duplicate hash is a no-op. Versioned derived: versions/id with manifest, source.md, figures and claims.json, the current.json pointer, claim_registry.json, and saved artifact snapshots; written to a staging directory, validated, renamed, then current.json is swapped. Projections: index/catalog.sqlite, okf/, and graph/people_relations.jsonl; rebuilt by /ref:index --rebuild and /ref:weave. Arrows: raw feeds versioned derived through commit_version; derived feeds projections through rebuild; user-owned corrections are applied as an overlay at read time. A bottom strip lists authoritative library records written atomically under locks: meta.json, authorship.json, funding.json, citations.json, graph and studies JSONL, people and grants.">
+  <defs>
+    <marker id="cArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="cArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="cArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- column headers -->
+  <g font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">
+    <text x="14" y="22">USER-OWNED</text>
+    <text x="250" y="22">IMMUTABLE RAW</text>
+    <text x="486" y="22">VERSIONED DERIVED</text>
+    <text x="722" y="22">PROJECTIONS</text>
+  </g>
+
+  <!-- user-owned -->
+  <rect x="14" y="32" width="196" height="232" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <text x="28" y="58" font-weight="500">notes.md</text>
+    <text x="28" y="80" font-weight="500">annotations.json</text>
+    <text x="28" y="102" font-weight="500">corrections.json</text>
+    <text x="28" y="124" font-weight="500">project.yaml</text>
+    <text x="28" y="146" font-weight="500">papers.yaml</text>
+    <text x="28" y="168" font-weight="500">screening.jsonl</text>
+    <text x="28" y="190" font-weight="500">…/edits.json</text>
+  </g>
+  <text x="28" y="226" font-size="11" fill="currentColor" fill-opacity=".65">never overwritten by</text>
+  <text x="28" y="241" font-size="11" fill="currentColor" fill-opacity=".65">regeneration or extraction</text>
+
+  <!-- raw -->
+  <rect x="250" y="32" width="196" height="232" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="264" y="58" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">raw/&lt;sha256&gt;/</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".8">
+    <text x="276" y="82">response.json</text>
+    <text x="276" y="102">source.pdf</text>
+    <text x="276" y="122">source.jats</text>
+    <text x="276" y="142">source.html</text>
+    <text x="276" y="162">source.plain_text</text>
+    <text x="276" y="182">attachment.json</text>
+  </g>
+  <text x="264" y="226" font-size="11" fill="currentColor" fill-opacity=".65">content-addressed; same</text>
+  <text x="264" y="241" font-size="11" fill="currentColor" fill-opacity=".65">hash again is a no-op</text>
+
+  <!-- derived -->
+  <rect x="486" y="32" width="196" height="232" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="500" y="58" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">versions/&lt;v-id&gt;/</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".8">
+    <text x="512" y="80">manifest.json</text>
+    <text x="512" y="98">source.md · figures/</text>
+    <text x="512" y="116">claims.json</text>
+  </g>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <text x="500" y="142" font-weight="500">current.json</text>
+    <text x="500" y="164" font-weight="500">claim_registry.json</text>
+    <text x="500" y="186" font-weight="500">tables/ briefs/ …</text>
+  </g>
+  <text x="500" y="226" font-size="11" fill="currentColor" fill-opacity=".65">staging → validate → rename</text>
+  <text x="500" y="241" font-size="11" fill="currentColor" fill-opacity=".65">→ swap current.json</text>
+
+  <!-- projections -->
+  <rect x="722" y="32" width="196" height="232" rx="8" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <text x="736" y="58" font-weight="500">index/catalog.sqlite</text>
+    <text x="736" y="92" font-weight="500">okf/</text>
+    <text x="736" y="126" font-weight="500">graph/</text>
+    <text x="736" y="142" font-weight="500">people_relations.jsonl</text>
+  </g>
+  <text x="736" y="74" font-size="11" fill="currentColor" fill-opacity=".65">papers · passages_fts · claims</text>
+  <text x="736" y="108" font-size="11" fill="currentColor" fill-opacity=".65">OKF v0.2 views</text>
+  <text x="736" y="210" font-size="11" fill="currentColor" fill-opacity=".65">delete &amp; rebuild any time:</text>
+  <text x="736" y="226" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".8">/ref:index --rebuild</text>
+  <text x="736" y="241" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".8">/ref:weave</text>
+
+  <!-- arrows -->
+  <line x1="446" y1="120" x2="482" y2="120" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#cArrM)"/>
+  <text x="464" y="110" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity=".6">commit</text>
+  <line x1="682" y1="120" x2="718" y2="120" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#cArrA)"/>
+  <text x="700" y="110" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity=".6">rebuild</text>
+  <path d="M112 264 L112 292 L584 292 L584 268" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#cArr)"/>
+  <text x="348" y="286" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".7">corrections applied as a read-time overlay; raw extraction is never rewritten</text>
+
+  <!-- authoritative strip -->
+  <rect x="14" y="318" width="904" height="86" rx="8" fill="none" stroke="currentColor"/>
+  <text x="28" y="340" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">AUTHORITATIVE LIBRARY RECORDS · atomic temp-file + os.replace writes</text>
+  <text x="28" y="362" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">meta.json · authorship.json · funding.json · citations.json (append-only) · graph/concepts|relations.jsonl</text>
+  <text x="28" y="380" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">studies/*.jsonl · people/&lt;slug&gt;.json · grants/&lt;slug&gt;.json · queries/&lt;slug&gt;.yaml · index/citekeys.json</text>
+  <text x="28" y="397" font-size="11" fill="currentColor" fill-opacity=".65">locks: index/.locks/&lt;pmid&gt;.lock per paper · index/.library.lock for citekeys, slug registries, graph commits</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw dash"></span>written only by you (through commands)</span>
+  <span><span class="sw amber"></span>immutable once stored</span>
+  <span><span class="sw solid"></span>new version per run, old ones kept</span>
+  <span><span class="sw faded"></span>rebuildable projection</span>
+</div>
+<figcaption>Ownership as implemented in <code>lib_atomic.py</code>, <code>catalog.py</code>, <code>okf_emit.py</code> and <code>graph_people.py</code>.</figcaption>
+</figure>
+
+<h3>Atomic writes</h3>
+<ul>
+  <li><strong>JSON and text.</strong> <code>atomic_write_json</code> writes a temp file next to the target (<code>.&lt;name&gt;.*.tmp</code>), fsyncs it, then <code>os.replace</code>s it into place. JSON is written with sorted keys and two-space indent.</li>
+  <li><strong>Versions.</strong> <code>commit_version(paper_dir, version_id, write_fn)</code> creates <code>versions/.staging-&lt;id&gt;/</code>, lets the caller fill it, renames it to <code>versions/&lt;id&gt;/</code>, and only then rewrites <code>current.json</code>. If <code>write_fn</code> raises, the staging directory is removed and <code>current.json</code> is left alone.</li>
+  <li><strong>Readers ignore staging.</strong> <code>catalog.py rebuild</code> follows <code>current.json</code> only, so a crash mid-commit leaves nothing half-indexed.</li>
+</ul>
+<h3>Locks</h3>
+<p>Both locks are <code>fcntl.flock</code> exclusive locks. <code>pmid_lock</code> serializes one paper's writes without blocking other papers, which is why batch commands report a result per PMID. <code>library_lock</code> guards citekey allocation, slug registries and graph commits.</p>
+<h3>Recovery and stage state</h3>
+<p>The catalog is dropped and recreated on every <code>rebuild</code>, with no in-place migration. <code>relation.py refresh</code> recomputes <code>stale</code> on edges. <code>PLAN.md</code> also describes a per-paper <code>state.json</code> with stage checkpoints, but no script writes one. Recovery comes from staging plus atomic pointer swaps, not from a checkpoint file.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="tiers">
+<h2>Extraction tiers</h2>
+<p><code>meta.json</code> carries <code>extraction_tier</code>. <code>lib_schema.validate_meta</code> accepts exactly three values:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Tier</th><th>Set by</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>unavailable</td><td><code>add.py</code> when the resolved record has no abstract</td><td>Metadata-only record. The add result says so: <em>"no abstract available — metadata-only record, not fabricated"</em>.</td></tr>
+    <tr class="base"><td>abstract</td><td><code>add.py</code> when an abstract exists; <code>extract.py</code> with <code>evidence_tier: "abstract"</code></td><td>Claims (if extracted) come from the abstract only.</td></tr>
+    <tr><td>full</td><td><code>extract.py</code> with <code>evidence_tier: "full"</code></td><td>Claims extracted from converted full text.</td></tr>
+  </tbody>
+</table>
+</div>
+<ul>
+  <li><strong>Promotion only goes up.</strong> <code>extract.py</code> ranks <code>unavailable &lt; abstract &lt; full</code> and never lowers the tier when a later run is thinner.</li>
+  <li><strong>Having full text is a separate fact.</strong> <code>fetch.py</code> and <code>attach.py</code> set <code>meta.full_text</code> and commit a <code>source.md</code> version, but they do not promote the tier. Only a committed extraction does.</li>
+  <li>If no evidence tier is given, <code>extract.py</code> uses <code>"full"</code> when <code>meta.full_text</code> is true and <code>"abstract"</code> otherwise.</li>
+  <li>Selectors filter on it with <code>--tier abstract|full|any</code>, and each resolution reports counts per tier (<a href="#selectors">below</a>).</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="claims">
+<h2>The claim contract</h2>
+<p>A claim is one reported finding. The <code>ref-extractor</code> subagent proposes claims as JSON (<a href="api.html#agents">contract</a>). <code>extract.py</code> fills in the defaults, validates each claim with <code>validate_claim</code>, assigns IDs, and commits.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Field</th><th>Rule</th><th>Source</th></tr></thead>
+  <tbody>
+    <tr><td>claim_id</td><td>required str, opaque <code>c-</code> + 12 hex</td><td>assigned by <code>extract.py</code></td></tr>
+    <tr><td>pmid · version_id</td><td>required str</td><td>defaulted by <code>extract.py</code></td></tr>
+    <tr><td>evidence_tier</td><td>required str; <code>abstract</code> or <code>full</code> per the agent contract</td><td>agent, else defaulted</td></tr>
+    <tr><td>source_hash</td><td>required str (may be empty when the input names none)</td><td>input record</td></tr>
+    <tr><td>locator</td><td>required str: section, page, table or figure</td><td>agent</td></tr>
+    <tr><td>evidence_span</td><td>required str, a direct quote</td><td>agent</td></tr>
+    <tr><td>study_type</td><td>one of <code>rct cohort case_control meta_analysis molecular imaging review mixed unknown</code>; anything else becomes <code>unknown</code></td><td>agent (paper-level)</td></tr>
+    <tr class="base"><td>12 normalized fields</td><td><code>population intervention comparator outcome timepoint direction effect_value effect_measure uncertainty_interval study_design cohort_identity adjustment_context</code>. Every key must be present; the literal string <code>"unknown"</code> counts as present.</td><td>agent; missing keys set to <code>"unknown"</code></td></tr>
+    <tr><td>content_hash</td><td>sha256 of the normalized fields plus study_type</td><td><code>extract.py</code></td></tr>
+    <tr><td>status</td><td><code>active</code>, or <code>superseded</code> in the registry</td><td><code>extract.py</code></td></tr>
+    <tr><td>excluded_from_synthesis</td><td>bool; becomes true after a <code>reject</code> correction</td><td><code>extract.py</code>, <code>lib_verify_link.py</code></td></tr>
+    <tr><td>supersedes / superseded_by</td><td>optional supersession links</td><td><code>extract.py</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p class="term-label">Real claim · versions/v-ff60b1f75514/claims.json (scratch library, placeholder PMID)</p>
+<pre class="code">[
+  {
+    "adjustment_context": "unknown",
+    "claim_id": "c-2a41dbb8e59f",
+    "cohort_identity": "unknown",
+    "comparator": "non-autistic controls",
+    "content_hash": "23d6faf2ca79f3fa25c048bf9021d18d11f0901a1b6517da5cbaaf9fe48fa9de",
+    "direction": "decrease",
+    "effect_measure": "unknown",
+    "effect_value": "unknown",
+    "evidence_span": "Autistic adults showed reduced cortical thickness compared with controls.",
+    "evidence_tier": "abstract",
+    "excluded_from_synthesis": false,
+    "intervention": "autism diagnosis",
+    "locator": "abstract",
+    "outcome": "cortical thickness",
+    "pmid": "90000001",
+    "population": "autistic adults",
+    "source_hash": "",
+    "status": "active",
+    "study_design": "cohort",
+    "study_type": "cohort",
+    "timepoint": "unknown",
+    "uncertainty_interval": "unknown",
+    "version_id": "v-ff60b1f75514"
+  }
+]</pre>
+<h3>Stable claim IDs across reruns</h3>
+<p><code>claim_registry.json</code> stores every claim ever committed for the paper. On a rerun, <code>assign_claim_ids</code> compares each incoming claim with the claims that were active at the same locator before the run started:</p>
+<ul>
+  <li><strong>Same content hash:</strong> the claim keeps its <code>claim_id</code>.</li>
+  <li><strong>No hash match, and exactly one unconsumed prior claim at that locator:</strong> the new claim gets a new ID with <code>supersedes</code>; the old one becomes <code>status: superseded</code> with <code>superseded_by</code>, and stays in the registry.</li>
+  <li><strong>No hash match, and zero or several prior claims:</strong> the claim gets a fresh ID and no supersession is asserted.</li>
+</ul>
+<p>The version manifest records <code>schema_version</code> (<code>phase4-v1</code>), <code>extractor</code>, <code>model</code>, <code>prompt_version</code>, <code>study_type_confidence</code> and <code>claim_count</code>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="relations">
+<h2>Relations &amp; edges</h2>
+<p><code>graph/relations.jsonl</code> holds typed edges between <em>concepts</em>. Each edge names the claims that support it. <code>validate_relation</code> accepts five types:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Type</th><th>How it is created</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>potential_conflict</td><td>The only type proposed automatically (<code>relation.py propose</code>/<code>create</code>). It requires one claim with <code>increase</code> and one with <code>decrease</code>, and an exact, case- and whitespace-normalized match on <code>comparator</code>, <code>effect_measure</code>, <code>timepoint</code> and <code>population</code>. <code>unknown</code> or an empty value on either side counts as a mismatch.</td></tr>
+    <tr><td>contradicts</td><td>Only through <code>relation.py review</code>. The validator refuses it unless <code>review_state</code> is <code>reviewed</code> and <code>rationale</code> is non-empty.</td></tr>
+    <tr><td>supports · extends · replicates</td><td>Manual judgment through <code>relation.py create-manual --type …</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Required edge fields: <code>relation_id</code>, <code>type</code>, <code>subject_concept_id</code>, <code>object_concept_id</code>, <code>supporting_claims[]</code> (at least one <code>{pmid, claim_id}</code>), <code>source_version_ids[]</code>, <code>review_state</code> (<code>unreviewed|reviewed</code>), <code>rationale</code> (str or null), <code>stale</code> (bool), <code>created_at</code>, <code>updated_at</code>. <code>relation.py refresh</code>, which also runs under <code>/ref:index</code>, sets <code>stale: true</code> when a supporting claim is no longer active. The review decision and rationale are kept.</p>
+<h3>Researcher and grant edges</h3>
+<p><code>graph_people.py</code> regenerates <code>graph/people_relations.jsonl</code> as a separate store:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Type</th><th>Built from</th><th>State</th></tr></thead>
+  <tbody>
+    <tr><td>researcher_authored_publication</td><td><code>people/&lt;slug&gt;.json</code> <code>confirmed_publications</code>; id <code>rap-&lt;slug&gt;-&lt;pmid&gt;-&lt;author_index&gt;</code></td><td>populated</td></tr>
+    <tr><td>publication_acknowledges_grant</td><td><code>funding.json</code> observations matched against a grant's award number or aliases; id <code>pag-&lt;pmid&gt;-&lt;grant&gt;</code>; carries <code>evidence_kind</code></td><td>populated</td></tr>
+    <tr><td>publication_supports_aim</td><td>no aim-link data exists</td><td>schema-ready, empty</td></tr>
+    <tr><td>researcher_lab_membership</td><td>no command writes lab records</td><td>schema-ready, empty</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="corrections">
+<h2>Corrections overlay lifecycle</h2>
+<p><code>/ref:verify</code> appends entries to <code>papers/&lt;pmid&gt;/corrections.json</code>. Entries are never edited in place, except that their status flips. Shape (<code>validate_correction</code>): <code>correction_id</code> (<code>cor-</code>…), <code>target_type</code>, <code>target_id</code>, <code>decision</code> (<code>accept|edit|reject</code>), <code>reviewer</code>, <code>timestamp</code>, <code>evidence_locator</code>, <code>status</code> (<code>active|pending_review</code>). A claim review also stores <code>original_value</code>, <code>replacement_value</code> and <code>rationale</code>.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>target_type</th><th>target_id</th><th>verify.py action</th></tr></thead>
+  <tbody>
+    <tr><td>claim</td><td>claim_id</td><td><code>review-claim</code></td></tr>
+    <tr><td>grant_link</td><td>grant slug</td><td><code>review-grant-link</code></td></tr>
+    <tr><td>author_contribution</td><td>author index</td><td><code>review-author-contribution</code></td></tr>
+    <tr><td>person_identity</td><td>person slug</td><td><code>review-person-identity</code></td></tr>
+    <tr><td>appraisal</td><td><code>&lt;pmid&gt;:&lt;checklist&gt;:&lt;domain_key&gt;</code></td><td><code>review-appraisal</code></td></tr>
+    <tr><td>concept_mapping</td><td>—</td><td>accepted by the validator; no verify.py action writes it yet</td></tr>
+  </tbody>
+</table>
+</div>
+<ol>
+  <li><strong>Recorded</strong> with <code>status: active</code>. A claim review fails if the <code>claim_id</code> is not in the registry. Reviewing a claim that has already been superseded is allowed.</li>
+  <li><strong>Reject</strong> also sets <code>excluded_from_synthesis: true</code> on the registry entry. The claim is kept for audit, and retrieval skips it because it queries <code>status='active' AND excluded_from_synthesis=0</code>.</li>
+  <li><strong>Evidence changes.</strong> After every extraction commit, and on <code>verify.py show</code>, <code>revalidate_corrections</code> flips any claim correction whose target now has <code>superseded_by</code> to <code>pending_review</code>. Corrections on unchanged claims are left untouched.</li>
+  <li><strong>Re-review.</strong> A new decision is appended against the current claim. Earlier entries stay in the file.</li>
+</ol>
+</section>
+
+<!-- ============================================================ -->
+<section id="projects">
+<h2>Projects, reading states, screening</h2>
+<p>A paper exists once in <code>papers/</code> but can be a member of many projects. Each membership has its own state.</p>
+<pre class="code"><span class="c">// projects/thesis-ch3/project.yaml  (JSON content)</span>
+{"slug": "thesis-ch3", "scope": "…", "questions": [{"id": "q1", "text": "…"}]}
+
+<span class="c">// projects/thesis-ch3/papers.yaml — one entry per member</span>
+{"papers": [{"pmid": "…", "relevance": null, "priority": null, "reading_status": null,
+             "why_saved": null, "screening": null, "added_at": "…"}]}</pre>
+<ul>
+  <li><strong>Reading states</strong> (<code>project.READING_STATES</code>): <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. Only <code>/ref:project add-paper --reading-status</code> and <code>/ref:queue</code> set them. A new membership starts at <code>null</code>. Acquisition and extraction never change them.</li>
+  <li><strong>Question IDs</strong> are slugs that must be unique within their project. The same ID can appear in another project.</li>
+  <li><strong>Screening</strong> (<code>screen.py decide</code>) appends <code>{pmid, decision, reason, timestamp, search_run?}</code> to <code>screening.jsonl</code>, where <code>decision</code> is <code>included|excluded|pending</code> and <code>reason</code> is required. It also copies the latest decision onto <code>membership.screening</code>. Screening a non-member adds it as a member. <code>history</code> reads the full log.</li>
+  <li>Excluding a paper in one project has no effect on its membership in any other project.</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="studies">
+<h2>Studies, datasets, methods</h2>
+<p>These are three separate JSONL registries in <code>studies/</code>. Their IDs are library-global slugs. A shared dataset does <em>not</em> make two papers the same study, and only <code>create-study</code> groups papers.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>File</th><th>Row</th></tr></thead>
+  <tbody>
+    <tr><td>studies.jsonl</td><td><code>study_id</code>, <code>pmids[]</code>, <code>confidence</code> (<code>confirmed|likely|uncertain</code>), <code>evidence</code> (required, why these PMIDs are one investigation), <code>review_state</code> (<code>reviewed|unreviewed</code>), <code>created_at</code>, <code>updated_at</code></td></tr>
+    <tr><td>datasets.jsonl</td><td><code>dataset_id</code>, <code>name</code>, <code>pmids[]</code>, <code>notes</code>, <code>created_at</code></td></tr>
+    <tr><td>methods.jsonl</td><td><code>method_id</code>, <code>name</code>, <code>pmids[]</code>, <code>context</code>, <code>source_locator</code>, <code>created_at</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p><code>compare.py</code> groups table rows by recorded study, <code>prisma.py</code> reports studies separately from reports, and <code>--study &lt;id&gt;</code> selects every PMID in a study.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="people">
+<h2>Researchers, authorship, funding, citations</h2>
+<h3>Researcher identity</h3>
+<p><code>people/&lt;slug&gt;.json</code>: <code>slug</code>, <code>name_variants[]</code>, <code>orcid</code> (optional), <code>affiliations[]</code>, <code>confirmed_publications[]</code> (<code>{pmid, author_index}</code>), <code>candidate_publications[]</code> (from <code>/ref:discover</code>), <code>rejected_publications[]</code> (kept so the same candidate is not suggested again). Identity is a confirmed link to one specific author position. Name similarity alone never creates one.</p>
+<h3>Authorship roles</h3>
+<p><code>authorship.json</code> keeps the author list in the order PubMed returned it (<code>last</code>, <code>first</code>, <code>raw</code>, optional <code>affiliation</code>/<code>is_group</code>, plus <code>complete</code>, default true). <code>publications.classify_role</code> assigns exactly one role:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Role</th><th>Condition</th></tr></thead>
+  <tbody>
+    <tr><td>sole</td><td>complete list with one author; not also counted as first or last</td></tr>
+    <tr><td>first</td><td>index 0 of several</td></tr>
+    <tr><td>last</td><td>final index of several</td></tr>
+    <tr><td>middle</td><td>any other position</td></tr>
+    <tr><td>unresolved</td><td>list incomplete, or index missing or out of range</td></tr>
+  </tbody>
+</table>
+</div>
+<p>The independent flags <code>shared_first</code>, <code>shared_senior</code> and <code>corresponding</code> come only from <code>verify.py review-author-contribution</code>, which refuses to run without <code>--evidence-statement</code>.</p>
+<h3>Funding observation kinds</h3>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>kind</th><th>Written by</th></tr></thead>
+  <tbody>
+    <tr><td>indexed_funding_association</td><td><code>add.py</code>, one per PubMed GrantList entry (<code>source: pubmed_grantlist</code>)</td></tr>
+    <tr><td>explicit_acknowledgement_verified</td><td><code>funding_extract.py</code>: a JATS <code>&lt;funding-group&gt;/&lt;award-group&gt;</code> naming a funder or award, or a <code>&lt;funding-statement&gt;</code></td></tr>
+    <tr><td>possible_match</td><td><code>funding_extract.py</code>: acknowledgement prose that mentions funding without structured markup</td></tr>
+    <tr><td>unknown</td><td>nothing found in the JATS inspected; never recorded as "not funded"</td></tr>
+  </tbody>
+</table>
+</div>
+<p><code>funding.json</code> also has an overall <code>state</code>, which starts at <code>not_checked</code> when there are no GrantList entries. <code>fetch.py</code> only raises it to a stronger kind. <code>PLAN.md</code> §3c also lists <code>user_assigned_output</code>; no script writes that kind.</p>
+<h3>Citation observations (D25)</h3>
+<p><code>papers/&lt;pmid&gt;/citations.json</code> is a list that <code>audit.py citations</code> only appends to. <code>validate_citation_observation</code> accepts three entry kinds:</p>
+<pre class="code"><span class="c">// a real observation</span>
+{"source": "pmc_elink", "query": "&lt;exact query&gt;", "count": 12,
+ "coverage": "citing articles indexed in PMC; not a total citation count", "retrieved_at": "…"}
+<span class="c">// a failed lookup — never a zero</span>
+{"status": "check_failed", "reason": "…", "retrieved_at": "…"}
+<span class="c">// no PMCID, so no PMC cited-by is possible</span>
+{"status": "no_pmcid", "reason": "paper has no PMCID", "retrieved_at": "…"}</pre>
+<p>Markers must not carry a <code>count</code>. <code>latest_real_observation</code> skips markers, so a failed check leaves the previous dated count visible. <code>show-citations</code> prints <code>null</code> when there is no real observation, which means unknown, not zero. The staleness threshold defaults to 180 days (<code>--stale-days</code>). The count in the example above is illustrative. As <code>commands/ref-audit.md</code> states, the PubMed MCP server in this environment has no cited-by count source, so <code>--citations</code> has nothing real to record until one is connected.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ids">
+<h2>Identifier contract</h2>
+<p>There are three kinds of identifier, defined in <code>lib_ids.py</code> (PLAN §3d, D27).</p>
+<h3>1 · Slugs: user-minted, human-facing</h3>
+<pre class="code">SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")   <span class="c"># and 1 ≤ len ≤ 64</span></pre>
+<p>Only lowercase letters, digits and single inner hyphens are allowed: no leading, trailing or doubled hyphen. A collision raises <code>SlugError</code> naming the existing record, and no suffix is added. <code>rename_slug</code> renames under the library lock and records the old slug as an alias in <code>index/aliases/&lt;kind&gt;.json</code>, so <code>resolve_slug</code> still follows it.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Kind</th><th>Stored at</th><th>Existence check</th></tr></thead>
+  <tbody>
+    <tr><td>project</td><td><code>projects/{slug}</code></td><td>directory</td></tr>
+    <tr><td>query</td><td><code>queries/{slug}.yaml</code></td><td>file</td></tr>
+    <tr><td>person · lab · grant</td><td><code>people/</code> · <code>labs/</code> · <code>grants/{slug}.json</code></td><td>file</td></tr>
+    <tr><td>study · dataset · method</td><td><code>studies/{studies,datasets,methods}.jsonl</code></td><td>alias registry</td></tr>
+    <tr><td>concept</td><td><code>graph/concepts.jsonl</code></td><td>alias registry</td></tr>
+    <tr><td>question</td><td><code>project.yaml</code></td><td>unique within its project only (<code>check_question_id</code>)</td></tr>
+  </tbody>
+</table>
+</div>
+<h3>2 · Citekeys: the one exception that gets a suffix</h3>
+<p><code>make_citekey_base(last, year, word)</code> returns <code>clean(last) + year + clean(word)</code>, where <code>clean</code> lowercases and drops everything outside <code>[a-z0-9]</code>. <code>add.py</code> takes the first author's <code>last</code> (else the first token of <code>raw</code>, else <code>anon</code>), <code>year</code> (else <code>n.d.</code>), and the first <code>[A-Za-z0-9]+</code> run of the title (else <code>untitled</code>). <code>allocate_citekey</code> appends <code>-2</code>, <code>-3</code>, … under the library lock and records the result in <code>index/citekeys.json</code>. A citekey is never regenerated. Real output from two papers with the same author, year and first title word:</p>
+<pre class="term"><span class="o">90000001: added (citekey=rivera2024cortical)
+90000002: added (citekey=rivera2024cortical-2) — no abstract available — metadata-only record, not fabricated (§3a)</span></pre>
+<h3>3 · Opaque IDs: machine-facing</h3>
+<p><code>gen_opaque_id(prefix)</code> returns the prefix plus <code>secrets.token_hex(6)</code>, i.e. 12 hex characters, generated at commit time. Prefixes in use include <code>v-</code> (versions), <code>c-</code> (claims) and <code>cor-</code> (corrections). Nothing outside the library should parse or construct one. Content hashes (<code>raw/&lt;sha256&gt;/</code>, <code>content_hash</code>) belong to this class too.</p>
+<h3>External codes</h3>
+<p>PMID is the identity key for papers (D11). <code>add.py</code> deduplicates only by PMID, and a DOI shared with another PMID produces an <code>inconsistency:</code> warning without merging. ORCID is an optional attribute of a person. Award numbers live in <code>grants/&lt;slug&gt;.json</code> as <code>award_number</code> and <code>approved_aliases</code>. MeSH terms and other codes resolve to a concept's slug through its <code>aliases</code>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="selectors">
+<h2>Selector grammar</h2>
+<p>Every set-valued script wires the same arguments through <code>lib_selector.add_selector_args</code> and resolves them with <code>resolve()</code> before doing any work.</p>
+<pre class="code">[pmids ...] [--project P] [--question Q] [--screened {included,excluded,pending}]
+[--read] [--queue STATE] [--query SLUG] [--run RUN_ID] [--search EXPR]
+[--from-file PATH] [--study ID] [--concept ID] [--tier {abstract,full,any}] [--exclude [PMID ...]]</pre>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Step</th><th>Behaviour in lib_selector.py</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>1 · base set</td><td>Only one base source is used, checked in this order: <code>pmids</code> (de-duplicated, order kept) → <code>--from-file</code> (one PMID per non-blank line) → <code>--project</code> (membership) → <code>--query</code> (the named <code>--run</code>, else the most recent run) → <code>--study</code> → <code>--search</code> (FTS over the evidence scope, resolved once). With none of these, it raises <code>SelectorError</code>.</td></tr>
+    <tr><td>2 · project state</td><td><code>--screened</code>, <code>--read</code> and <code>--queue</code> require <code>--project</code> and narrow the set to members whose <code>screening.decision</code> or <code>reading_status</code> matches. Non-members drop out.</td></tr>
+    <tr><td>3 · --exclude</td><td>Removes the listed PMIDs.</td></tr>
+    <tr><td>4 · --tier</td><td>Keeps papers whose <code>meta.extraction_tier</code> equals the tier. The default <code>any</code> keeps everything.</td></tr>
+    <tr><td>5 · freeze</td><td>The result is sorted and de-duplicated. An empty result raises <code>selector matched no papers: &lt;expression&gt;</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+<p><code>resolve()</code> returns the list together with the expression and counts. Callers copy <code>selector_expression</code> and <code>pmids</code> into their artifact manifests: <code>compare</code>, <code>summarize</code>, <code>appraise</code>, <code>brief</code>, <code>check_citations</code>, <code>export</code> and <code>export_papers</code> all do.</p>
+<pre class="code">{
+  "pmids": ["…"],
+  "selector_expression": "--project thesis-ch3 --screened included --tier full",
+  "report": {
+    "count": 12,
+    "by_extraction_tier": {"abstract": 0, "full": 12, "unavailable": 0, "missing_record": 0},
+    "by_human_verification_state": {"not_yet_tracked": 12},
+    "by_retraction_errata_status": {"none": 11, "unknown": 1}
+  }
+}</pre>
+<div class="note warn"><strong>Current limits in the code.</strong> <code>--concept</code> is accepted by the parser, but <code>resolve()</code> raises <code>NotAvailableError</code> (<em>"--concept is not available until phase 8"</em>). <code>/ref:hypothesize</code> has its own <code>--concept</code> flag instead. <code>--question</code> is accepted but does not narrow membership. <code>by_human_verification_state</code> is always reported as <code>not_yet_tracked</code>. <code>audit.py</code> is the one command that treats an empty selector as "the whole library".</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="decisions">
+<h2>Key design decisions</h2>
+<p>Decisions from <code>PLAN.md</code> §0 that the implemented phases put into practice.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>#</th><th>Decision, as implemented</th></tr></thead>
+  <tbody>
+    <tr><td>D1</td><td>Own OKF bundle: <code>okf_emit.py</code> writes <code>&lt;LIBRARY&gt;/okf/</code>, not a wiki-manager bundle.</td></tr>
+    <tr><td>D2</td><td>The library path is chosen at <code>/ref:init</code> and stored in <code>~/.config/ref-manager/config.json</code>; <code>status.py</code> errors when it is missing.</td></tr>
+    <tr><td>D3</td><td>No embeddings: retrieval uses SQLite FTS5 plus the concept graph.</td></tr>
+    <tr><td>D4</td><td>Tiered extraction (<code>unavailable|abstract|full</code>) with promotion that only goes up.</td></tr>
+    <tr><td>D5</td><td>Papers: push with <code>/ref:open</code>, selective pull with <code>/ref:pull-annotations</code> from a read-only snapshot; no bulk import.</td></tr>
+    <tr><td>D8</td><td>Study type classified per paper, with <code>mixed</code>/<code>unknown</code> as fallbacks.</td></tr>
+    <tr><td>D9</td><td>Discovery is manual; saved queries rerun only through <code>/ref:update-queries</code>.</td></tr>
+    <tr><td>D10</td><td>CSL-JSON generated from <code>meta.json</code>, with BibTeX rendered from it (<code>lib_cite.py</code>).</td></tr>
+    <tr><td>D11</td><td>PubMed only; PMID is identity; DOI matches are flagged, never merged.</td></tr>
+    <tr><td>D12</td><td>The library starts empty; <code>init</code> creates directories only.</td></tr>
+    <tr><td>D13</td><td>The graph is core: <code>potential_conflict</code> is never promoted automatically; <code>/ref:gaps</code> and <code>/ref:hypothesize</code> exist.</td></tr>
+    <tr><td>D14</td><td>Citekeys minted once at ingest, with a suffix on collision.</td></tr>
+    <tr><td>D15</td><td>Systematic-review machinery: project screening, PRISMA snapshots (<code>prisma.py</code>), RoB 2 / NOS / AMSTAR-2 and GRADE drafts (<code>appraise.py</code>).</td></tr>
+    <tr><td>D16</td><td>One converter interface (<code>convert.py</code>) for JATS, HTML, PDF and plain text; raw inputs preserved.</td></tr>
+    <tr><td>D17</td><td>Figures in <code>figures.json</code>; vision descriptions cached by figure hash, model and prompt (<code>vision.py</code>).</td></tr>
+    <tr><td>D18</td><td>Files are the authority; SQLite and OKF are projections; atomic commits and locks. The <code>state.json</code> checkpoints are not implemented.</td></tr>
+    <tr><td>D19</td><td>Passage-level retrieval with candidate and token budgets (<code>ask_retrieve.py</code>).</td></tr>
+    <tr><td>D20</td><td>Projects own questions, membership, reading queue and screening.</td></tr>
+    <tr><td>D21</td><td>Human review is separate from extraction: reading state plus correction overlays.</td></tr>
+    <tr><td>D22</td><td>Studies, datasets and methods kept apart from publications; compare, methods, brief and check-citations are built on them.</td></tr>
+    <tr><td>D23</td><td>PI reporting from structured records: people, ordered authorship, grants, evidenced links.</td></tr>
+    <tr><td>D24</td><td>Reports are snapshots with a manifest (<code>reports/&lt;label&gt;/</code>).</td></tr>
+    <tr><td>D25</td><td>Citation counts are dated, append-only observations, never stored in <code>meta.json</code>.</td></tr>
+    <tr><td>D26</td><td>One selector grammar; the expression and resolved PMIDs are frozen into manifests.</td></tr>
+    <tr><td>D27</td><td>Two ID classes: slugs (collisions refused) and opaque tokens.</td></tr>
+    <tr><td>D28</td><td>Papers handoff is a one-way file export. Notes are pushed only on first export (<code>note_pushes.json</code>) unless <code>--notes-force</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<nav class="pager" aria-label="Pager">
+  <a href="commands/maintain.html"><small>Previous</small>Commands · maintain</a>
+  <a href="api.html" style="text-align:right"><small>Next</small>API</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

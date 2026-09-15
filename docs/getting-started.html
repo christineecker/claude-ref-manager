@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Get started · ref-manager docs</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="index.html"><img src="assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html" aria-current="page">Get started</a>
+    <a href="workflows.html">Workflows</a>
+    <a href="tutorials/index.html">Tutorials</a>
+    <a href="commands/index.html">Commands</a>
+    <a href="concepts.html">Concepts</a>
+    <a href="api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>On this page</h4>
+  <ol>
+    <li><a href="#prereqs">Prerequisites</a></li>
+    <li><a href="#example-data">About the examples</a></li>
+    <li><a href="#s1">1 · <code>/ref:init</code></a></li>
+    <li><a href="#s2">2 · <code>/ref:status</code></a></li>
+    <li><a href="#s3">3 · <code>/ref:add</code></a></li>
+    <li><a href="#s4">4 · Project &amp; queue</a></li>
+    <li><a href="#s5">5 · Full text</a></li>
+    <li><a href="#s6">6 · <code>/ref:extract</code></a></li>
+    <li><a href="#s7">7 · Search &amp; ask</a></li>
+    <li><a href="#s8">8 · Cite &amp; export</a></li>
+    <li><a href="#s9">9 · <code>/ref:note</code></a></li>
+    <li><a href="#result">What you built</a></li>
+    <li><a href="#next">What's next</a></li>
+  </ol>
+</aside>
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial · about 20 minutes</p>
+  <h1>Get started</h1>
+  <p class="lede">Create a library, add a few papers, pull in full text, extract claims, then search, cite, and annotate them. Every step shows the command you type in Claude Code and what comes back.</p>
+</header>
+
+<section id="prereqs">
+<h2>Prerequisites</h2>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Need</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>Claude Code</td><td>Every <code>/ref:*</code> command is a Claude Code slash command. Commands that need judgment (extraction, synthesis) start subagents inside your session.</td></tr>
+    <tr class="base"><td>ref-manager plugin</td><td>The repo ships <code>.claude-plugin/plugin.json</code> (name <code>ref-manager</code>, version 0.1.0). The repo doesn't document an install method or a marketplace, so install it as a Claude Code plugin from this folder. The commands then show up as <code>/ref:&lt;name&gt;</code>.</td></tr>
+    <tr class="base"><td>Python ≥ 3.11</td><td>The scripts are standard-library-only, single-file Python (PEP 723 headers declare <code>requires-python = "&gt;=3.11"</code>). The command files run them as <code>python3</code>.</td></tr>
+    <tr class="base"><td>PubMed MCP connector</td><td><code>/ref:add</code> resolves metadata through <code>mcp__claude_ai_PubMed__get_article_metadata</code>. <code>/ref:fetch</code> tries <code>get_full_text_article</code>, and <code>/ref:extract</code> uses the metadata call again to check retraction status. You can't ingest papers without it.</td></tr>
+    <tr><td>pandoc <span class="muted">(optional)</span></td><td>Converts genuine JATS XML to Markdown (<code>pandoc -f jats -t gfm</code>). If pandoc is missing, that step reports <code>unavailable</code>.</td></tr>
+    <tr><td>uv <span class="muted">(optional)</span></td><td>Publisher HTML goes through trafilatura, which runs in a separate worker under <code>uv run</code>. That keeps the dependency out of the scripts' own environment.</td></tr>
+    <tr><td>anydoc <span class="muted">(optional)</span></td><td>Converts PDFs for <code>/ref:attach</code>. If anydoc is missing, the PDF is still stored and reported as <code>PDF conversion unavailable</code>. No substitute converter runs.</td></tr>
+    <tr><td>pdftotext <span class="muted">(optional)</span></td><td>From poppler. <code>/ref:attach</code> uses it to read a PDF's first two pages and check the PDF matches the paper. Without it, the check can't pass, and attaching needs <code>--force</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="muted">PLAN D16 names firecrawl as a fallback for JavaScript-heavy publisher pages. <code>convert.py</code> doesn't call it, though. If you want to use it, the <code>/ref:fetch</code> command file suggests running the firecrawl skill yourself to get the HTML.</p>
+</section>
+
+<section id="example-data">
+<h2>About the examples</h2>
+<div class="note warn"><strong>Fictional papers.</strong> The three papers below (PMIDs <code>99000001</code>–<code>99000003</code>) are made-up fixtures with numbers outside PubMed's range. In real use, <code>/ref:add</code> gets metadata from PubMed. To show real output offline, this walkthrough gave <code>add.py</code> the same JSON envelope the command builds from the MCP response. Output marked <em>output from a scratch library</em> comes from actually running the scripts, with <code>HOME</code> pointed at a temporary folder. The library path is shortened to <code>~/Research/library</code>. Output marked <em>illustrative output</em> depends on PubMed, the network, or a subagent, and follows the format in the script source.</div>
+</section>
+
+<section>
+<ol class="steps">
+
+<li id="s1">
+<h3>Create the library with <code>/ref:init</code></h3>
+<p>You pick the location. The plugin never picks a default. <code>/ref:init</code> creates the folder skeleton and saves the root in <code>~/.config/ref-manager/config.json</code>. After that, no other command needs a <code>--repo</code> path: they read it from the config, and they stop with an error if no library is configured.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:init ~/Research/library</span>
+<span class="o">library initialized at ~/Research/library</span>
+<span class="o">config written to ~/.config/ref-manager/config.json</span></pre>
+<p>This is exactly what <code>init_repo.py</code> creates. Every folder starts empty, and <code>log.md</code> contains just its heading.</p>
+<pre class="tree"><span class="a">library/</span>
+├── exports/
+│   └── papers/        <span class="c"># Papers.app handoff batches</span>
+├── grants/
+├── graph/             <span class="c"># concepts.jsonl, relations.jsonl</span>
+├── index/
+│   ├── .locks/        <span class="c"># per-PMID mutation locks</span>
+│   └── aliases/
+├── labs/
+├── log.md
+├── okf/               <span class="c"># generated OKF views</span>
+├── papers/            <span class="c"># one folder per PMID</span>
+├── people/
+├── projects/
+├── queries/           <span class="c"># saved PubMed searches</span>
+├── reports/
+└── studies/</pre>
+<p>Running it a second time is refused (<code>a library is already configured at …</code>) unless you pass <code>--force</code>. That protects you from repointing every command at a different folder by accident.</p>
+</li>
+
+<li id="s2">
+<h3>Check it with <code>/ref:status</code></h3>
+<p>This command only reads. It prints the configured root, how many papers the SQLite catalog holds, and how many projects exist.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:status</span>
+<span class="o">library: ~/Research/library</span>
+<span class="o">catalog: not built yet (run /ref:index --rebuild)</span>
+<span class="o">projects: 0</span></pre>
+<p>The catalog is a projection you can rebuild from the files, so it's normal for it not to exist yet. Retrieval commands such as <code>/ref:ask</code> rebuild it before every query.</p>
+</li>
+
+<li id="s3">
+<h3>Add papers with <code>/ref:add</code></h3>
+<p>Give it one or more PMIDs. Claude fetches their metadata from the PubMed connector in a single call, normalizes each article into a JSON envelope (title, abstract, authors in published order, journal, year, DOI, PMCID, indexed grants), and passes the envelope to <code>add.py</code>.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000001 99000002 99000003</span>
+<span class="o">99000001: added (citekey=moreno2021cortical)</span>
+<span class="o">99000002: added (citekey=moreno2021longitudinal)</span>
+<span class="o">99000003: added (citekey=lindqvist2022commentary) — no abstract available — metadata-only record, not fabricated (§3a)</span></pre>
+<ul>
+  <li><strong>The PMID is the paper's identity.</strong> Each paper gets <code>papers/&lt;pmid&gt;/</code>, and duplicates are detected by PMID only. If a new PMID has the same DOI as a paper you already have, both records are kept and a warning is printed. They are never merged.</li>
+  <li><strong>Citekeys</strong> are built from first author, year, and first title word (<code>moreno2021cortical</code>). They're assigned under a library lock, get a suffix if they collide, and never change afterwards, so manuscripts citing them won't break.</li>
+  <li><strong>Abstract tier.</strong> A paper with an abstract gets <code>extraction_tier: "abstract"</code>. Claims can be extracted from the abstract alone, without full text.</li>
+  <li><strong>Metadata-only.</strong> Paper <code>99000003</code> has no abstract, so its tier is <code>"unavailable"</code>. The record is still valid, and nothing is invented to fill the gap.</li>
+  <li><strong>One result per PMID.</strong> Each line reads <code>added</code>, <code>already_present</code>, or <code>failed</code>. One paper failing doesn't stop the others, and re-adding a paper is harmless:</li>
+</ul>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000001 99000002 99000003</span>
+<span class="o">99000001: already_present (citekey=moreno2021cortical)</span>
+<span class="o">99000002: already_present (citekey=moreno2021longitudinal)</span>
+<span class="o">99000003: already_present (citekey=lindqvist2022commentary)</span></pre>
+<p>Each paper folder now holds <code>meta.json</code>, <code>authorship.json</code> (authors in their original order), <code>funding.json</code>, and <code>raw/&lt;sha256&gt;/response.json</code>, a copy of the metadata exactly as received that is never modified.</p>
+</li>
+
+<li id="s4">
+<h3>Create a project and queue papers</h3>
+<p>Projects hold the context around papers: your research questions, why each paper matters, and how far you've read it. The same paper can be in several projects, and each project keeps its own relevance, priority, and reading state for it.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:project create thesis-ch3 --scope "Cortical thickness in autism"</span>
+<span class="o">{
+  "slug": "thesis-ch3",
+  "scope": "Cortical thickness in autism",
+  "questions": []
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:project add-question thesis-ch3 --id q1 --text "Is cortical thickness altered in autistic adults?"</span>
+<span class="p">›</span> <span class="cmd">/ref:project add-paper thesis-ch3 99000001 --relevance "Core adult evidence" --priority 1</span>
+<span class="o">{
+  "pmid": "99000001",
+  "relevance": "Core adult evidence",
+  "priority": 1,
+  "reading_status": null,
+  "why_saved": null,
+  "screening": null,
+  "added_at": "2026-09-15T10:15:59.793233+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:project add-paper thesis-ch3 99000002 --reading-status to_read</span></pre>
+<p>Now update where you are with a paper. Reading states are <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, and <code>read</code>. Only you can set them: fetching full text or extracting claims never marks a paper as read.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:queue set --project thesis-ch3 --pmid 99000001 --status reading --why "Largest adult sample"</span>
+<span class="o">{
+  "added_at": "2026-09-15T10:15:59.793233+00:00",
+  "pmid": "99000001",
+  "priority": 1,
+  "reading_status": "reading",
+  "relevance": "Core adult evidence",
+  "screening": null,
+  "why_saved": "Largest adult sample"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:queue set --project thesis-ch3 --pmid 99000003 --status to_read</span>
+<span class="w">error: pmid '99000003' is not a member of project 'thesis-ch3' (add it first via /ref:project)</span></pre>
+<p>Project slugs are names you choose: lowercase letters, digits, and hyphens. If a slug is already taken, the command refuses and tells you which project has it, rather than adding a suffix, because you can just pick another name. <code>/ref:queue show --project thesis-ch3</code> lists the whole queue.</p>
+</li>
+
+<li id="s5">
+<h3>Get full text with <code>/ref:fetch</code> or <code>/ref:attach</code></h3>
+<p>Full text is optional, and you get it one paper at a time. <code>/ref:fetch</code> tries these sources in order: open-access PMC text from the PubMed connector, then Unpaywall (only if the config has an <code>unpaywall_email</code>), then publisher HTML that Claude fetches, and finally abstract-only. If you already have a PDF, use <code>/ref:attach &lt;pmid&gt; &lt;path&gt;</code> instead.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:fetch 99000001 99000003</span>
+<span class="o">99000001: acquired (source=plain_text)</span>
+<span class="w">  diagnostic: source has no markup (plain extracted text); section/heading structure and figures are not recoverable</span>
+<span class="o">99000003: abstract_only -- no full text available from any source (§6) -- abstract-only stays first-class</span></pre>
+<ul>
+  <li>The PubMed full-text tool returns plain text, not JATS XML. So it goes through the <code>plain_text</code> path, and the diagnostic tells you section structure was lost. You get a note instead of a silently mangled conversion.</li>
+  <li>The downloaded source is saved unchanged under <code>raw/&lt;sha256&gt;/</code>. The converted Markdown goes into a new <code>versions/&lt;id&gt;/source.md</code> next to its <code>manifest.json</code>.</li>
+  <li><code>abstract_only</code> isn't an error. The paper keeps its abstract-tier claims, clearly labelled as such.</li>
+  <li>Other possible results are <code>oa_location_found</code> (Unpaywall found a PDF you can download and pass to <code>/ref:attach</code>) and <code>failed</code>.</li>
+</ul>
+<p><code>/ref:attach</code> reports <code>attached</code>, <code>duplicate_noop</code> (those exact bytes are already stored), <code>refused</code>, or <code>failed</code>. <code>refused</code> means neither the DOI nor a run of title words appeared in the PDF's first two pages. Add <code>--force</code> only if you're sure the PDF belongs to that PMID. The <a href="tutorials/thesis-chapter.html#t-attach">thesis-chapter tutorial</a> shows real attach output.</p>
+</li>
+
+<li id="s6">
+<h3>Extract claims with <code>/ref:extract</code></h3>
+<p>Extraction needs reading judgment, so Claude starts one <code>ref-extractor</code> subagent per PMID, all running in parallel. Each one reads the full text if it exists, or the abstract otherwise. It returns a study type and a list of claims: population, intervention, comparator, outcome, timepoint, direction, effect value and measure, uncertainty interval, study design, cohort, and adjustment context. Each claim includes a locator and a word-for-word quote. Any field the text doesn't state is set to <code>"unknown"</code> rather than guessed. <code>extract.py</code> then validates the claims, assigns stable IDs, and saves each paper as its own version.</p>
+<p class="term-label">output from a scratch library · claims written by hand in the subagent's output shape</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 99000001 99000002</span>
+<span class="c">  # spawns 2 ref-extractor subagents in parallel, then:</span>
+<span class="o">99000001: extracted (study_type=imaging, claims=1)</span>
+<span class="o">99000002: extracted (study_type=cohort, claims=1)</span></pre>
+<ul>
+  <li><strong>The tier only goes up.</strong> 99000001 had full text, so its <code>extraction_tier</code> is now <code>"full"</code>. A later run with less text won't downgrade it. 99000002 stays <code>"abstract"</code>.</li>
+  <li><strong>Claim IDs stay stable.</strong> When you re-extract, an unchanged claim keeps its <code>claim_id</code>. A claim whose content changed gets a new ID, and the old one is kept, marked <code>superseded_by</code>, not deleted.</li>
+  <li><strong>Retraction status</strong> is saved on <code>meta.json</code> with its source and <code>checked_at</code>. If the PubMed check fails or is ambiguous, it's saved as <code>unknown</code>, never as <code>none</code>.</li>
+</ul>
+</li>
+
+<li id="s7">
+<h3>Find things with <code>/ref:search</code> and <code>/ref:ask</code></h3>
+<p><code>/ref:search</code> is a plain substring search. With <code>--scope evidence</code> (the default) it checks title, abstract, and journal.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search --q "cortical thickness"</span>
+<span class="o">{
+  "query": "cortical thickness",
+  "scope": "evidence",
+  "results": [
+    {
+      "kind": "evidence",
+      "pmid": "99000001",
+      "citekey": "moreno2021cortical",
+      "field": "title",
+      "snippet": "Cortical thickness in autistic adults: a multi-site MRI study"
+    },
+    {
+      "kind": "evidence",
+      "pmid": "99000002",
+      "citekey": "moreno2021longitudinal",
+      "field": "title",
+      "snippet": "Longitudinal change in cortical thickness across adolescence in autism"
+    }
+  ]
+}</span></pre>
+<p><code>/ref:ask</code> answers a question from the claims and passages you've saved. There are no embeddings, so Claude first thinks of 2–4 related terms (synonyms, MeSH terms) and passes them as <code>--expand</code>. <code>ask_retrieve.py</code> then rebuilds the SQLite FTS5 catalog and returns ranked candidates, limited to the papers you selected. This retrieval half ran for real:</p>
+<p class="term-label">output from a scratch library · retrieval step</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:ask "Is cortical thickness altered in autistic adults?" --project thesis-ch3</span>
+<span class="c">  # retrieval: ask_retrieve.py --expand "cortical thinning" "autism spectrum disorder" --project thesis-ch3</span>
+<span class="o">"candidates": [
+  { "kind": "claim", "pmid": "99000001", "claim_id": "c-d85223adbc65", "locator": "Results",
+    "text": "Autistic adults showed increased cortical thickness in frontal regions (Cohen's d = 0.41, 95% CI 0.15-0.67).",
+    "evidence_tier": "full", "citekey": "moreno2021cortical", "retraction_status": "none" },
+  { "kind": "claim", "pmid": "99000002", "claim_id": "c-2b31957bd938", "locator": "abstract",
+    "text": "cortical thinning was accelerated in the autism group",
+    "evidence_tier": "abstract", "citekey": "moreno2021longitudinal", "retraction_status": "unknown" }
+],
+"report": { "candidate_budget": 30, "token_budget": 6000, "total_matches_before_limits": 2, "returned": 2,
+            "truncated_by_candidate_budget": false, "dropped_for_token_budget": 0,
+            "insufficient_coverage": false, "selector_constrained": true }</span></pre>
+<p>Next, a single <code>ref-synthesizer</code> subagent writes the answer from those candidates, citing each sentence as <code>[^pmid]</code>. <code>validate_citations.py</code> then checks that every citation points to a PMID in the candidate set. Any citation that doesn't gets reported to you, not quietly dropped.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="o">One multi-site study reports thicker frontal cortex in autistic adults [^99000001]; an adolescent cohort
+reports accelerated thinning [^99000002], which is a different age group and outcome.</span>
+<span class="o">{"cited_pmids": ["99000001", "99000002"], "resolved": ["99000001", "99000002"], "unresolved": [], "all_resolved": true}</span></pre>
+<p><code>/ref:ask</code> doesn't save anything. If you want a saved answer you can refresh later, use <a href="commands/write.html#brief"><code>/ref:brief</code></a>.</p>
+</li>
+
+<li id="s8">
+<h3>Cite while writing, export the bibliography</h3>
+<p><code>/ref:cite</code> gives you a paper's inline citekey. It just reads <code>meta.json</code>.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:cite 99000001</span>
+<span class="o">@moreno2021cortical</span></pre>
+<p><code>/ref:export</code> writes BibTeX and CSL-JSON for any selection of papers. The <code>--batch</code> label names the folder <code>exports/&lt;label&gt;/</code>. The list of papers is fixed when the batch is first created: running the same label again reuses that list, and only <code>--refresh</code> rebuilds it and reports what was added or removed.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export --project thesis-ch3 --batch thesis-ch3-v1</span>
+<span class="o">{
+  "status": "created",
+  "batch": "thesis-ch3-v1",
+  "manifest": {
+    "batch": "thesis-ch3-v1",
+    "selector_expression": "--project thesis-ch3",
+    "pmids": ["99000001", "99000002"],
+    "citekeys": ["moreno2021cortical", "moreno2021longitudinal"],
+    "resolved_at": "2026-09-15T10:16:01.112303+00:00",
+    "report": {
+      "count": 2,
+      "by_extraction_tier": { "abstract": 1, "full": 1, "unavailable": 0, "missing_record": 0 },
+      "by_human_verification_state": { "not_yet_tracked": 2 },
+      "by_retraction_errata_status": { "none": 1, "unknown": 1 }
+    }
+  }
+}</span></pre>
+<p><code>exports/thesis-ch3-v1/references.bib</code> now contains:</p>
+<pre class="code">@article{moreno2021cortical,
+  title = {Cortical thickness in autistic adults: a multi-site MRI study},
+  author = {Moreno, Ana and Baptiste, Luc},
+  journal = {Example Journal of Neuroimaging},
+  year = 2021,
+  doi = {10.0000/example.1},
+  pmid = {99000001}
+}
+
+@article{moreno2021longitudinal,
+  title = {Longitudinal change in cortical thickness across adolescence in autism},
+  author = {Moreno, Ana and Okafor, Chidi},
+  journal = {Example Developmental Neuroscience},
+  year = 2021,
+  doi = {10.0000/example.2},
+  pmid = {99000002}
+}</pre>
+<p>The report splits the papers by tier and retraction status, so you can see what backs the bibliography before you send it anywhere.</p>
+</li>
+
+<li id="s9">
+<h3>Keep your own thoughts with <code>/ref:note</code></h3>
+<p><code>papers/&lt;pmid&gt;/notes.md</code> belongs to you. <code>/ref:note</code> is the only command that writes to it, it only ever appends dated entries, and nothing that regenerates files will overwrite it.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:note 99000001 "Frontal effect only; check whether the adolescent cohort replicates it."</span>
+<span class="o">appended to ~/Research/library/papers/99000001/notes.md</span>
+<span class="p">›</span> <span class="cmd">/ref:note 99000001 --show</span>
+<span class="o">
+---
+2026-09-15T10:16:00.668445+00:00
+
+Frontal effect only; check whether the adolescent cohort replicates it.</span></pre>
+<p>Notes are kept out of the evidence index. <code>/ref:search --scope notes</code> finds them and labels them as personal, so they can never be mistaken for a published finding:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search --scope notes --q "replicates"</span>
+<span class="o">{
+  "query": "replicates",
+  "scope": "notes",
+  "results": [
+    {
+      "kind": "personal_note",
+      "pmid": "99000001",
+      "snippet": "---\n2026-09-15T10:16:00.668445+00:00\n\nFrontal effect only; check whether the adolescent cohort replicates it."
+    }
+  ]
+}</span></pre>
+</li>
+
+</ol>
+</section>
+
+<section id="result">
+<h2>What you built</h2>
+<p>Run <code>/ref:status</code> again and it reports <code>papers indexed: 3</code> and <code>projects: 1</code>. The figure shows which parts of the library each step wrote to. Folders these steps didn't use are faded.</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 470" role="img" aria-label="Library root after the getting-started steps. Step 1, init, wrote the config file outside the library and created the folder skeleton. Steps 3, 5, 6 and 9 wrote inside papers/&lt;pmid&gt;: step 3 meta.json, authorship.json, funding.json and raw response.json; step 5 raw source and versions/&lt;id&gt;/source.md; step 6 versions/&lt;id&gt;/claims.json, claim_registry.json and current.json; step 9 notes.md. Step 4 wrote projects/thesis-ch3/project.yaml and papers.yaml. Step 3 also wrote index/citekeys.json; step 7 built index/catalog.sqlite. Step 8 wrote exports/thesis-ch3-v1 with references.bib, references.csl.json and manifest.json. people, labs, grants, reports, studies, graph, okf and queries stayed empty.">
+  <defs>
+    <marker id="gsArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+
+  <!-- config, outside library -->
+  <rect x="14" y="14" width="300" height="50" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="28" y="36" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">~/.config/ref-manager/config.json</text>
+  <text x="28" y="53" font-size="11" fill="currentColor" fill-opacity=".65">outside the library · library_root</text>
+  <circle cx="296" cy="14" r="10" fill="var(--accent)"/><text x="296" y="18" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--card)" font-weight="600">1</text>
+  <line x1="164" y1="64" x2="164" y2="96" stroke="currentColor" stroke-width="1.5" marker-end="url(#gsArr)"/>
+
+  <!-- library boundary -->
+  <rect x="14" y="100" width="912" height="356" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="32" y="126" font-family="IBM Plex Mono,monospace" font-size="13" fill="currentColor" font-weight="500">~/Research/library/</text>
+  <text x="196" y="126" font-size="11" fill="currentColor" fill-opacity=".6">skeleton created by step 1</text>
+
+  <!-- papers -->
+  <rect x="32" y="142" width="420" height="296" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="48" y="166" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">papers/&lt;pmid&gt;/</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="48" y="180" width="388" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="60" y="200" font-family="IBM Plex Mono,monospace" font-size="11.5">meta.json · authorship.json · funding.json</text>
+    <text x="60" y="220" font-family="IBM Plex Mono,monospace" font-size="11.5" fill-opacity=".7">raw/&lt;sha256&gt;/response.json</text>
+    <rect x="48" y="246" width="388" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="60" y="266" font-family="IBM Plex Mono,monospace" font-size="11.5">raw/&lt;sha256&gt;/source.plain_text</text>
+    <text x="60" y="286" font-family="IBM Plex Mono,monospace" font-size="11.5" fill-opacity=".7">versions/&lt;id&gt;/source.md · manifest.json</text>
+    <rect x="48" y="312" width="388" height="56" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="60" y="332" font-family="IBM Plex Mono,monospace" font-size="11.5">versions/&lt;id&gt;/claims.json · manifest.json</text>
+    <text x="60" y="352" font-family="IBM Plex Mono,monospace" font-size="11.5" fill-opacity=".7">claim_registry.json · current.json</text>
+    <rect x="48" y="378" width="388" height="44" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="60" y="404" font-family="IBM Plex Mono,monospace" font-size="11.5">notes.md</text>
+    <text x="140" y="404" fill-opacity=".7">yours · append-only</text>
+  </g>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" font-weight="600" fill="var(--card)" text-anchor="middle">
+    <circle cx="436" cy="180" r="10" fill="var(--accent)"/><text x="436" y="184">3</text>
+    <circle cx="436" cy="246" r="10" fill="var(--accent)"/><text x="436" y="250">5</text>
+    <circle cx="436" cy="312" r="10" fill="var(--accent)"/><text x="436" y="316">6</text>
+    <circle cx="436" cy="378" r="10" fill="var(--amber)"/><text x="436" y="382">9</text>
+  </g>
+
+  <!-- projects -->
+  <rect x="476" y="142" width="206" height="84" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="490" y="166" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">projects/thesis-ch3/</text>
+  <text x="490" y="188" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">project.yaml</text>
+  <text x="490" y="208" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">papers.yaml</text>
+  <circle cx="682" cy="142" r="10" fill="var(--accent)"/><text x="682" y="146" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--card)" font-weight="600">4</text>
+
+  <!-- index -->
+  <rect x="706" y="142" width="204" height="84" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="720" y="166" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">index/</text>
+  <text x="720" y="188" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">citekeys.json <tspan fill-opacity=".6">(3)</tspan></text>
+  <text x="720" y="208" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">catalog.sqlite <tspan fill-opacity=".6">(7)</tspan></text>
+  <circle cx="910" cy="142" r="10" fill="var(--accent)"/><text x="910" y="146" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--card)" font-weight="600">7</text>
+
+  <!-- exports -->
+  <rect x="476" y="242" width="434" height="84" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="490" y="266" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">exports/thesis-ch3-v1/</text>
+  <text x="490" y="288" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">references.bib · references.csl.json</text>
+  <text x="490" y="308" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">manifest.json <tspan font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".6">frozen PMID set</tspan></text>
+  <circle cx="910" cy="242" r="10" fill="var(--accent)"/><text x="910" y="246" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--card)" font-weight="600">8</text>
+
+  <!-- untouched -->
+  <g opacity=".42" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <rect x="476" y="342" width="434" height="96" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="490" y="366" font-family="IBM Plex Sans,sans-serif" font-size="11">still empty after these steps</text>
+    <text x="490" y="390">people/  labs/  grants/  reports/</text>
+    <text x="490" y="412">studies/  graph/  okf/  queries/</text>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>written by a step (number shown)</span>
+  <span><span class="sw amber"></span>your own content</span>
+  <span><span class="sw dash faded"></span>not used yet</span>
+</div>
+<figcaption>Files are the source of truth. <code>index/catalog.sqlite</code> is a projection that <code>/ref:index --rebuild</code> recreates. Downloaded sources in <code>raw/</code> are never edited, and every conversion or extraction is saved as a new version next to them.</figcaption>
+</figure>
+</section>
+
+<section id="next">
+<h2>What's next</h2>
+<div class="cards">
+  <a class="card" href="tutorials/thesis-chapter.html"><span class="k">PhD</span><strong>Thesis chapter</strong><span class="d">Take a question from 20 papers to a paragraph whose citations are checked: screen, verify, compare, check citations.</span></a>
+  <a class="card" href="tutorials/systematic-review.html"><span class="k">Review</span><strong>Systematic review</strong><span class="d">Saved PubMed searches, screening decisions, and a reproducible PRISMA flow.</span></a>
+  <a class="card" href="tutorials/pi-report.html"><span class="k">PI</span><strong>PI report</strong><span class="d">Researcher identity, grants, and an annual publication report you can trace.</span></a>
+  <a class="card" href="tutorials/papers-handoff.html"><span class="k">Reading</span><strong>Papers handoff</strong><span class="d">Send PDFs to Papers.app and bring your annotations back.</span></a>
+  <a class="card" href="tutorials/graph-discovery.html"><span class="k">Discovery</span><strong>Graph discovery</strong><span class="d">Weave concepts, find gaps, and generate hypotheses to check against PubMed.</span></a>
+  <a class="card" href="commands/index.html"><span class="k">Reference</span><strong>All commands</strong><span class="d">Every <code>/ref:*</code> command with its arguments and the files it writes.</span></a>
+</div>
+</section>
+
+<nav class="pager" aria-label="Pager">
+  <a href="index.html"><small>Previous</small>Overview</a>
+  <a href="workflows.html" style="text-align:right"><small>Next</small>Workflows</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

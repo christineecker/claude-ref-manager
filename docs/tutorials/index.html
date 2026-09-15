@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tutorials · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Hands-on</p>
+  <h1>Tutorials</h1>
+  <p class="lede">Each tutorial follows one real research job from start to finish, using the commands in the order you'd actually run them. Do <a href="../getting-started.html">Get started</a> first, because these tutorials assume you already have a library with a few papers in it.</p>
+</header>
+
+<section>
+<h2>Pick a job</h2>
+<div class="cards">
+  <a class="card" href="thesis-chapter.html">
+    <span class="k">PhD acceptance test</span>
+    <strong>Thesis chapter</strong>
+    <span class="d">Take 20 papers for one thesis question, identify what they establish, inspect disagreements, and produce a paragraph whose citations can be verified.</span>
+    <span class="chips"><span class="tag">project</span><span class="tag">screen</span><span class="tag">attach</span><span class="tag">extract</span><span class="tag">verify</span><span class="tag">study</span><span class="tag">compare</span><span class="tag">brief</span><span class="tag">check-citations</span><span class="tag">export</span></span>
+  </a>
+  <a class="card" href="systematic-review.html">
+    <span class="k">Evidence synthesis</span>
+    <strong>Systematic review</strong>
+    <span class="d">Save and re-run PubMed searches, record screening decisions with reasons, and freeze a PRISMA 2020 flow built from committed state.</span>
+    <span class="chips"><span class="tag">search-pubmed</span><span class="tag">update-queries</span><span class="tag">add</span><span class="tag">screen</span><span class="tag">fetch</span><span class="tag">review</span><span class="tag">summarize</span></span>
+  </a>
+  <a class="card" href="pi-report.html">
+    <span class="k">PI acceptance test</span>
+    <strong>PI report</strong>
+    <span class="d">Confirm researcher identity, link publications to grants, and produce an annual publication report where every included paper can be traced and every unresolved match is shown.</span>
+    <span class="chips"><span class="tag">person</span><span class="tag">discover</span><span class="tag">grant</span><span class="tag">verify</span><span class="tag">publications</span><span class="tag">report</span><span class="tag">audit</span></span>
+  </a>
+  <a class="card" href="papers-handoff.html">
+    <span class="k">Reading</span>
+    <strong>Papers handoff</strong>
+    <span class="d">Export a selected batch into a folder Papers.app imports from, open PDFs for reading, and pull your highlights back without touching your notes.</span>
+    <span class="chips"><span class="tag">export-papers</span><span class="tag">open</span><span class="tag">pull-annotations</span><span class="tag">note</span></span>
+  </a>
+  <a class="card" href="graph-discovery.html">
+    <span class="k">Discovery</span>
+    <strong>Graph discovery</strong>
+    <span class="d">Weave claims into concepts and relations, find fragile and conflicting evidence, snowball from key papers, and test ABC hypotheses against PubMed.</span>
+    <span class="chips"><span class="tag">weave</span><span class="tag">concept</span><span class="tag">related</span><span class="tag">gaps</span><span class="tag">hypothesize</span></span>
+  </a>
+</div>
+</section>
+
+<section>
+<h2>How the tutorials are written</h2>
+<ul>
+  <li>Examples use fictional papers whose PMIDs start with <code>99</code>, outside PubMed's range. That way no real paper is ever described with invented findings.</li>
+  <li>Blocks labelled <em>output from a scratch library</em> come from running the plugin's scripts against a throwaway library. Blocks labelled <em>illustrative output</em> need PubMed, the network, Papers.app, or a subagent, and follow the output format in the script source.</li>
+  <li>Each command name links to its entry in the <a href="../commands/index.html">command reference</a>.</li>
+</ul>
+</section>
+
+<nav class="pager" aria-label="Pager">
+  <a href="../workflows.html"><small>Previous</small>Workflows</a>
+  <a href="thesis-chapter.html" style="text-align:right"><small>Next</small>Thesis chapter</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

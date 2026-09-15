@@ -1,0 +1,1444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>API · ref-manager docs</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/docs.css">
+<style>
+details > summary{cursor:pointer;font-size:.8125rem;color:var(--muted);margin-top:.4rem}
+details[open] > summary{color:var(--accent)}
+.cmd-groups{margin-bottom:1rem}
+dl.args dt{white-space:normal;overflow-wrap:anywhere}
+table.sel td:first-child{white-space:normal}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="index.html"><img src="assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Get started</a>
+    <a href="workflows.html">Workflows</a>
+    <a href="tutorials/index.html">Tutorials</a>
+    <a href="commands/index.html">Commands</a>
+    <a href="concepts.html">Concepts</a>
+    <a href="api.html" aria-current="page">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>On this page</h4>
+  <ol>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#config">Config file</a></li>
+    <li><a href="#cli">Script CLI reference</a></li>
+    <li><a href="#modules">Library modules</a></li>
+    <li><a href="#schemas">Record schemas</a></li>
+    <li><a href="#agents">Subagent contracts</a></li>
+    <li><a href="#testing">Testing</a></li>
+  </ol>
+</aside>
+<main>
+
+<header class="page">
+  <p class="eyebrow">API · phases 0–11</p>
+  <h1>The programmatic surface</h1>
+  <p class="lede">Slash commands are markdown prompts. The deterministic work happens in stdlib-only Python scripts, which the prompts call with explicit flags. This page covers those scripts, the modules they share, the record validators, and the JSON contracts for the two subagents.</p>
+</header>
+
+<!-- ============================================================ -->
+<section id="architecture">
+<h2>Architecture</h2>
+<p>Each <code>commands/ref-&lt;name&gt;.md</code> file is a prompt that Claude Code runs as <code>/ref:&lt;name&gt;</code>. The prompt parses <code>$ARGUMENTS</code>, reads <code>library_root</code> from <code>~/.config/ref-manager/config.json</code> (and stops, pointing at <code>/ref:init</code>, if the file is missing), then does some mix of three things:</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 400" role="img" aria-label="Layer diagram. You type a slash command such as /ref:add. The command file commands/ref-add.md is a markdown prompt that parses arguments and resolves library_root from ~/.config/ref-manager/config.json. It fans out to three kinds of worker: PubMed MCP tools (get_article_metadata, get_full_text_article, search_articles, find_related_articles), python3 scripts under ${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts called with --repo and JSON input files, and Agent-tool subagents ref-extractor (one per PMID) and ref-synthesizer (one per question). MCP results and subagent JSON are written to temp files and handed to the scripts. Only scripts write the library. Committed library files feed the rebuildable projections index/catalog.sqlite and okf/. WebFetch and the firecrawl skill fetch publisher HTML or OA PDFs for /ref:fetch.">
+  <defs>
+    <marker id="aArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="aArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="aArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- row 1 -->
+  <rect x="14" y="20" width="170" height="64" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="28" y="46" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">YOU TYPE</text>
+  <text x="28" y="68" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">/ref:add 31452104</text>
+  <line x1="184" y1="52" x2="220" y2="52" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
+
+  <rect x="224" y="20" width="310" height="64" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="238" y="44" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">commands/ref-add.md</text>
+  <text x="238" y="64" font-size="11" fill="currentColor" fill-opacity=".7">markdown prompt · parses $ARGUMENTS</text>
+  <text x="238" y="78" font-size="11" fill="currentColor" fill-opacity=".7">prints each script call before running it</text>
+  <line x1="534" y1="52" x2="570" y2="52" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
+
+  <rect x="574" y="20" width="352" height="64" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="588" y="44" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">~/.config/ref-manager/config.json</text>
+  <text x="588" y="64" font-size="11" fill="currentColor" fill-opacity=".7">library_root → passed as --repo &lt;library_root&gt;</text>
+  <text x="588" y="78" font-size="11" fill="currentColor" fill-opacity=".7">missing → fail loudly, point at /ref:init</text>
+
+  <!-- bus -->
+  <path d="M379 84 L379 112" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <line x1="159" y1="112" x2="781" y2="112" stroke="currentColor" stroke-opacity=".5"/>
+  <line x1="159" y1="112" x2="159" y2="134" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
+  <line x1="470" y1="112" x2="470" y2="134" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
+  <line x1="781" y1="112" x2="781" y2="134" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
+
+  <!-- MCP -->
+  <rect x="14" y="138" width="290" height="124" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="28" y="160" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">PUBMED MCP TOOLS</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <text x="28" y="182">…PubMed__get_article_metadata</text>
+    <text x="28" y="200">…PubMed__get_full_text_article</text>
+    <text x="28" y="218">…PubMed__search_articles</text>
+    <text x="28" y="236">…PubMed__find_related_articles</text>
+  </g>
+  <text x="28" y="254" font-size="11" fill="currentColor" fill-opacity=".65">prefix mcp__claude_ai_ · network lives here</text>
+
+  <!-- scripts -->
+  <rect x="324" y="138" width="292" height="124" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="338" y="160" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">PYTHON SCRIPTS</text>
+  <text x="338" y="182" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" font-weight="500">python3 "${CLAUDE_PLUGIN_ROOT}/</text>
+  <text x="338" y="198" font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" font-weight="500">  skills/ref-manager/scripts/&lt;s&gt;.py"</text>
+  <text x="338" y="220" font-size="11" fill="currentColor" fill-opacity=".7">--repo · --input-file / --results-file</text>
+  <text x="338" y="236" font-size="11" fill="currentColor" fill-opacity=".7">validate → lock → atomic commit</text>
+  <text x="338" y="252" font-size="11" fill="currentColor" fill-opacity=".7">stdout JSON or lines · exit 1 on error</text>
+
+  <!-- agents -->
+  <rect x="636" y="138" width="290" height="124" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="650" y="160" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">SUBAGENTS (AGENT TOOL)</text>
+  <text x="650" y="184" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">ref-extractor ×N</text>
+  <text x="650" y="200" font-size="11" fill="currentColor" fill-opacity=".7">one per PMID, in parallel</text>
+  <text x="650" y="224" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">ref-synthesizer ×1</text>
+  <text x="650" y="240" font-size="11" fill="currentColor" fill-opacity=".7">one per question · return JSON only</text>
+
+  <!-- handoffs -->
+  <line x1="304" y1="200" x2="320" y2="200" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#aArrM)"/>
+  <line x1="636" y1="200" x2="620" y2="200" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#aArrM)"/>
+  <text x="470" y="280" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".7">MCP results and agent JSON reach scripts as temp files</text>
+
+  <!-- library -->
+  <line x1="470" y1="262" x2="470" y2="306" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#aArrA)"/>
+  <rect x="324" y="310" width="292" height="72" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text x="338" y="334" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">&lt;LIBRARY&gt;/ committed files</text>
+  <text x="338" y="354" font-size="11" fill="currentColor" fill-opacity=".7">only scripts write here</text>
+  <text x="338" y="370" font-size="11" fill="currentColor" fill-opacity=".7">papers/ projects/ graph/ studies/ …</text>
+
+  <line x1="616" y1="346" x2="632" y2="346" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
+  <rect x="636" y="310" width="290" height="72" rx="8" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+  <text x="650" y="334" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">catalog.sqlite · okf/</text>
+  <text x="650" y="354" font-size="11" fill="currentColor" fill-opacity=".7">rebuildable projections</text>
+  <text x="650" y="370" font-size="11" fill="currentColor" fill-opacity=".7">catalog.py rebuild · okf_emit.py</text>
+
+  <rect x="14" y="310" width="290" height="72" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="28" y="334" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">NOT MCP</text>
+  <text x="28" y="354" font-size="11" fill="currentColor" fill-opacity=".75">WebFetch / firecrawl skill: publisher</text>
+  <text x="28" y="370" font-size="11" fill="currentColor" fill-opacity=".75">HTML and OA PDFs for /ref:fetch</text>
+</svg>
+</div>
+<figcaption>Scripts never call PubMed or run a subagent. The only HTTP request a script makes itself is <code>fetch.py</code>'s Unpaywall lookup; the converters shell out to local tools (pandoc, trafilatura, anydoc). Commands write MCP and agent output to temp files and pass the paths in with flags such as <code>--metadata-file</code>, <code>--input-file</code>, <code>--results-file</code>, <code>--answer-file</code> or <code>--checks-file</code>.</figcaption>
+</figure>
+
+<h3>MCP tools the command files reference</h3>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Tool</th><th>Commands</th></tr></thead>
+  <tbody>
+    <tr><td>mcp__claude_ai_PubMed__get_article_metadata</td><td><a href="commands/acquire.html#add"><code>/ref:add</code></a>, <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> (retraction status), <a href="commands/maintain.html#audit"><code>/ref:audit</code></a></td></tr>
+    <tr><td>mcp__claude_ai_PubMed__get_full_text_article</td><td><a href="commands/acquire.html#fetch"><code>/ref:fetch</code></a></td></tr>
+    <tr><td>mcp__claude_ai_PubMed__search_articles</td><td><a href="commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a>, <a href="commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a></td></tr>
+    <tr><td>mcp__claude_ai_PubMed__find_related_articles</td><td><a href="commands/find.html#related"><code>/ref:related</code></a></td></tr>
+  </tbody>
+</table>
+</div>
+<p class="muted">Also named in command files: <code>convert_article_ids</code> (PMCID lookup in <code>/ref:audit --citations</code>); the <code>okf</code> plugin's <code>search_concepts</code>, <code>read_concept</code> and <code>get_neighbors</code> as readers of the generated <code>okf/</code> (<code>/ref:weave</code>); and the non-MCP WebFetch tool and <code>firecrawl</code> skill in <code>/ref:fetch</code>.</p>
+
+<h3>Subagent fan-out</h3>
+<ul>
+  <li><a href="#agent-extractor"><strong>ref-extractor</strong></a>: <code>/ref:extract</code> launches one Agent-tool call per PMID, all in one message so they run concurrently, then passes the collected JSON to <code>extract.py --input-file</code>.</li>
+  <li><a href="#agent-synthesizer"><strong>ref-synthesizer</strong></a>: one invocation per question in <code>/ref:ask</code> and <code>/ref:brief</code>, and over the candidate list in <code>/ref:summarize</code>. The answer is checked with <code>validate_citations.py</code> (ask, brief).</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="config">
+<h2>Config file</h2>
+<p>Location: <code>~/.config/ref-manager/config.json</code> (<code>init_repo.CONFIG_PATH</code>). <code>init_repo.py</code> writes it atomically and validates it with <code>validate_config</code>. On a fresh init it contains exactly:</p>
+<pre class="code">{
+  "library_root": "/private/tmp/…/scratchpad/concepts-api/lib"
+}</pre>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Key</th><th>Required</th><th>Written by</th><th>Read by</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>library_root</td><td>yes</td><td><code>init_repo.py</code></td><td><code>status.py</code>; every command prompt resolves <code>--repo</code> from it</td></tr>
+    <tr><td>unpaywall_email</td><td>no</td><td>nothing; add it by hand</td><td><code>fetch.py</code>: enables the Unpaywall lookup when a DOI is known</td></tr>
+    <tr><td>papers_export_dir</td><td>no</td><td>nothing; add it by hand</td><td><code>export_papers.py</code>: default destination when <code>--to</code> is absent</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="note warn"><strong>Heads-up.</strong> <code>commands/ref-fetch.md</code> describes <code>unpaywall_email</code> as recorded at <code>/ref:init</code>, but <code>init_repo.py</code> accepts only <code>path</code> and <code>--force</code> and writes only <code>library_root</code>. Re-running <code>init --force</code> rewrites the file with <code>library_root</code> alone, so any keys you added by hand are lost.</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="cli">
+<h2>Script CLI reference</h2>
+<p>Every script lives in <code>skills/ref-manager/scripts/</code>, is a PEP 723 single file (<code>requires-python &gt;= 3.11</code>, no dependencies), and is run as <code>python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/&lt;script&gt;.py"</code>. The usage text below is the real <code>--help</code> output. Subcommands are argparse positional <code>choices</code>, not subparsers, so each script has one help screen.</p>
+<ul>
+  <li><strong>Library.</strong> All scripts except <code>init_repo.py</code>, <code>status.py</code> and <code>validate_citations.py</code> take <code>--repo &lt;library_root&gt;</code>. A path that is not a directory gives <code>error: no library at …</code> on stderr and exit 1.</li>
+  <li><strong>Errors.</strong> Validation failures (<code>SchemaError</code>, <code>SlugError</code>, <code>SelectorError</code>) print <code>error: …</code> to stderr and exit 1.</li>
+  <li><strong>Batches.</strong> <code>add</code>, <code>fetch</code>, <code>attach</code> and <code>extract</code> process each PMID under its own lock and report one line per PMID, so a single failure never blocks the rest of the batch.</li>
+  <li><strong>Selector scripts</strong> share the flags <code>[pmids ...] --project --question --screened --read --queue --query --run --search --from-file --study --concept --tier --exclude</code> (<a href="concepts.html#selectors">semantics</a>).</li>
+</ul>
+<h3>Library &amp; index</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-init-repo">
+  <div class="cmd-head"><h3>init_repo.py</h3></div>
+  <p class="summary">Create the library directories and <code>log.md</code>, and write <code>config.json</code>. Refuses when a library is already configured unless <code>--force</code> is given.</p>
+  <p class="writes">Called by <a href="commands/acquire.html#init"><code>/ref:init</code></a> · stdout: plain text</p>
+  <details><summary><code>init_repo.py --help</code></summary><pre class="code">usage: init_repo.py [-h] [--force] path
+
+positional arguments:
+  path
+
+options:
+  -h, --help  show this help message and exit
+  --force</pre></details>
+</article>
+<article class="cmd" id="cli-status">
+  <div class="cmd-head"><h3>status.py</h3></div>
+  <p class="summary">Report the configured library, the indexed paper count and the project count. It has no argparse CLI and takes no arguments; it reads <code>config.json</code> itself and exits 1 when no library is configured.</p>
+  <p class="writes">Called by <a href="commands/maintain.html#status"><code>/ref:status</code></a> · stdout: plain text</p>
+  <pre class="code">python3 skills/ref-manager/scripts/status.py</pre>
+</article>
+<article class="cmd" id="cli-catalog">
+  <div class="cmd-head"><h3>catalog.py</h3></div>
+  <p class="summary"><code>init</code> or <code>rebuild</code> <code>index/catalog.sqlite</code> (tables papers, passages_fts, claims, claims_fts, concepts, relations, catalog_meta) from committed records.</p>
+  <p class="writes">Called by <a href="commands/maintain.html#index"><code>/ref:index</code></a> · stdout: plain text</p>
+  <details><summary><code>catalog.py --help</code></summary><pre class="code">usage: catalog.py [-h] --repo REPO {rebuild,init}
+
+positional arguments:
+  {rebuild,init}
+
+options:
+  -h, --help      show this help message and exit
+  --repo REPO</pre></details>
+</article>
+</div>
+<h3>Acquire</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-add">
+  <div class="cmd-head"><h3>add.py</h3></div>
+  <p class="summary">RESOLVE and DEDUP: read a metadata envelope (JSON array) and write <code>meta.json</code>, <code>authorship.json</code>, <code>funding.json</code> and <code>raw/&lt;sha256&gt;/response.json</code>. Never calls the network.</p>
+  <p class="writes">Called by <a href="commands/acquire.html#add"><code>/ref:add</code></a> · stdout: one result line per PMID (plus indented <code>diagnostic:</code> lines)</p>
+  <details><summary><code>add.py --help</code></summary><pre class="code">usage: add.py [-h] --repo REPO --metadata-file METADATA_FILE {add}
+
+positional arguments:
+  {add}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --metadata-file METADATA_FILE</pre></details>
+</article>
+<article class="cmd" id="cli-fetch">
+  <div class="cmd-head"><h3>fetch.py</h3></div>
+  <p class="summary">Full-text acquisition from a per-PMID envelope (<code>jats_xml</code>, <code>publisher_html</code>, <code>plain_text</code>); makes one direct Unpaywall REST call when <code>unpaywall_email</code> is configured.</p>
+  <p class="writes">Called by <a href="commands/acquire.html#fetch"><code>/ref:fetch</code></a> · stdout: one result line per PMID (plus indented <code>diagnostic:</code> lines)</p>
+  <details><summary><code>fetch.py --help</code></summary><pre class="code">usage: fetch.py [-h] --repo REPO --input-file INPUT_FILE
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --input-file INPUT_FILE</pre></details>
+</article>
+<article class="cmd" id="cli-attach">
+  <div class="cmd-head"><h3>attach.py</h3></div>
+  <p class="summary">Attach local PDFs as <code>&lt;pmid&gt; &lt;path&gt;</code> pairs after a <code>pdftotext</code> identity check (DOI or title); same hash again is a no-op; conversion goes through <code>convert_pdf</code>.</p>
+  <p class="writes">Called by <a href="commands/acquire.html#attach"><code>/ref:attach</code></a> · stdout: one result line per PMID (plus indented <code>diagnostic:</code> lines)</p>
+  <details><summary><code>attach.py --help</code></summary><pre class="code">usage: attach.py [-h] --repo REPO [--force] pairs [pairs ...]
+
+positional arguments:
+  pairs        &lt;pmid&gt; &lt;path&gt; [&lt;pmid&gt; &lt;path&gt; ...]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO
+  --force      attach despite a failed identity check</pre></details>
+</article>
+<article class="cmd" id="cli-extract">
+  <div class="cmd-head"><h3>extract.py</h3></div>
+  <p class="summary">Validate ref-extractor output, assign stable claim IDs, commit a version, and promote the tier. Exits 1 if any PMID failed.</p>
+  <p class="writes">Called by <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> · stdout: one result line per PMID (plus indented <code>diagnostic:</code> lines)</p>
+  <details><summary><code>extract.py --help</code></summary><pre class="code">usage: extract.py [-h] --repo REPO --input-file INPUT_FILE
+                  [--extractor EXTRACTOR] [--model MODEL]
+                  [--prompt-version PROMPT_VERSION]
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --input-file INPUT_FILE
+  --extractor EXTRACTOR
+  --model MODEL
+  --prompt-version PROMPT_VERSION</pre></details>
+</article>
+<article class="cmd" id="cli-vision">
+  <div class="cmd-head"><h3>vision.py</h3></div>
+  <p class="summary"><code>request</code> checks the per-figure cache (figure hash + model + prompt); <code>store</code> saves the description the calling agent wrote.</p>
+  <p class="writes">Called by <a href="commands/acquire.html#describe-figure"><code>/ref:describe-figure</code></a> · stdout: JSON document</p>
+  <details><summary><code>vision.py --help</code></summary><pre class="code">usage: vision.py [-h] --repo REPO --pmid PMID [--version VERSION]
+                 --figure-id FIGURE_ID --model MODEL --prompt PROMPT
+                 [--description DESCRIPTION]
+                 {request,store}
+
+positional arguments:
+  {request,store}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --pmid PMID
+  --version VERSION
+  --figure-id FIGURE_ID
+  --model MODEL
+  --prompt PROMPT
+  --description DESCRIPTION</pre></details>
+</article>
+</div>
+<h3>Find</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-search">
+  <div class="cmd-head"><h3>search.py</h3></div>
+  <p class="summary">FTS search over <code>evidence</code>, personal <code>notes</code>, or <code>all</code>, labelled separately.</p>
+  <p class="writes">Called by <a href="commands/find.html#search"><code>/ref:search</code></a> · stdout: JSON document</p>
+  <details><summary><code>search.py --help</code></summary><pre class="code">usage: search.py [-h] --repo REPO [--scope {evidence,notes,all}] --q Q
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --scope {evidence,notes,all}
+  --q Q</pre></details>
+</article>
+<article class="cmd" id="cli-ask-retrieve">
+  <div class="cmd-head"><h3>ask_retrieve.py</h3></div>
+  <p class="summary">Retrieval half of <code>/ref:ask</code>: resolve the selector, then collect claim and passage candidates within the candidate and token budgets.</p>
+  <p class="writes">Called by <a href="commands/find.html#ask"><code>/ref:ask</code></a> · <a href="commands/write.html#brief"><code>/ref:brief</code></a> · <a href="commands/write.html#check-citations"><code>/ref:check-citations</code></a> · stdout: JSON document</p>
+  <details><summary><code>ask_retrieve.py --help</code></summary><pre class="code">usage: ask_retrieve.py [-h] --repo REPO --q Q [--expand [EXPAND ...]]
+                       [--candidate-budget CANDIDATE_BUDGET]
+                       [--token-budget TOKEN_BUDGET] [--project PROJECT]
+                       [--question QUESTION]
+                       [--screened {included,excluded,pending}] [--read]
+                       [--queue QUEUE] [--query QUERY] [--run RUN]
+                       [--search SEARCH] [--from-file FROM_FILE]
+                       [--study STUDY] [--concept CONCEPT]
+                       [--tier {abstract,full,any}] [--exclude [EXCLUDE ...]]
+                       [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --q Q                 the research question
+  --expand [EXPAND ...]
+                        query-expansion terms the calling agent supplied (§5)
+  --candidate-budget CANDIDATE_BUDGET
+  --token-budget TOKEN_BUDGET
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]</pre></details>
+</article>
+<article class="cmd" id="cli-validate-citations">
+  <div class="cmd-head"><h3>validate_citations.py</h3></div>
+  <p class="summary">Check that every <code>[^pmid]</code> in an answer resolves to a supplied candidate.</p>
+  <p class="writes">Called by <a href="commands/find.html#ask"><code>/ref:ask</code></a> · <a href="commands/write.html#brief"><code>/ref:brief</code></a> · stdout: JSON document</p>
+  <details><summary><code>validate_citations.py --help</code></summary><pre class="code">usage: validate_citations.py [-h] --answer-file ANSWER_FILE
+                             --candidates-file CANDIDATES_FILE
+
+options:
+  -h, --help            show this help message and exit
+  --answer-file ANSWER_FILE
+  --candidates-file CANDIDATES_FILE
+                        ask_retrieve.py&#x27;s candidates JSON</pre></details>
+</article>
+<article class="cmd" id="cli-pubmed-query">
+  <div class="cmd-head"><h3>pubmed_query.py</h3></div>
+  <p class="summary">Saved PubMed queries in <code>queries/&lt;slug&gt;.yaml</code> with immutable run histories.</p>
+  <p class="writes">Called by <a href="commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="commands/find.html#update-queries"><code>/ref:update-queries</code></a> · stdout: JSON document</p>
+  <details><summary><code>pubmed_query.py --help</code></summary><pre class="code">usage: pubmed_query.py [-h] --repo REPO [--slug SLUG]
+                       [--query-text QUERY_TEXT] [--source SOURCE]
+                       [--pmids-file PMIDS_FILE] [--create]
+                       {new-run,rerun,show,list}
+
+positional arguments:
+  {new-run,rerun,show,list}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --slug SLUG
+  --query-text QUERY_TEXT
+  --source SOURCE
+  --pmids-file PMIDS_FILE
+  --create</pre></details>
+</article>
+<article class="cmd" id="cli-related">
+  <div class="cmd-head"><h3>related.py</h3></div>
+  <p class="summary">Backward (reference list of committed full text) and forward (related PMIDs supplied by the caller) snowballing, persisted to <code>related.json</code>.</p>
+  <p class="writes">Called by <a href="commands/find.html#related"><code>/ref:related</code></a> · stdout: JSON document</p>
+  <details><summary><code>related.py --help</code></summary><pre class="code">usage: related.py [-h] --repo REPO --pmid PMID [--link-type LINK_TYPE]
+                  [--results-file RESULTS_FILE] [--max-results MAX_RESULTS]
+                  {backward,forward,show}
+
+positional arguments:
+  {backward,forward,show}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --pmid PMID
+  --link-type LINK_TYPE
+  --results-file RESULTS_FILE
+                        JSON array of forward-related PMIDs
+  --max-results MAX_RESULTS</pre></details>
+</article>
+</div>
+<h3>Organize</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-project">
+  <div class="cmd-head"><h3>project.py</h3></div>
+  <p class="summary">Projects, per-project question IDs, and membership (relevance, priority, reading status).</p>
+  <p class="writes">Called by <a href="commands/organize.html#project"><code>/ref:project</code></a> · stdout: JSON document</p>
+  <details><summary><code>project.py --help</code></summary><pre class="code">usage: project.py [-h] --repo REPO [--slug SLUG] [--scope SCOPE]
+                  [--question-id QUESTION_ID] [--text TEXT] [--pmid PMID]
+                  [--relevance RELEVANCE] [--priority PRIORITY]
+                  [--reading-status READING_STATUS]
+                  {create,add-question,add-paper,show,list}
+
+positional arguments:
+  {create,add-question,add-paper,show,list}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --slug SLUG
+  --scope SCOPE
+  --question-id QUESTION_ID
+  --text TEXT
+  --pmid PMID
+  --relevance RELEVANCE
+  --priority PRIORITY
+  --reading-status READING_STATUS</pre></details>
+</article>
+<article class="cmd" id="cli-queue">
+  <div class="cmd-head"><h3>queue.py</h3></div>
+  <p class="summary">Set or show reading state, priority and why-saved on a project membership.</p>
+  <p class="writes">Called by <a href="commands/organize.html#queue"><code>/ref:queue</code></a> · stdout: JSON document</p>
+  <details><summary><code>queue.py --help</code></summary><pre class="code">usage: queue.py [-h] --repo REPO --project PROJECT [--pmid PMID]
+                [--status STATUS] [--priority PRIORITY] [--why WHY]
+                {set,show}
+
+positional arguments:
+  {set,show}
+
+options:
+  -h, --help           show this help message and exit
+  --repo REPO
+  --project PROJECT
+  --pmid PMID
+  --status STATUS
+  --priority PRIORITY
+  --why WHY</pre></details>
+</article>
+<article class="cmd" id="cli-screen">
+  <div class="cmd-head"><h3>screen.py</h3></div>
+  <p class="summary">Append a screening decision to <code>screening.jsonl</code> and mirror it onto the membership.</p>
+  <p class="writes">Called by <a href="commands/organize.html#screen"><code>/ref:screen</code></a> · stdout: JSON document</p>
+  <details><summary><code>screen.py --help</code></summary><pre class="code">usage: screen.py [-h] --repo REPO --project PROJECT [--pmid PMID]
+                 [--decision DECISION] [--reason REASON] [--run RUN]
+                 {decide,history}
+
+positional arguments:
+  {decide,history}
+
+options:
+  -h, --help           show this help message and exit
+  --repo REPO
+  --project PROJECT
+  --pmid PMID
+  --decision DECISION
+  --reason REASON
+  --run RUN</pre></details>
+</article>
+<article class="cmd" id="cli-note">
+  <div class="cmd-head"><h3>note.py</h3></div>
+  <p class="summary">Append to or show <code>papers/&lt;pmid&gt;/notes.md</code>.</p>
+  <p class="writes">Called by <a href="commands/organize.html#note"><code>/ref:note</code></a> · stdout: plain text</p>
+  <details><summary><code>note.py --help</code></summary><pre class="code">usage: note.py [-h] --repo REPO --pmid PMID [--text TEXT] {append,show}
+
+positional arguments:
+  {append,show}
+
+options:
+  -h, --help     show this help message and exit
+  --repo REPO
+  --pmid PMID
+  --text TEXT</pre></details>
+</article>
+<article class="cmd" id="cli-verify">
+  <div class="cmd-head"><h3>verify.py</h3></div>
+  <p class="summary">Correction overlays for claims, grant links, author contributions, person identity and appraisal domains.</p>
+  <p class="writes">Called by <a href="commands/organize.html#verify"><code>/ref:verify</code></a> · <a href="commands/write.html#review"><code>/ref:review</code></a> · stdout: JSON document</p>
+  <details><summary><code>verify.py --help</code></summary><pre class="code">usage: verify.py [-h] --repo REPO --pmid PMID [--claim-id CLAIM_ID]
+                 [--decision DECISION] [--reviewer REVIEWER]
+                 [--rationale RATIONALE] [--replacement-file REPLACEMENT_FILE]
+                 [--grant GRANT] [--evidence-locator EVIDENCE_LOCATOR]
+                 [--award-number AWARD_NUMBER] [--author-index AUTHOR_INDEX]
+                 [--flag FLAG] [--evidence-statement EVIDENCE_STATEMENT]
+                 [--person PERSON] [--checklist CHECKLIST]
+                 [--domain-key DOMAIN_KEY]
+                 {review-claim,review-grant-link,review-author-contribution,review-person-identity,review-appraisal,show}
+
+positional arguments:
+  {review-claim,review-grant-link,review-author-contribution,review-person-identity,review-appraisal,show}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --pmid PMID
+  --claim-id CLAIM_ID
+  --decision DECISION
+  --reviewer REVIEWER
+  --rationale RATIONALE
+  --replacement-file REPLACEMENT_FILE
+  --grant GRANT
+  --evidence-locator EVIDENCE_LOCATOR
+  --award-number AWARD_NUMBER
+  --author-index AUTHOR_INDEX
+  --flag FLAG
+  --evidence-statement EVIDENCE_STATEMENT
+  --person PERSON
+  --checklist CHECKLIST
+  --domain-key DOMAIN_KEY</pre></details>
+</article>
+<article class="cmd" id="cli-study">
+  <div class="cmd-head"><h3>study.py</h3></div>
+  <p class="summary">Create and list study, dataset and method records.</p>
+  <p class="writes">Called by <a href="commands/organize.html#study"><code>/ref:study</code></a> · stdout: JSON document</p>
+  <details><summary><code>study.py --help</code></summary><pre class="code">usage: study.py [-h] --repo REPO [--id ID] [--pmid [PMID ...]]
+                [--confidence CONFIDENCE] [--evidence EVIDENCE] [--name NAME]
+                [--notes NOTES] [--context CONTEXT] [--locator LOCATOR]
+                {create-study,create-dataset,create-method,list-studies,list-datasets,list-methods}
+
+positional arguments:
+  {create-study,create-dataset,create-method,list-studies,list-datasets,list-methods}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --id ID
+  --pmid [PMID ...]
+  --confidence CONFIDENCE
+  --evidence EVIDENCE
+  --name NAME
+  --notes NOTES
+  --context CONTEXT
+  --locator LOCATOR</pre></details>
+</article>
+</div>
+<h3>Compare &amp; write</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-compare">
+  <div class="cmd-head"><h3>compare.py</h3></div>
+  <p class="summary">Evidence matrix over a selector, grouped by recorded study. <code>--edit-*</code> writes to the separate user-edit layer.</p>
+  <p class="writes">Called by <a href="commands/write.html#compare"><code>/ref:compare</code></a> · stdout: JSON document</p>
+  <details><summary><code>compare.py --help</code></summary><pre class="code">usage: compare.py [-h] [--project PROJECT] [--question QUESTION]
+                  [--screened {included,excluded,pending}] [--read]
+                  [--queue QUEUE] [--query QUERY] [--run RUN]
+                  [--search SEARCH] [--from-file FROM_FILE] [--study STUDY]
+                  [--concept CONCEPT] [--tier {abstract,full,any}]
+                  [--exclude [EXCLUDE ...]] --repo REPO --batch BATCH
+                  [--refresh] [--edit-pmid EDIT_PMID]
+                  [--edit-column EDIT_COLUMN] [--edit-value EDIT_VALUE]
+                  [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --batch BATCH
+  --refresh
+  --edit-pmid EDIT_PMID
+  --edit-column EDIT_COLUMN
+  --edit-value EDIT_VALUE</pre></details>
+</article>
+<article class="cmd" id="cli-methods">
+  <div class="cmd-head"><h3>methods.py</h3></div>
+  <p class="summary">Methods, protocols and datasets for the selected papers, with locators.</p>
+  <p class="writes">Called by <a href="commands/write.html#methods"><code>/ref:methods</code></a> · stdout: JSON document</p>
+  <details><summary><code>methods.py --help</code></summary><pre class="code">usage: methods.py [-h] [--project PROJECT] [--question QUESTION]
+                  [--screened {included,excluded,pending}] [--read]
+                  [--queue QUEUE] [--query QUERY] [--run RUN]
+                  [--search SEARCH] [--from-file FROM_FILE] [--study STUDY]
+                  [--concept CONCEPT] [--tier {abstract,full,any}]
+                  [--exclude [EXCLUDE ...]] --repo REPO
+                  [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO</pre></details>
+</article>
+<article class="cmd" id="cli-summarize">
+  <div class="cmd-head"><h3>summarize.py</h3></div>
+  <p class="summary"><code>--dump-candidates</code> prints the synthesizer input; <code>--answer-file</code> persists a summary batch; <code>--show</code> reads one back.</p>
+  <p class="writes">Called by <a href="commands/write.html#summarize"><code>/ref:summarize</code></a> · stdout: JSON document</p>
+  <details><summary><code>summarize.py --help</code></summary><pre class="code">usage: summarize.py [-h] [--project PROJECT] [--question QUESTION]
+                    [--screened {included,excluded,pending}] [--read]
+                    [--queue QUEUE] [--query QUERY] [--run RUN]
+                    [--search SEARCH] [--from-file FROM_FILE] [--study STUDY]
+                    [--concept CONCEPT] [--tier {abstract,full,any}]
+                    [--exclude [EXCLUDE ...]] --repo REPO [--batch BATCH]
+                    [--refresh] [--answer-file ANSWER_FILE]
+                    [--coverage-note COVERAGE_NOTE]
+                    [--unresolved [UNRESOLVED ...]] [--show]
+                    [--dump-candidates]
+                    [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --batch BATCH
+  --refresh
+  --answer-file ANSWER_FILE
+  --coverage-note COVERAGE_NOTE
+  --unresolved [UNRESOLVED ...]
+  --show
+  --dump-candidates     resolve the selector and print the candidate evidence
+                        list for the ref-synthesizer subagent, without
+                        requiring an --answer-file (there&#x27;s no answer yet at
+                        this point -- the calling agent needs candidates
+                        BEFORE it can produce one)</pre></details>
+</article>
+<article class="cmd" id="cli-appraise">
+  <div class="cmd-head"><h3>appraise.py</h3></div>
+  <p class="summary">Advanced <code>/ref:review</code>: RoB 2 / Newcastle-Ottawa / AMSTAR-2 drafts per PMID plus GRADE certainty.</p>
+  <p class="writes">Called by <a href="commands/write.html#review"><code>/ref:review</code></a> · stdout: JSON document</p>
+  <details><summary><code>appraise.py --help</code></summary><pre class="code">usage: appraise.py [-h] [--project PROJECT] [--question QUESTION]
+                   [--screened {included,excluded,pending}] [--read]
+                   [--queue QUEUE] [--query QUERY] [--run RUN]
+                   [--search SEARCH] [--from-file FROM_FILE] [--study STUDY]
+                   [--concept CONCEPT] [--tier {abstract,full,any}]
+                   [--exclude [EXCLUDE ...]] --repo REPO --batch BATCH
+                   [--refresh]
+                   [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --batch BATCH
+  --refresh</pre></details>
+</article>
+<article class="cmd" id="cli-prisma">
+  <div class="cmd-head"><h3>prisma.py</h3></div>
+  <p class="summary">PRISMA 2020 flow snapshot for a project from saved runs, screening, acquisition and studies.</p>
+  <p class="writes">Called by <a href="commands/write.html#review"><code>/ref:review</code></a> · stdout: JSON document</p>
+  <details><summary><code>prisma.py --help</code></summary><pre class="code">usage: prisma.py [-h] --repo REPO --project PROJECT [--query QUERY]
+                 [--refresh]
+
+options:
+  -h, --help         show this help message and exit
+  --repo REPO
+  --project PROJECT
+  --query QUERY      query slug, optionally slug:run_id; repeatable
+  --refresh</pre></details>
+</article>
+<article class="cmd" id="cli-check-citations">
+  <div class="cmd-head"><h3>check_citations.py</h3></div>
+  <p class="summary">Persist (<code>check</code>) or read back (<code>show</code>) a paragraph citation check; findings are validated per verdict.</p>
+  <p class="writes">Called by <a href="commands/write.html#check-citations"><code>/ref:check-citations</code></a> · stdout: JSON document</p>
+  <details><summary><code>check_citations.py --help</code></summary><pre class="code">usage: check_citations.py [-h] --repo REPO [--project PROJECT]
+                          [--paragraph-file PARAGRAPH_FILE]
+                          [--findings-file FINDINGS_FILE]
+                          [--candidates-file CANDIDATES_FILE]
+                          [--resolution-file RESOLUTION_FILE] [--export-bib]
+                          [--id ID]
+                          {check,show}
+
+positional arguments:
+  {check,show}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --project PROJECT
+  --paragraph-file PARAGRAPH_FILE
+  --findings-file FINDINGS_FILE
+  --candidates-file CANDIDATES_FILE
+                        ask_retrieve.py&#x27;s candidates JSON, after
+                        merge_cited_pmid_candidates if the calling command did
+                        that
+  --resolution-file RESOLUTION_FILE
+  --export-bib
+  --id ID               check_id, for &#x27;show&#x27;</pre></details>
+</article>
+<article class="cmd" id="cli-brief">
+  <div class="cmd-head"><h3>brief.py</h3></div>
+  <p class="summary">Save, edit (a separate user revision layer) or show versioned research briefs.</p>
+  <p class="writes">Called by <a href="commands/write.html#brief"><code>/ref:brief</code></a> · stdout: JSON document</p>
+  <details><summary><code>brief.py --help</code></summary><pre class="code">usage: brief.py [-h] --repo REPO --key KEY [--project PROJECT]
+                [--question QUESTION] [--answer-file ANSWER_FILE]
+                [--evidence-file EVIDENCE_FILE]
+                [--resolution-file RESOLUTION_FILE]
+                [--unresolved [UNRESOLVED ...]] [--refresh]
+                [--revision-file REVISION_FILE]
+                {save,edit,show}
+
+positional arguments:
+  {save,edit,show}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --key KEY
+  --project PROJECT
+  --question QUESTION
+  --answer-file ANSWER_FILE
+  --evidence-file EVIDENCE_FILE
+                        ask_retrieve.py&#x27;s candidates JSON
+  --resolution-file RESOLUTION_FILE
+  --unresolved [UNRESOLVED ...]
+  --refresh
+  --revision-file REVISION_FILE</pre></details>
+</article>
+<article class="cmd" id="cli-cite">
+  <div class="cmd-head"><h3>cite.py</h3></div>
+  <p class="summary">Print the stable <code>@citekey</code> for a PMID.</p>
+  <p class="writes">Called by <a href="commands/write.html#cite"><code>/ref:cite</code></a> · stdout: plain text</p>
+  <details><summary><code>cite.py --help</code></summary><pre class="code">usage: cite.py [-h] --repo REPO --pmid PMID
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO
+  --pmid PMID</pre></details>
+</article>
+<article class="cmd" id="cli-export">
+  <div class="cmd-head"><h3>export.py</h3></div>
+  <p class="summary">BibTeX and CSL-JSON export batch over a selector, into <code>exports/&lt;batch&gt;/</code>.</p>
+  <p class="writes">Called by <a href="commands/write.html#export"><code>/ref:export</code></a> · stdout: JSON document</p>
+  <details><summary><code>export.py --help</code></summary><pre class="code">usage: export.py [-h] [--project PROJECT] [--question QUESTION]
+                 [--screened {included,excluded,pending}] [--read]
+                 [--queue QUEUE] [--query QUERY] [--run RUN] [--search SEARCH]
+                 [--from-file FROM_FILE] [--study STUDY] [--concept CONCEPT]
+                 [--tier {abstract,full,any}] [--exclude [EXCLUDE ...]]
+                 --repo REPO --batch BATCH [--refresh]
+                 [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --batch BATCH
+  --refresh</pre></details>
+</article>
+<article class="cmd" id="cli-export-papers">
+  <div class="cmd-head"><h3>export_papers.py</h3></div>
+  <p class="summary">Papers handoff: <code>references.bib</code> in Papers' dialect, PDF copies, and a manifest. <code>--to</code> falls back to <code>papers_export_dir</code>, then to <code>exports/papers/&lt;batch&gt;/</code>.</p>
+  <p class="writes">Called by <a href="commands/write.html#export-papers"><code>/ref:export-papers</code></a> · stdout: JSON document</p>
+  <details><summary><code>export_papers.py --help</code></summary><pre class="code">usage: export_papers.py [-h] [--project PROJECT] [--question QUESTION]
+                        [--screened {included,excluded,pending}] [--read]
+                        [--queue QUEUE] [--query QUERY] [--run RUN]
+                        [--search SEARCH] [--from-file FROM_FILE]
+                        [--study STUDY] [--concept CONCEPT]
+                        [--tier {abstract,full,any}] [--exclude [EXCLUDE ...]]
+                        --repo REPO [--batch BATCH] [--to TO]
+                        [--layout {papers,flat}] [--pdfs {copy,link,none}]
+                        [--notes] [--notes-force] [--tags TAGS]
+                        [--tags-from TAGS_FROM] [--skip-known] [--force]
+                        [--collection COLLECTION] [--dry-run] [--refresh]
+                        [--papers-db PAPERS_DB]
+                        [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --batch BATCH
+  --to TO
+  --layout {papers,flat}
+  --pdfs {copy,link,none}
+  --notes
+  --notes-force
+  --tags TAGS
+  --tags-from TAGS_FROM
+  --skip-known
+  --force
+  --collection COLLECTION
+  --dry-run
+  --refresh
+  --papers-db PAPERS_DB
+                        path to a Papers.app sqlite db (tests must point this
+                        at a synthetic scratch db, never the real library)</pre></details>
+</article>
+</div>
+<h3>Graph</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-concept">
+  <div class="cmd-head"><h3>concept.py</h3></div>
+  <p class="summary">Concept nodes in <code>graph/concepts.jsonl</code> with accumulating aliases and alias provenance.</p>
+  <p class="writes">Called by <a href="commands/graph.html#concept"><code>/ref:concept</code></a> · <a href="commands/graph.html#weave"><code>/ref:weave</code></a> · stdout: JSON document</p>
+  <details><summary><code>concept.py --help</code></summary><pre class="code">usage: concept.py [-h] --repo REPO [--id ID] [--name NAME] [--alias ALIAS]
+                  [--source SOURCE]
+                  {create,find,add-alias,show,list}
+
+positional arguments:
+  {create,find,add-alias,show,list}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --id ID
+  --name NAME
+  --alias ALIAS
+  --source SOURCE</pre></details>
+</article>
+<article class="cmd" id="cli-relation">
+  <div class="cmd-head"><h3>relation.py</h3></div>
+  <p class="summary">Typed concept edges: propose/create <code>potential_conflict</code>, <code>create-manual</code>, <code>review</code>, <code>refresh</code> staleness, <code>neighbors</code>.</p>
+  <p class="writes">Called by <a href="commands/graph.html#weave"><code>/ref:weave</code></a> · <a href="commands/maintain.html#index"><code>/ref:index</code></a> · stdout: JSON document</p>
+  <details><summary><code>relation.py --help</code></summary><pre class="code">usage: relation.py [-h] --repo REPO [--id ID] [--type TYPE]
+                   [--reviewer REVIEWER] [--rationale RATIONALE]
+                   [--concept CONCEPT] [--claim-a-file CLAIM_A_FILE]
+                   [--claim-b-file CLAIM_B_FILE]
+                   [--subject-concept SUBJECT_CONCEPT]
+                   [--object-concept OBJECT_CONCEPT]
+                   {propose,create,create-manual,review,refresh,show,list,neighbors}
+
+positional arguments:
+  {propose,create,create-manual,review,refresh,show,list,neighbors}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --id ID
+  --type TYPE
+  --reviewer REVIEWER
+  --rationale RATIONALE
+  --concept CONCEPT
+  --claim-a-file CLAIM_A_FILE
+  --claim-b-file CLAIM_B_FILE
+  --subject-concept SUBJECT_CONCEPT
+  --object-concept OBJECT_CONCEPT</pre></details>
+</article>
+<article class="cmd" id="cli-okf-emit">
+  <div class="cmd-head"><h3>okf_emit.py</h3></div>
+  <p class="summary">Regenerate <code>okf/</code> (concepts, papers, people, grants, index.md, log.md) from the structured sources.</p>
+  <p class="writes">Called by <a href="commands/graph.html#weave"><code>/ref:weave</code></a> · stdout: JSON document</p>
+  <details><summary><code>okf_emit.py --help</code></summary><pre class="code">usage: okf_emit.py [-h] --repo REPO [--now NOW]
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO
+  --now NOW</pre></details>
+</article>
+<article class="cmd" id="cli-graph-people">
+  <div class="cmd-head"><h3>graph_people.py</h3></div>
+  <p class="summary">Regenerate <code>graph/people_relations.jsonl</code>.</p>
+  <p class="writes">Called by <a href="commands/graph.html#weave"><code>/ref:weave</code></a> · stdout: JSON document</p>
+  <details><summary><code>graph_people.py --help</code></summary><pre class="code">usage: graph_people.py [-h] --repo REPO
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO</pre></details>
+</article>
+<article class="cmd" id="cli-gaps">
+  <div class="cmd-head"><h3>gaps.py</h3></div>
+  <p class="summary">Structural gap queries: single-study claims, unresolved conflicts, co-mentioned but ungrouped concepts, population/outcome gaps.</p>
+  <p class="writes">Called by <a href="commands/graph.html#gaps"><code>/ref:gaps</code></a> · stdout: JSON document</p>
+  <details><summary><code>gaps.py --help</code></summary><pre class="code">usage: gaps.py [-h] [--project PROJECT] [--question QUESTION]
+               [--screened {included,excluded,pending}] [--read]
+               [--queue QUEUE] [--query QUERY] [--run RUN] [--search SEARCH]
+               [--from-file FROM_FILE] [--study STUDY] [--concept CONCEPT]
+               [--tier {abstract,full,any}] [--exclude [EXCLUDE ...]]
+               --repo REPO [--intervention-concept INTERVENTION_CONCEPT]
+               [--types [{single_study_fragile,unresolved_conflicts,co_mentioned_ungrouped,population_outcome_gap} ...]]
+               [pmids ...]
+
+positional arguments:
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --intervention-concept INTERVENTION_CONCEPT
+                        required for the population_outcome_gap query
+  --types [{single_study_fragile,unresolved_conflicts,co_mentioned_ungrouped,population_outcome_gap} ...]
+                        restrict to specific gap types; default runs all
+                        applicable</pre></details>
+</article>
+<article class="cmd" id="cli-hypothesize">
+  <div class="cmd-head"><h3>hypothesize.py</h3></div>
+  <p class="summary">Swanson ABC: <code>candidates</code> runs a two-hop traversal; <code>finalize</code> attaches the caller's PubMed check results.</p>
+  <p class="writes">Called by <a href="commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a> · stdout: JSON document</p>
+  <details><summary><code>hypothesize.py --help</code></summary><pre class="code">usage: hypothesize.py [-h] --repo REPO [--concept CONCEPT]
+                      [--checks-file CHECKS_FILE]
+                      {candidates,finalize}
+
+positional arguments:
+  {candidates,finalize}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --concept CONCEPT
+  --checks-file CHECKS_FILE
+                        finalize: JSON {concept_c_id: {query, retrieved_at,
+                        result_pmids}}</pre></details>
+</article>
+</div>
+<h3>People &amp; reporting</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-person">
+  <div class="cmd-head"><h3>person.py</h3></div>
+  <p class="summary">Researcher profiles plus confirm/reject of an author position.</p>
+  <p class="writes">Called by <a href="commands/people.html#person"><code>/ref:person</code></a> · <a href="commands/people.html#discover"><code>/ref:discover</code></a> · stdout: JSON document</p>
+  <details><summary><code>person.py --help</code></summary><pre class="code">usage: person.py [-h] --repo REPO [--slug SLUG] [--name NAME] [--orcid ORCID]
+                 [--pmid PMID] [--author-index AUTHOR_INDEX]
+                 {create,show,list,confirm-publication,reject-publication}
+
+positional arguments:
+  {create,show,list,confirm-publication,reject-publication}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --slug SLUG
+  --name NAME
+  --orcid ORCID
+  --pmid PMID
+  --author-index AUTHOR_INDEX</pre></details>
+</article>
+<article class="cmd" id="cli-publications">
+  <div class="cmd-head"><h3>publications.py</h3></div>
+  <p class="summary">Role-filtered publication list for a person, or <code>--coauthors</code> collaborator export for a window.</p>
+  <p class="writes">Called by <a href="commands/people.html#publications"><code>/ref:publications</code></a> · stdout: JSON document</p>
+  <details><summary><code>publications.py --help</code></summary><pre class="code">usage: publications.py [-h] --repo REPO --person PERSON [--role ROLE]
+                       [--coauthors] [--since SINCE] [--to TO]
+
+options:
+  -h, --help       show this help message and exit
+  --repo REPO
+  --person PERSON
+  --role ROLE
+  --coauthors
+  --since SINCE
+  --to TO</pre></details>
+</article>
+<article class="cmd" id="cli-grant">
+  <div class="cmd-head"><h3>grant.py</h3></div>
+  <p class="summary">Grant records and approved award aliases.</p>
+  <p class="writes">Called by <a href="commands/people.html#grant"><code>/ref:grant</code></a> · stdout: JSON document</p>
+  <details><summary><code>grant.py --help</code></summary><pre class="code">usage: grant.py [-h] --repo REPO [--slug SLUG] [--funder FUNDER]
+                [--award AWARD] [--alias ALIAS] [--title TITLE] [--pi PI]
+                [--aims AIMS]
+                {create,add-alias,show,list}
+
+positional arguments:
+  {create,add-alias,show,list}
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --slug SLUG
+  --funder FUNDER
+  --award AWARD
+  --alias ALIAS
+  --title TITLE
+  --pi PI
+  --aims AIMS</pre></details>
+</article>
+<article class="cmd" id="cli-discover">
+  <div class="cmd-head"><h3>discover.py</h3></div>
+  <p class="summary">Persist a manual person/grant PubMed discovery run and its candidates.</p>
+  <p class="writes">Called by <a href="commands/people.html#discover"><code>/ref:discover</code></a> · stdout: JSON document</p>
+  <details><summary><code>discover.py --help</code></summary><pre class="code">usage: discover.py [-h] --repo REPO [--person PERSON] [--grant GRANT]
+                   --query-text QUERY_TEXT --candidates-file CANDIDATES_FILE
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --person PERSON
+  --grant GRANT
+  --query-text QUERY_TEXT
+  --candidates-file CANDIDATES_FILE</pre></details>
+</article>
+<article class="cmd" id="cli-report">
+  <div class="cmd-head"><h3>report.py</h3></div>
+  <p class="summary">Reproducible person report for a date window; <code>--citations</code> adds PMC-indexed counts.</p>
+  <p class="writes">Called by <a href="commands/people.html#report"><code>/ref:report</code></a> · stdout: JSON document</p>
+  <details><summary><code>report.py --help</code></summary><pre class="code">usage: report.py [-h] --repo REPO --person PERSON --from DATE_FROM
+                 --to DATE_TO [--label LABEL] [--citations]
+                 [--stale-days STALE_DAYS]
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --person PERSON
+  --from DATE_FROM
+  --to DATE_TO
+  --label LABEL
+  --citations           include PMC-indexed citing-article counts (D25), never
+                        total citations
+  --stale-days STALE_DAYS</pre></details>
+</article>
+</div>
+<h3>Maintain</h3>
+<div class="cmd-groups">
+<article class="cmd" id="cli-audit">
+  <div class="cmd-head"><h3>audit.py</h3></div>
+  <p class="summary"><code>retraction</code> and <code>citations</code> apply caller-supplied check results; <code>propagate</code> lists saved artifacts made stale; <code>show-citations</code> reads observations. No selector means the whole library.</p>
+  <p class="writes">Called by <a href="commands/maintain.html#audit"><code>/ref:audit</code></a> · stdout: JSON document</p>
+  <details><summary><code>audit.py --help</code></summary><pre class="code">usage: audit.py [-h] [--project PROJECT] [--question QUESTION]
+                [--screened {included,excluded,pending}] [--read]
+                [--queue QUEUE] [--query QUERY] [--run RUN] [--search SEARCH]
+                [--from-file FROM_FILE] [--study STUDY] [--concept CONCEPT]
+                [--tier {abstract,full,any}] [--exclude [EXCLUDE ...]]
+                --repo REPO [--results-file RESULTS_FILE]
+                [--stale-days STALE_DAYS]
+                {retraction,citations,propagate,show-citations} [pmids ...]
+
+positional arguments:
+  {retraction,citations,propagate,show-citations}
+  pmids                 explicit PMIDs (base case)
+
+options:
+  -h, --help            show this help message and exit
+  --project PROJECT
+  --question QUESTION
+  --screened {included,excluded,pending}
+  --read
+  --queue QUEUE
+  --query QUERY
+  --run RUN
+  --search SEARCH
+  --from-file FROM_FILE
+  --study STUDY
+  --concept CONCEPT
+  --tier {abstract,full,any}
+  --exclude [EXCLUDE ...]
+  --repo REPO
+  --results-file RESULTS_FILE
+                        JSON array of per-PMID check results from the calling
+                        agent
+  --stale-days STALE_DAYS</pre></details>
+</article>
+<article class="cmd" id="cli-open-in-papers">
+  <div class="cmd-head"><h3>open_in_papers.py</h3></div>
+  <p class="summary">Open a paper's acquired PDF in Papers.app.</p>
+  <p class="writes">Called by <a href="commands/maintain.html#open"><code>/ref:open</code></a> · stdout: JSON document</p>
+  <details><summary><code>open_in_papers.py --help</code></summary><pre class="code">usage: open_in_papers.py [-h] --repo REPO pmid
+
+positional arguments:
+  pmid
+
+options:
+  -h, --help   show this help message and exit
+  --repo REPO</pre></details>
+</article>
+<article class="cmd" id="cli-pull-annotations">
+  <div class="cmd-head"><h3>pull_annotations.py</h3></div>
+  <p class="summary">Upsert one paper's Papers annotations from a read-only snapshot into <code>annotations.json</code>.</p>
+  <p class="writes">Called by <a href="commands/maintain.html#pull-annotations"><code>/ref:pull-annotations</code></a> · stdout: JSON document</p>
+  <details><summary><code>pull_annotations.py --help</code></summary><pre class="code">usage: pull_annotations.py [-h] --repo REPO --pmid PMID
+                           [--papers-db PAPERS_DB]
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO
+  --pmid PMID
+  --papers-db PAPERS_DB</pre></details>
+</article>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="modules">
+<h2>Library modules</h2>
+<p>These modules are imported by scripts and have no CLI of their own. Only public names are listed.</p>
+
+<h3>lib_atomic.py: atomic writes and locking</h3>
+<dl class="args">
+  <dt>atomic_write_bytes(path, data)</dt><dd>Temp file in the same directory, fsync, <code>os.replace</code>.</dd>
+  <dt>atomic_write_text(path, text)</dt><dd>UTF-8 wrapper over <code>atomic_write_bytes</code>.</dd>
+  <dt>atomic_write_json(path, obj)</dt><dd>Two-space indent, sorted keys, trailing newline.</dd>
+  <dt>library_lock(library_root)</dt><dd>Exclusive flock on <code>index/.library.lock</code>: citekeys, slug registries, graph commits.</dd>
+  <dt>pmid_lock(library_root, pmid)</dt><dd>Exclusive flock on <code>index/.locks/&lt;pmid&gt;.lock</code>.</dd>
+  <dt>commit_version(paper_dir, version_id, write_fn)</dt><dd>Fill <code>versions/.staging-&lt;id&gt;</code>, rename it into place, then point <code>current.json</code> at it. Returns the final path.</dd>
+</dl>
+
+<h3>lib_ids.py: identifier contract</h3>
+<dl class="args">
+  <dt>SlugError</dt><dd><code>ValueError</code> subclass.</dd>
+  <dt>SLUG_RE</dt><dd><code>^[a-z0-9]+(-[a-z0-9]+)*$</code>; length 1–64 is checked separately.</dd>
+  <dt>validate_slug(slug)</dt><dd>Raises <code>SlugError</code> on an illegal slug.</dd>
+  <dt>slug_exists(library_root, kind, slug)</dt><dd>Path check for project/query/person/lab/grant; alias-registry check for study/dataset/method/concept.</dd>
+  <dt>allocate_slug(library_root, kind, slug)</dt><dd>Refuses a collision, naming the conflicting record; registers registry kinds.</dd>
+  <dt>rename_slug(library_root, kind, old, new)</dt><dd>Renames under the library lock and records <code>old → new</code> as an alias.</dd>
+  <dt>resolve_slug(library_root, kind, slug)</dt><dd>Follows alias chains to the live slug.</dd>
+  <dt>check_question_id(project_yaml, question_id)</dt><dd>Question slugs must be unique within their project.</dd>
+  <dt>make_citekey_base(author_lastname, year, first_title_word)</dt><dd>Returns <code>authorYearFirstword</code>, lowercased and alphanumeric only.</dd>
+  <dt>allocate_citekey(library_root, author_lastname, year, first_title_word)</dt><dd>Adds a <code>-2</code>, <code>-3</code> … suffix under the lock and records it in <code>index/citekeys.json</code>.</dd>
+  <dt>gen_opaque_id(prefix="")</dt><dd>Prefix + <code>secrets.token_hex(6)</code>.</dd>
+</dl>
+
+<h3>lib_schema.py: record validators</h3>
+<p><code>SchemaError(ValueError)</code>; <code>validate_config</code>, <code>validate_meta</code>, <code>validate_project</code>, <code>validate_screening_record</code>, <code>validate_claim</code>, <code>validate_correction</code>, <code>validate_study</code>, <code>validate_person</code>, <code>validate_grant</code>, <code>validate_citation_check_finding</code>, <code>validate_concept</code>, <code>validate_relation</code>, <code>validate_retraction_status</code>, <code>validate_citation_observation</code>. Constants: <code>CLAIM_NORMALIZED_FIELDS</code>, <code>STUDY_TYPES</code>, <code>CITATION_CHECK_VERDICTS</code>, <code>RELATION_TYPES</code>. Field-level detail is in <a href="#schemas">Record schemas</a>.</p>
+
+<h3>lib_selector.py: selector grammar</h3>
+<dl class="args">
+  <dt>SelectorError · NotAvailableError</dt><dd>An empty or invalid selection; <code>--concept</code> raises the latter.</dd>
+  <dt>resolve(library_root, *, pmids, project, question, screened, read, queue_state, query, run, search, from_file, study, concept, tier="any", exclude)</dt><dd>Returns <code>{pmids, selector_expression, report}</code>.</dd>
+  <dt>selector_expression(**kwargs)</dt><dd>Canonical <code>--flag value</code> string, or <code>&lt;all&gt;</code>.</dd>
+  <dt>add_selector_args(ap)</dt><dd>Adds the shared selector flags to an <code>ArgumentParser</code>.</dd>
+  <dt>resolve_from_args(library_root, args)</dt><dd><code>resolve()</code> driven by parsed args.</dd>
+</dl>
+
+<h3>lib_cite.py: CSL-JSON and BibTeX</h3>
+<dl class="args">
+  <dt>to_csl</dt><dd>CSL-JSON generation from library metadata.</dd>
+  <dt>csl_to_bibtex_entry</dt><dd>BibTeX rendering from CSL-JSON.</dd>
+  <dt>build_exports</dt><dd>Returns CSL entries and BibTeX text for a PMID list; used by <code>export.py</code> and <code>check_citations.py</code>.</dd>
+</dl>
+
+<h3>lib_verify_link.py: shared by extract.py and verify.py</h3>
+<dl class="args">
+  <dt>corrections_path · registry_path</dt><dd>Paths to <code>corrections.json</code> and <code>claim_registry.json</code>.</dd>
+  <dt>load_corrections · load_registry</dt><dd>Read the files, with empty defaults.</dd>
+  <dt>revalidate_corrections(library_root, pmid)</dt><dd>Flips claim corrections whose target is superseded to <code>pending_review</code>.</dd>
+  <dt>apply_reject_to_registry(library_root, pmid, claim_id)</dt><dd>Sets <code>excluded_from_synthesis</code>; the claim is kept.</dd>
+</dl>
+
+<h3>lib_status_check.py: retraction change detection for saved artifacts</h3>
+<dl class="args">
+  <dt>current_status(library_root, pmid)</dt><dd>A PMID's current retraction status string.</dd>
+  <dt>diff_status(library_root, prior_status_by_pmid)</dt><dd>Returns a change record for each PMID whose live status differs from the one recorded when the artifact was generated.</dd>
+</dl>
+
+<h3>Helper modules without a CLI</h3>
+<dl class="args">
+  <dt>convert.py</dt><dd><code>convert_jats</code>, <code>convert_html</code>, <code>convert_plain_text</code>, <code>convert_pdf</code>: one output contract (<code>source.md</code>, <code>figures/</code>, <code>figures.json</code>, status, diagnostics). Used by <code>fetch.py</code> and <code>attach.py</code>.</dd>
+  <dt>funding_extract.py</dt><dd><code>extract_funding_observations(xml_text)</code> returns <code>(observations, state)</code> from JATS funding markup.</dd>
+  <dt>papers_snapshot.py</dt><dd><code>SnapshotUnavailable</code>, <code>take_snapshot</code> (SQLite backup of the live DB), <code>read_items</code>, <code>try_read_items</code> (returns <code>(items, None)</code> or <code>(None, reason)</code>), <code>find_duplicate</code>.</dd>
+</dl>
+</section>
+
+<!-- ============================================================ -->
+<section id="schemas">
+<h2>Record schemas</h2>
+<p>These are the validators in <code>lib_schema.py</code>. They check only the fields listed; writers add more fields than the validators require.</p>
+
+<h3>config: validate_config</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>library_root</td><td>str</td><td>required</td></tr>
+  <tr><td>papers_export_dir · unpaywall_email</td><td>—</td><td>optional (comment only)</td></tr>
+</tbody></table></div>
+
+<h3>papers/&lt;pmid&gt;/meta.json: validate_meta</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>pmid · citekey · title · status · checked_at</td><td>str</td><td>required (<code>add.py</code> writes <code>status: "active"</code>)</td></tr>
+  <tr class="base"><td>extraction_tier</td><td>str</td><td><code>abstract</code> | <code>full</code> | <code>unavailable</code></td></tr>
+  <tr><td>doi · pmcid · journal · year · abstract_available</td><td>—</td><td>not validated; written by <code>add.py</code></td></tr>
+  <tr><td>retraction_status</td><td>object</td><td>see <code>validate_retraction_status</code>; written by <code>extract.py</code> and <code>audit.py</code></td></tr>
+  <tr><td>full_text · oa_location</td><td>—</td><td>not validated; written by <code>fetch.py</code> and <code>attach.py</code></td></tr>
+</tbody></table></div>
+
+<h3>meta.retraction_status: validate_retraction_status</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>status</td><td>str</td><td><code>retracted</code> | <code>erratum</code> | <code>none</code> | <code>unknown</code></td></tr>
+  <tr><td>source · checked_at</td><td>str | null</td><td>required keys</td></tr>
+</tbody></table></div>
+
+<h3>projects/&lt;slug&gt;/project.yaml: validate_project</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>slug</td><td>str</td><td>required</td></tr>
+  <tr><td>questions</td><td>list</td><td>each item needs <code>id</code> (str); IDs unique within the project</td></tr>
+</tbody></table></div>
+
+<h3>screening.jsonl line: validate_screening_record</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>pmid · reason · timestamp</td><td>str</td><td>required</td></tr>
+  <tr><td>decision</td><td>str</td><td><code>included</code> | <code>excluded</code> | <code>pending</code></td></tr>
+  <tr><td>search_run</td><td>str</td><td>optional</td></tr>
+</tbody></table></div>
+
+<h3>versions/&lt;id&gt;/claims.json entry: validate_claim</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>claim_id · pmid · version_id · evidence_tier · source_hash · locator · evidence_span</td><td>str</td><td>required</td></tr>
+  <tr><td>study_type</td><td>str</td><td><code>rct</code> | <code>cohort</code> | <code>case_control</code> | <code>meta_analysis</code> | <code>molecular</code> | <code>imaging</code> | <code>review</code> | <code>mixed</code> | <code>unknown</code></td></tr>
+  <tr class="base"><td>CLAIM_NORMALIZED_FIELDS</td><td>any</td><td>every key present (<code>"unknown"</code> allowed): population, intervention, comparator, outcome, timepoint, direction, effect_value, effect_measure, uncertainty_interval, study_design, cohort_identity, adjustment_context</td></tr>
+</tbody></table></div>
+
+<h3>corrections.json entry: validate_correction</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>correction_id · target_id · reviewer · timestamp · evidence_locator</td><td>str</td><td>required</td></tr>
+  <tr><td>target_type</td><td>str</td><td><code>claim</code> | <code>concept_mapping</code> | <code>person_identity</code> | <code>grant_link</code> | <code>author_contribution</code> | <code>appraisal</code></td></tr>
+  <tr><td>decision</td><td>str</td><td><code>accept</code> | <code>edit</code> | <code>reject</code></td></tr>
+  <tr><td>status</td><td>str</td><td><code>active</code> | <code>pending_review</code></td></tr>
+</tbody></table></div>
+
+<h3>studies/studies.jsonl row: validate_study</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>study_id · confidence · evidence · review_state</td><td>str</td><td>required (<code>study.py</code> uses confidence <code>confirmed|likely|uncertain</code>)</td></tr>
+  <tr><td>pmids</td><td>list</td><td>required</td></tr>
+</tbody></table></div>
+
+<h3>people/&lt;slug&gt;.json: validate_person</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>slug</td><td>str</td><td>required</td></tr>
+  <tr><td>name_variants</td><td>list</td><td>required</td></tr>
+  <tr><td>orcid</td><td>—</td><td>optional</td></tr>
+</tbody></table></div>
+
+<h3>grants/&lt;slug&gt;.json: validate_grant</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>slug · funder · award_number</td><td>str</td><td>required</td></tr>
+  <tr><td>approved_aliases</td><td>list</td><td>required (<code>grant.py</code> seeds it with the award number)</td></tr>
+</tbody></table></div>
+
+<h3>check-citations findings.json entry: validate_citation_check_finding</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>assertion_text</td><td>str</td><td>required</td></tr>
+  <tr><td>verdict</td><td>str</td><td><code>supported</code> | <code>overstated</code> | <code>conflicting</code> | <code>insufficient</code> | <code>unavailable</code></td></tr>
+  <tr class="base"><td>evidence</td><td>list</td><td>each item needs <code>pmid</code>; must be empty for <code>unavailable</code> and non-empty otherwise</td></tr>
+  <tr><td>existing_citation_pmid · citation_mismatch · note</td><td>—</td><td>optional</td></tr>
+</tbody></table></div>
+
+<h3>graph/concepts.jsonl row: validate_concept</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>concept_id · name · created_at · updated_at</td><td>str</td><td>required</td></tr>
+  <tr><td>aliases</td><td>list</td><td>required</td></tr>
+  <tr><td>alias_provenance</td><td>dict</td><td>required</td></tr>
+</tbody></table></div>
+
+<h3>graph/relations.jsonl row: validate_relation</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>relation_id · subject_concept_id · object_concept_id · created_at · updated_at</td><td>str</td><td>required</td></tr>
+  <tr><td>type</td><td>str</td><td><code>supports</code> | <code>potential_conflict</code> | <code>contradicts</code> | <code>extends</code> | <code>replicates</code></td></tr>
+  <tr><td>supporting_claims</td><td>list</td><td>at least one; each needs <code>pmid</code> and <code>claim_id</code></td></tr>
+  <tr><td>source_version_ids</td><td>list</td><td>required</td></tr>
+  <tr><td>review_state</td><td>str</td><td><code>unreviewed</code> | <code>reviewed</code></td></tr>
+  <tr class="base"><td>rationale</td><td>str | null</td><td><code>contradicts</code> requires <code>reviewed</code> and a non-empty rationale</td></tr>
+  <tr><td>stale</td><td>bool</td><td>required</td></tr>
+</tbody></table></div>
+
+<h3>papers/&lt;pmid&gt;/citations.json entry: validate_citation_observation</h3>
+<div class="tbl-wrap"><table class="sel"><thead><tr><th>Field</th><th>Type</th><th>Rule</th></tr></thead><tbody>
+  <tr><td>retrieved_at</td><td>str</td><td>always required</td></tr>
+  <tr><td>status</td><td>str</td><td><code>check_failed</code> | <code>no_pmcid</code> marks a non-observation: needs <code>reason</code> (str) and must not have <code>count</code></td></tr>
+  <tr class="base"><td>source · query · coverage</td><td>str</td><td>required for a real observation</td></tr>
+  <tr><td>count</td><td>int</td><td>required for a real observation, ≥ 0</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="agents">
+<h2>Subagent contracts</h2>
+<p>Both agents return a single JSON object with no prose and no fences. Neither can write to the library: the calling command validates their output and hands it to a script.</p>
+
+<h3 id="agent-extractor">agents/ref-extractor.md</h3>
+<p><strong>Input:</strong> <code>pmid</code>, <code>title</code>, <code>abstract</code>, and <code>full_text</code> (markdown from <code>versions/&lt;id&gt;/source.md</code>) or <code>null</code> for an abstract-tier paper. Unknown fields are the literal string <code>"unknown"</code>; <code>"claims": []</code> is a valid answer.</p>
+<p class="term-label">Output (verbatim)</p>
+<pre class="code">{
+  "pmid": "&lt;string&gt;",
+  "study_type": "rct|cohort|case_control|meta_analysis|molecular|imaging|review|mixed|unknown",
+  "study_type_confidence": "confident|uncertain",
+  "claims": [
+    {
+      "locator": "&lt;string&gt;",
+      "evidence_span": "&lt;direct quote&gt;",
+      "evidence_tier": "abstract|full",
+      "population": "...", "intervention": "...", "comparator": "...",
+      "outcome": "...", "timepoint": "...", "direction": "...",
+      "effect_value": "...", "effect_measure": "...",
+      "uncertainty_interval": "...", "study_design": "...",
+      "cohort_identity": "...", "adjustment_context": "..."
+    }
+  ]
+}</pre>
+
+<h3 id="agent-synthesizer">agents/ref-synthesizer.md</h3>
+<p><strong>Input:</strong> <code>question</code>, plus <code>candidates</code>, each with at least <code>pmid</code>, <code>citekey</code>, <code>kind</code> (<code>claim</code>|<code>passage</code>), <code>text</code>, <code>locator</code>, <code>evidence_tier</code> (<code>abstract</code>|<code>full</code>|<code>null</code>) and <code>retraction_status</code> (<code>unknown</code>|<code>none</code>|<code>retracted</code>|<code>erratum</code>). Every <code>[^pmid]</code> must refer to a supplied candidate.</p>
+<p class="term-label">Output (verbatim)</p>
+<pre class="code">{
+  "answer": "&lt;the grounded answer text, in markdown, with [^pmid] citations inline&gt;",
+  "coverage_note": "&lt;one or two sentences on evidence tier/status/sufficiency, or null if nothing notable&gt;",
+  "unresolved_questions": ["&lt;follow-up the evidence raises but doesn't answer&gt;", "..."]
+}</pre>
+</section>
+
+<!-- ============================================================ -->
+<section id="testing">
+<h2>Testing</h2>
+<p>The phase suites are plain <code>unittest</code> files that build temporary libraries. Run one:</p>
+<pre class="term"><span class="p">$</span> <span class="cmd">python3 skills/ref-manager/scripts/tests/test_phase0.py</span></pre>
+<p>Or run all of them, with <code>HOME</code> pointed at a scratch directory so your real <code>~/.config</code> is never touched:</p>
+<pre class="term"><span class="p">$</span> <span class="cmd">for t in skills/ref-manager/scripts/tests/test_phase*.py; do HOME=$(mktemp -d) python3 "$t" || echo "FAILED: $t"; done</span></pre>
+<p>Results at time of writing (2026-09-15, Python 3.14): all 17 suites pass, <strong>220 tests</strong>.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Suite</th><th>Tests</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>test_phase0.py</td><td>13</td><td>OK</td></tr>
+    <tr><td>test_phase1.py</td><td>12</td><td>OK</td></tr>
+    <tr><td>test_phase2.py</td><td>10</td><td>OK</td></tr>
+    <tr><td>test_phase3_acquire.py</td><td>20</td><td>OK</td></tr>
+    <tr><td>test_phase3_papers.py</td><td>9</td><td>OK</td></tr>
+    <tr><td>test_phase4_annotate.py</td><td>13</td><td>OK</td></tr>
+    <tr><td>test_phase4_extract.py</td><td>18</td><td>OK</td></tr>
+    <tr><td>test_phase5_compare.py</td><td>18</td><td>OK</td></tr>
+    <tr><td>test_phase5_prisma.py</td><td>7</td><td>OK</td></tr>
+    <tr><td>test_phase6_ask.py</td><td>13</td><td>OK</td></tr>
+    <tr><td>test_phase7_checkcitations.py</td><td>12</td><td>OK</td></tr>
+    <tr><td>test_phase8_graph.py</td><td>17</td><td>OK</td></tr>
+    <tr><td>test_phase8_okf.py</td><td>7</td><td>OK</td></tr>
+    <tr><td>test_phase9_gaps.py</td><td>14</td><td>OK</td></tr>
+    <tr><td>test_phase9_related.py</td><td>7</td><td>OK</td></tr>
+    <tr><td>test_phase10_summarize_review.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_phase11_audit.py</td><td>15</td><td>OK</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="muted">Fixtures live in <code>skills/ref-manager/scripts/tests/fixtures/</code> (<code>sample.html</code>, <code>sample.jats.xml</code>). Tests that touch Papers.app use <code>--papers-db</code> with a synthetic scratch database, never the real library.</p>
+</section>
+
+<nav class="pager" aria-label="Pager">
+  <a href="concepts.html"><small>Previous</small>Concepts</a>
+  <a href="index.html" style="text-align:right"><small>Next</small>Overview</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

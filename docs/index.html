@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ref-manager docs</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="index.html"><img src="assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="index.html" aria-current="page">Overview</a>
+    <a href="getting-started.html">Get started</a>
+    <a href="workflows.html">Workflows</a>
+    <a href="tutorials/index.html">Tutorials</a>
+    <a href="commands/index.html">Commands</a>
+    <a href="concepts.html">Concepts</a>
+    <a href="api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page hero">
+  <img src="assets/icon.svg" alt="ref-manager icon">
+  <div>
+    <p class="eyebrow">Claude Code plugin · v0.1.0 · phases 0–11</p>
+    <h1>A paper library you can cite, check, and reason over</h1>
+    <p class="lede">ref-manager turns PubMed IDs into a personal, PMID-keyed library: resolved metadata, immutable full-text snapshots, provenance-backed claims, and a concept graph. You drive it from Claude Code with <code>/ref:*</code> slash commands. Nothing enters the library unless you put it there, and every answer it writes cites evidence you can open.</p>
+  </div>
+</header>
+
+<section>
+<h2>How a paper moves through it</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 430" role="img" aria-label="Pipeline overview. A PMID list or selected PubMed search results enter through /ref:add, which resolves metadata, deduplicates by PMID, records the abstract and sets the extraction tier, and writes meta, authorship and funding records atomically. Optional /ref:fetch or /ref:attach add full text as a new version; /ref:extract adds claims. /ref:weave builds the concept and relation graph. Committed records are projected into a rebuildable SQLite FTS5 index used for retrieval, and the outputs are grouped as find, compare and write, verify, discover, and hand off.">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="arrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- input -->
+  <rect x="14" y="40" width="160" height="72" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="28" y="66" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">you choose</text>
+  <text x="28" y="86" font-size="11" fill="currentColor" fill-opacity=".65">PMID list, or</text>
+  <text x="28" y="101" font-size="11" fill="currentColor" fill-opacity=".65">picked search hits</text>
+
+  <line x1="174" y1="76" x2="222" y2="76" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- ingest band -->
+  <rect x="226" y="24" width="700" height="104" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="242" y="46" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:add &lt;pmid…&gt;</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="242" y="58" width="150" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="254" y="79" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 RESOLVE</text>
+    <text x="254" y="98" fill-opacity=".65">metadata · authors</text>
+    <rect x="412" y="58" width="150" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="424" y="79" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 DEDUP</text>
+    <text x="424" y="98" fill-opacity=".65">PMID identity · citekey</text>
+    <rect x="582" y="58" width="150" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="594" y="79" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">3 TIER</text>
+    <text x="594" y="98" fill-opacity=".65">abstract, or unavailable</text>
+    <rect x="752" y="58" width="158" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="764" y="79" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">4 WRITE</text>
+    <text x="764" y="98" fill-opacity=".65">meta · authorship · funding</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="392" y1="85" x2="408" y2="85" marker-end="url(#arr)"/>
+    <line x1="562" y1="85" x2="578" y2="85" marker-end="url(#arr)"/>
+    <line x1="732" y1="85" x2="748" y2="85" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- enrich row -->
+  <text x="242" y="166" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">OPTIONAL, PER PAPER</text>
+  <rect x="242" y="176" width="220" height="64" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="256" y="200" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">/ref:fetch · /ref:attach</text>
+  <text x="256" y="220" font-size="11" fill="currentColor" fill-opacity=".7">PMC JATS → Unpaywall → HTML,</text>
+  <text x="256" y="234" font-size="11" fill="currentColor" fill-opacity=".7">or your own PDF → source.md</text>
+
+  <line x1="462" y1="208" x2="512" y2="208" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#arrM)"/>
+
+  <rect x="516" y="176" width="200" height="64" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="530" y="200" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">/ref:extract</text>
+  <text x="530" y="220" font-size="11" fill="currentColor" fill-opacity=".7">one ref-extractor agent</text>
+  <text x="530" y="234" font-size="11" fill="currentColor" fill-opacity=".7">per PMID → claims.json</text>
+
+  <line x1="716" y1="208" x2="766" y2="208" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="770" y="176" width="156" height="64" rx="8" fill="none" stroke="currentColor"/>
+  <text x="784" y="200" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">5 WEAVE</text>
+  <text x="784" y="220" font-size="11" fill="currentColor" fill-opacity=".65">/ref:weave → concepts,</text>
+  <text x="784" y="234" font-size="11" fill="currentColor" fill-opacity=".65">relations, OKF views</text>
+
+  <path d="M830 128 L830 170" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#arrA)"/>
+  <path d="M440 128 L440 170" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#arrM)"/>
+
+  <!-- index -->
+  <line x1="476" y1="240" x2="476" y2="282" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="352" y="286" width="248" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text x="366" y="307" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">index/catalog.sqlite</text>
+  <text x="366" y="323" font-size="11" fill="currentColor" fill-opacity=".65">FTS5 · rebuildable projection</text>
+
+  <!-- outputs -->
+  <line x1="476" y1="332" x2="476" y2="352" stroke="currentColor" stroke-width="1.5"/>
+  <line x1="92" y1="352" x2="860" y2="352" stroke="currentColor" stroke-opacity=".4"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <g stroke="currentColor" stroke-opacity=".4">
+      <line x1="92" y1="352" x2="92" y2="370"/><line x1="284" y1="352" x2="284" y2="370"/>
+      <line x1="476" y1="352" x2="476" y2="370"/><line x1="668" y1="352" x2="668" y2="370"/><line x1="860" y1="352" x2="860" y2="370"/>
+    </g>
+    <text x="92" y="390" text-anchor="middle" font-weight="500">find</text>
+    <text x="92" y="408" text-anchor="middle" fill-opacity=".65" font-size="10.5">search · ask · related</text>
+    <text x="284" y="390" text-anchor="middle" font-weight="500">compare &amp; write</text>
+    <text x="284" y="408" text-anchor="middle" fill-opacity=".65" font-size="10.5">compare · summarize</text>
+    <text x="476" y="390" text-anchor="middle" font-weight="500">verify</text>
+    <text x="476" y="408" text-anchor="middle" fill-opacity=".65" font-size="10.5">check-citations · verify</text>
+    <text x="668" y="390" text-anchor="middle" font-weight="500">discover</text>
+    <text x="668" y="408" text-anchor="middle" fill-opacity=".65" font-size="10.5">gaps · hypothesize</text>
+    <text x="860" y="390" text-anchor="middle" font-weight="500">hand off</text>
+    <text x="860" y="408" text-anchor="middle" fill-opacity=".65" font-size="10.5">export · cite · report</text>
+  </g>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>always runs on ingest</span>
+  <span><span class="sw amber"></span>on demand, per paper</span>
+  <span><span class="sw dash"></span>your decision</span>
+</div>
+<figcaption>Acquisition failures never block ingestion: a paper with no reachable full text stays a first-class abstract-tier record, visibly labelled. Files on disk are the authority; the SQLite index and OKF views are projections that <code>/ref:index --rebuild</code> reconstructs (and <code>/ref:ask</code> rebuilds before retrieving). Stage-by-stage detail is on <a href="workflows.html">Workflows</a>.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>Sixty seconds</h2>
+<p>Inside Claude Code, with the plugin installed:</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:init ~/Research/library</span>
+<span class="c">  # creates the library, records it in ~/.config/ref-manager/config.json</span>
+<span class="p">›</span> <span class="cmd">/ref:add 31452104 30679568</span>
+<span class="c">  # resolves both PMIDs through PubMed, allocates citekeys, marks each abstract-tier</span>
+<span class="p">›</span> <span class="cmd">/ref:project create thesis-ch3 --scope "Cortical thickness in autism"</span>
+<span class="p">›</span> <span class="cmd">/ref:ask "Is cortical thickness altered in autistic adults?" --project thesis-ch3</span>
+<span class="c">  # one grounded answer, every sentence cited as [^pmid]</span></pre>
+<p class="muted">The PMIDs above are placeholders; the full walkthrough in <a href="getting-started.html">Get started</a> shows each command's real output.</p>
+</section>
+
+<section>
+<h2>Where to go</h2>
+<div class="cards">
+  <a class="card" href="getting-started.html"><span class="k">Start here</span><strong>Get started</strong><span class="d">Install, create a library, ingest your first papers, and search them.</span></a>
+  <a class="card" href="workflows.html"><span class="k">Visual</span><strong>Workflows</strong><span class="d">Diagrams of the ingest pipeline, full-text acquisition, review overlays, and synthesis.</span></a>
+  <a class="card" href="tutorials/index.html"><span class="k">Hands-on</span><strong>Tutorials</strong><span class="d">A thesis chapter, a systematic review, a PI report, the Papers handoff, and graph discovery.</span></a>
+  <a class="card" href="commands/index.html"><span class="k">Reference</span><strong>Slash commands</strong><span class="d">All 40 <code>/ref:*</code> commands: arguments, what they write, examples.</span></a>
+  <a class="card" href="concepts.html"><span class="k">Model</span><strong>Concepts</strong><span class="d">Library layout, ownership rules, extraction tiers, selectors, and identifiers.</span></a>
+  <a class="card" href="api.html"><span class="k">Internals</span><strong>API</strong><span class="d">Python scripts and their CLIs, record schemas, and the two subagent contracts.</span></a>
+</div>
+</section>
+
+<section>
+<h2>Design commitments</h2>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Rule</th><th>What it means for you</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>PMID is identity</td><td>Every paper resolves to a PubMed ID before anything else. DOI or title matches flag inconsistencies but never merge records.</td></tr>
+    <tr><td>Library starts empty</td><td>No bulk import, no scheduled jobs. Saved searches re-run only when you ask.</td></tr>
+    <tr><td>Raw is immutable</td><td>Fetched PDFs, JATS, and metadata responses are stored byte-identical under their hash. Derived text and claims are versioned beside them.</td></tr>
+    <tr><td>Your content is yours</td><td><code>notes.md</code>, annotations, and review decisions are never overwritten by regeneration.</td></tr>
+    <tr><td>Tiers stay visible</td><td>Every citation says whether an abstract or full text backed it, and what the paper's retraction status was.</td></tr>
+    <tr><td>Sets are frozen</td><td>Commands take one selector grammar and record the PMIDs they resolved to, so a saved comparison never changes membership silently.</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

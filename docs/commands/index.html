@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ref-manager commands</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Reference · 40 slash commands</p>
+  <h1>Slash commands</h1>
+  <p class="lede">Every command is typed inside Claude Code. It resolves the active library from <code>~/.config/ref-manager/config.json</code> and fails loudly, pointing at <code>/ref:init</code>, when none is configured. Commands that work on a set of papers share one selector grammar; see <a href="find.html#selectors">selectors</a>.</p>
+</header>
+
+<section>
+<div class="note"><strong>Reading the reference.</strong> Each entry lists its arguments, the steps it runs, which files it reads and writes, a terminal example, and the script or subagent behind it. Chips mark the build phase, external dependencies (PubMed, Papers.app), subagent use, and read-only commands.</div>
+</section>
+
+<section>
+<div class="cmd-groups">
+
+  <div class="cmd-group">
+    <h3><a href="acquire.html">Bring papers in</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="acquire.html#init">/ref:init &lt;path&gt;</a></dt><dd>create a library where you choose and record it in the config file</dd>
+      <dt><a href="acquire.html#add">/ref:add &lt;pmid…&gt;</a></dt><dd>the only way in: resolve metadata via PubMed, dedupe by PMID, allocate a stable citekey</dd>
+      <dt><a href="acquire.html#fetch">/ref:fetch &lt;pmid…&gt;</a></dt><dd>acquire full text in priority order and convert it to <code>source.md</code>, per-PMID results</dd>
+      <dt><a href="acquire.html#attach">/ref:attach &lt;pmid&gt; &lt;path&gt; …</a></dt><dd>attach PDFs you already have, after an identity check</dd>
+      <dt><a href="acquire.html#extract">/ref:extract &lt;pmid…&gt;</a></dt><dd>full claim extraction, one <code>ref-extractor</code> subagent per paper</dd>
+      <dt><a href="acquire.html#describe-figure">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt;</a></dt><dd>on-demand, cached model description of one figure</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3><a href="find.html">Find</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="find.html#search">/ref:search</a></dt><dd>search the library's evidence, or your personal notes, with distinct labels</dd>
+      <dt><a href="find.html#ask">/ref:ask &lt;question&gt;</a></dt><dd>retrieve evidence and write one grounded answer with <code>[^pmid]</code> citations</dd>
+      <dt><a href="find.html#search-pubmed">/ref:search-pubmed</a></dt><dd>turn a question into a PubMed query and save the run immutably</dd>
+      <dt><a href="find.html#update-queries">/ref:update-queries &lt;slug&gt;</a></dt><dd>manually re-run a saved query and append a new run</dd>
+      <dt><a href="find.html#related">/ref:related &lt;pmid&gt;</a></dt><dd>snowball backward through references and forward via PubMed</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3><a href="organize.html">Organize &amp; review</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="organize.html#project">/ref:project</a></dt><dd>projects, questions, membership, and relevance</dd>
+      <dt><a href="organize.html#queue">/ref:queue</a></dt><dd>reading state, priority, and why-saved notes within a project</dd>
+      <dt><a href="organize.html#screen">/ref:screen</a></dt><dd>record a project-specific include/exclude/pending decision with a reason</dd>
+      <dt><a href="organize.html#note">/ref:note &lt;pmid&gt;</a></dt><dd>append your own dated notes to <code>notes.md</code></dd>
+      <dt><a href="organize.html#verify">/ref:verify</a></dt><dd>accept, edit, or reject claims, identity matches, and grant links as overlays</dd>
+      <dt><a href="organize.html#study">/ref:study</a></dt><dd>group publications into studies; record datasets and methods</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3><a href="write.html">Write &amp; compare</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="write.html#compare">/ref:compare &lt;selector&gt;</a></dt><dd>evidence matrix with source-linked cells</dd>
+      <dt><a href="write.html#methods">/ref:methods &lt;selector&gt;</a></dt><dd>protocols, instruments, datasets, and software with locators</dd>
+      <dt><a href="write.html#summarize">/ref:summarize &lt;selector&gt;</a></dt><dd>prose narrative across a set, or a single paper</dd>
+      <dt><a href="write.html#review">/ref:review</a></dt><dd>appraised synthesis, or <code>--prisma</code> flow record for a project's search</dd>
+      <dt><a href="write.html#check-citations">/ref:check-citations</a></dt><dd>check a paragraph's assertions against library evidence</dd>
+      <dt><a href="write.html#brief">/ref:brief</a></dt><dd>save an answer and its evidence snapshot; refresh explicitly</dd>
+      <dt><a href="write.html#cite">/ref:cite &lt;pmid&gt;</a></dt><dd>print the stable <code>@citekey</code></dd>
+      <dt><a href="write.html#export">/ref:export &lt;selector&gt;</a></dt><dd>BibTeX and CSL-JSON for a frozen set</dd>
+      <dt><a href="write.html#export-papers">/ref:export-papers &lt;selector&gt;</a></dt><dd>Papers-dialect BibTeX plus PDF copies for import into Papers.app</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3><a href="graph.html">Explore the graph</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="graph.html#weave">/ref:weave</a></dt><dd>build and review concepts and relations, regenerate OKF views</dd>
+      <dt><a href="graph.html#concept">/ref:concept</a></dt><dd>find, create, and alias concept nodes</dd>
+      <dt><a href="graph.html#gaps">/ref:gaps &lt;selector&gt;</a></dt><dd>fragile single-study claims, open conflicts, coverage gaps</dd>
+      <dt><a href="graph.html#hypothesize">/ref:hypothesize --concept &lt;slug&gt;</a></dt><dd>Swanson ABC candidates, each checked against PubMed</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3><a href="people.html">People, grants &amp; reports</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="people.html#person">/ref:person</a></dt><dd>researcher identity: name variants, ORCID, matches</dd>
+      <dt><a href="people.html#publications">/ref:publications --person &lt;id&gt;</a></dt><dd>authorship roles, or a coauthor declaration for a window</dd>
+      <dt><a href="people.html#grant">/ref:grant</a></dt><dd>funders, awards, aliases, and publication links</dd>
+      <dt><a href="people.html#discover">/ref:discover --person &lt;id&gt;</a></dt><dd>explicit PubMed search for portfolio candidates</dd>
+      <dt><a href="people.html#report">/ref:report --person &lt;id&gt;</a></dt><dd>reproducible publication report for a date window</dd>
+    </dl>
+  </div>
+
+  <div class="cmd-group">
+    <h3><a href="maintain.html">Maintain</a></h3>
+    <dl class="cmd-list">
+      <dt><a href="maintain.html#audit">/ref:audit</a></dt><dd>re-check retraction/errata status; <code>--citations</code> records dated PMC cited-by counts</dd>
+      <dt><a href="maintain.html#index">/ref:index --rebuild</a></dt><dd>rebuild <code>catalog.sqlite</code> from committed records</dd>
+      <dt><a href="maintain.html#status">/ref:status</a></dt><dd>show the configured library and catalog counts</dd>
+      <dt><a href="maintain.html#open">/ref:open &lt;pmid&gt;</a></dt><dd>open the acquired PDF in Papers.app</dd>
+      <dt><a href="maintain.html#pull-annotations">/ref:pull-annotations &lt;pmid&gt;</a></dt><dd>import your Papers highlights and margin notes, read-only</dd>
+    </dl>
+  </div>
+
+</div>
+</section>
+
+<nav class="pager">
+  <a href="../tutorials/graph-discovery.html"><small>Previous</small>Tutorial: graph discovery</a>
+  <a href="acquire.html" style="text-align:right"><small>Next</small>Bring papers in</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

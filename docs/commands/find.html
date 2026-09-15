@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Find commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>Find</h4>
+  <ol>
+    <li><a href="#overview">How they fit</a></li>
+    <li><a href="#selectors">Selector grammar</a></li>
+    <li><a href="#search"><code>/ref:search</code></a></li>
+    <li><a href="#ask"><code>/ref:ask</code></a></li>
+    <li><a href="#search-pubmed"><code>/ref:search-pubmed</code></a></li>
+    <li><a href="#update-queries"><code>/ref:update-queries</code></a></li>
+    <li><a href="#related"><code>/ref:related</code></a></li>
+  </ol>
+  <h4>Other groups</h4>
+  <ul>
+    <li><a href="acquire.html">Acquire</a></li>
+    <li><a href="organize.html">Organize</a></li>
+    <li><a href="write.html">Write</a></li>
+    <li><a href="graph.html">Graph</a></li>
+    <li><a href="people.html">People</a></li>
+    <li><a href="maintain.html">Maintain</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · Find</p>
+  <h1>Search the library, ask it questions, discover new papers</h1>
+  <p class="lede">Five commands for finding things. Two look inside your library: <code>/ref:search</code> for quick matches, <code>/ref:ask</code> for grounded answers. Three look outward to PubMed: saved searches and snowballing. None of them adds a paper for you. Candidates only enter the library when you run <a href="acquire.html#add"><code>/ref:add</code></a>.</p>
+</header>
+
+<section id="overview">
+<h2>How they fit</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 390" role="img" aria-label="Find commands and the files they touch. Inside the library: /ref:search scans meta.json, raw abstracts, notes.md and project papers.yaml by substring, and returns labelled hits. /ref:ask expands the question, retrieves with ask_retrieve.py over the rebuilt FTS5 catalog, optionally constrained by a selector, hands the candidates to one ref-synthesizer subagent, then validate_citations.py checks every citation against the candidates; nothing is persisted. Outward to PubMed: /ref:search-pubmed appends a run to queries/slug.yaml, /ref:update-queries re-runs the stored expression and appends another run with added and removed PMIDs, and /ref:related writes backward and forward candidates to papers/pmid/related.json. Only /ref:add brings a candidate into the library.">
+  <defs>
+    <marker id="fArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="fArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="fArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <text x="14" y="22" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">INSIDE THE LIBRARY</text>
+
+  <!-- search lane -->
+  <rect x="14" y="34" width="170" height="54" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="28" y="57" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:search</text>
+  <text x="28" y="75" font-size="11" fill="currentColor" fill-opacity=".7">--scope evidence|notes|all</text>
+  <line x1="184" y1="61" x2="232" y2="61" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <rect x="236" y="34" width="300" height="54" rx="8" fill="var(--card)" stroke="currentColor"/>
+  <text x="250" y="57" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor" font-weight="500">substring scan</text>
+  <text x="250" y="75" font-size="11" fill="currentColor" fill-opacity=".65">title · journal · abstract · notes.md · relevance</text>
+  <line x1="536" y1="61" x2="584" y2="61" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <rect x="588" y="34" width="338" height="54" rx="8" fill="none" stroke="currentColor"/>
+  <text x="602" y="57" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor" font-weight="500">hits tagged by kind</text>
+  <text x="602" y="75" font-size="11" fill="currentColor" fill-opacity=".65">evidence · personal_note · project_relevance</text>
+
+  <!-- ask lane -->
+  <rect x="14" y="108" width="170" height="74" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="28" y="131" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:ask</text>
+  <text x="28" y="149" font-size="11" fill="currentColor" fill-opacity=".7">question + your</text>
+  <text x="28" y="164" font-size="11" fill="currentColor" fill-opacity=".7">2–4 expansion terms</text>
+  <line x1="184" y1="145" x2="232" y2="145" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <g font-size="11" fill="currentColor">
+    <rect x="236" y="108" width="210" height="74" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="248" y="129" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">1 RETRIEVE</text>
+    <text x="248" y="147" fill-opacity=".65">rebuild index/catalog.sqlite</text>
+    <text x="248" y="162" fill-opacity=".65">FTS5 over claims + passages</text>
+    <text x="248" y="177" fill-opacity=".65">diversify across PMIDs</text>
+    <rect x="466" y="108" width="210" height="74" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="478" y="129" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">2 SYNTHESIZE</text>
+    <text x="478" y="147" fill-opacity=".7">one ref-synthesizer subagent</text>
+    <text x="478" y="162" fill-opacity=".7">over the whole candidate set</text>
+    <text x="478" y="177" fill-opacity=".7">cites as [^pmid]</text>
+    <rect x="696" y="108" width="230" height="74" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="708" y="129" font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500">3 VALIDATE</text>
+    <text x="708" y="147" fill-opacity=".65">every [^pmid] must be in the</text>
+    <text x="708" y="162" fill-opacity=".65">candidates it was given</text>
+    <text x="708" y="177" fill-opacity=".65">nothing is written to disk</text>
+  </g>
+  <line x1="446" y1="145" x2="462" y2="145" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#fArrM)"/>
+  <line x1="676" y1="145" x2="692" y2="145" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <path d="M340 200 L340 186" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#fArrA)"/>
+  <text x="352" y="210" font-size="10.5" fill="var(--accent)">optional §5c selector narrows the set first</text>
+
+  <line x1="14" y1="232" x2="926" y2="232" stroke="currentColor" stroke-opacity=".25"/>
+  <text x="14" y="254" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">OUTWARD TO PUBMED (MCP)</text>
+
+  <!-- pubmed lane -->
+  <rect x="14" y="266" width="200" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="28" y="288" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:search-pubmed</text>
+  <text x="28" y="305" font-size="11" fill="currentColor" fill-opacity=".7">first run, --create</text>
+  <rect x="14" y="326" width="200" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="28" y="348" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:update-queries</text>
+  <text x="28" y="365" font-size="11" fill="currentColor" fill-opacity=".7">same stored expression</text>
+  <line x1="214" y1="291" x2="262" y2="310" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <line x1="214" y1="351" x2="262" y2="332" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <rect x="266" y="286" width="250" height="68" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+  <text x="280" y="308" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">queries/&lt;slug&gt;.yaml</text>
+  <text x="280" y="326" font-size="11" fill="currentColor" fill-opacity=".65">runs append, never mutate</text>
+  <text x="280" y="342" font-size="11" fill="currentColor" fill-opacity=".65">→ --query &lt;slug&gt; [--run &lt;id&gt;]</text>
+
+  <rect x="560" y="266" width="160" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="574" y="288" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:related</text>
+  <text x="574" y="305" font-size="11" fill="currentColor" fill-opacity=".7">backward · forward</text>
+  <line x1="640" y1="316" x2="640" y2="340" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
+  <rect x="560" y="344" width="200" height="36" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+  <text x="574" y="367" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor" font-weight="500">papers/&lt;pmid&gt;/related.json</text>
+
+  <rect x="786" y="296" width="140" height="54" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="800" y="319" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">/ref:add</text>
+  <text x="800" y="337" font-size="11" fill="currentColor" fill-opacity=".65">your decision</text>
+  <path d="M516 320 C 560 240, 740 240, 800 294" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 3" fill="none" marker-end="url(#fArr)"/>
+  <line x1="760" y1="362" x2="782" y2="340" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="4 3" marker-end="url(#fArr)"/>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>slash command</span>
+  <span><span class="sw amber"></span>subagent</span>
+  <span><span class="sw"></span>file written</span>
+  <span><span class="sw dash"></span>your decision</span>
+</div>
+<figcaption><code>/ref:search</code> is a plain substring scan that needs no index. <code>/ref:ask</code> rebuilds the SQLite FTS5 catalog before every retrieval, so it never answers from a stale index. The PubMed-facing scripts never call the network. Claude makes the MCP call and passes the resulting PMIDs to the script as a JSON file.</figcaption>
+</figure>
+</section>
+
+<section id="selectors">
+<h2>Selector grammar, as implemented</h2>
+<p>Commands that work on a set of papers share one selector grammar, from PLAN.md §5c and <code>lib_selector.py</code>. On this page, only <code>/ref:ask</code> uses it. A selector first resolves to an explicit PMID list, with counts by extraction tier and retraction status. An empty result is an error that names the selector, never a silently empty answer.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Selector</th><th>Resolves to</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>&lt;pmid…&gt;</td><td>exactly those PMIDs (de-duplicated)</td><td>base case</td></tr>
+    <tr><td>--from-file &lt;path&gt;</td><td>one PMID per line from a file</td><td>for long lists</td></tr>
+    <tr><td>--project &lt;slug&gt;</td><td>members in <code>projects/&lt;slug&gt;/papers.yaml</code></td><td>unknown slug is an error</td></tr>
+    <tr><td>--query &lt;slug&gt; [--run &lt;id&gt;]</td><td>PMIDs of one saved run in <code>queries/&lt;slug&gt;.yaml</code></td><td>most recent run if <code>--run</code> is omitted</td></tr>
+    <tr><td>--study &lt;id&gt;</td><td>PMIDs grouped in <code>studies/studies.jsonl</code></td><td></td></tr>
+    <tr><td>--search "&lt;expr&gt;"</td><td>PMIDs of <code>/ref:search --scope evidence</code> hits</td><td>substring, resolved once</td></tr>
+    <tr><td>--screened included|excluded|pending</td><td>narrows to the latest screening decision</td><td>requires <code>--project</code></td></tr>
+    <tr><td>--read · --queue &lt;state&gt;</td><td>narrows by membership <code>reading_status</code></td><td>requires <code>--project</code></td></tr>
+    <tr><td>--question &lt;qid&gt;</td><td>accepted and recorded in the expression</td><td>does not narrow membership in the current code</td></tr>
+    <tr><td>--tier abstract|full|any</td><td>filters on <code>meta.json</code> <code>extraction_tier</code></td><td>default <code>any</code></td></tr>
+    <tr><td>--exclude &lt;pmid…&gt;</td><td>removes PMIDs from the result</td><td></td></tr>
+    <tr><td>--concept &lt;id&gt;</td><td>raises “not available until phase 8”</td><td>not wired to the graph yet</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="muted">Only one base source is used, in this order: PMIDs, <code>--from-file</code>, <code>--project</code>, <code>--query</code>, <code>--study</code>, <code>--search</code>. The state filters then narrow it (AND). Human-verification counts are still reported as <code>not_yet_tracked</code>. In <code>ask_retrieve.py</code>, <code>--concept</code> on its own does not count as a selector, so retrieval runs across the whole library.</p>
+</section>
+
+<section>
+<h2>Commands</h2>
+
+<article class="cmd" id="search">
+  <div class="cmd-head"><h3>/ref:search</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Find papers, personal notes, or project relevance comments that contain a piece of text.</p>
+  <div class="synopsis">/ref:search --q "&lt;text&gt;" [--scope evidence|notes|all]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--q "&lt;text&gt;"</dt><dd>Required. A case-insensitive substring, not a boolean or FTS expression.</dd>
+    <dt>--scope evidence</dt><dd>Default. Searches the title and journal in <code>meta.json</code>, plus the abstract stored in <code>raw/&lt;hash&gt;/response.json</code>.</dd>
+    <dt>--scope notes</dt><dd>Searches <code>papers/&lt;pmid&gt;/notes.md</code>, plus the <code>relevance</code> and <code>why_saved</code> text on every project membership.</dd>
+    <dt>--scope all</dt><dd>Searches both, with every hit tagged by <code>kind</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root. If none is configured, it fails and points you to <code>/ref:init</code>.</li>
+    <li>Runs <code>search.py</code> and prints its JSON verbatim.</li>
+    <li>Each hit's <code>kind</code> is <code>evidence</code>, <code>personal_note</code>, or <code>project_relevance</code>. Claude never presents a note or relevance comment as a published finding.</li>
+  </ol>
+  <div class="note warn"><strong>Title and abstract only.</strong> This command does not search converted full-text passages. For passage-level retrieval, use <a href="#ask"><code>/ref:ask</code></a>, which queries the FTS5 index.</div>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/*/meta.json</code>, <code>papers/*/raw/*/response.json</code>, <code>papers/*/notes.md</code> and <code>projects/*/papers.yaml</code>. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search --scope all --q "site"</span>
+<span class="o">{
+  "query": "site",
+  "scope": "all",
+  "results": [
+    {
+      "kind": "evidence",
+      "pmid": "31000001",
+      "citekey": "rivera2019cortical",
+      "field": "title",
+      "snippet": "Cortical thickness in autistic adults: a multisite MRI study"
+    },
+    {
+      "kind": "personal_note",
+      "pmid": "31000001",
+      "snippet": "---\n2026-09-15T10:14:34.335329+00:00\n\nCheck whether site effects were modelled."
+    }
+  ]
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>search.py --repo &lt;library&gt; --scope &lt;scope&gt; --q "&lt;text&gt;"</code>. The <code>--search</code> selector reuses its <code>run()</code> function with <code>scope="evidence"</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#ask"><code>/ref:ask</code></a> · <a href="organize.html#note"><code>/ref:note</code></a> · <a href="maintain.html#index"><code>/ref:index</code></a></p>
+</article>
+
+<article class="cmd" id="ask">
+  <div class="cmd-head"><h3>/ref:ask</h3><div class="chips"><span class="tag phase">phase 6</span><span class="tag agent">ref-synthesizer</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Answer a research question using only evidence in your library, with every citation checked against what was retrieved.</p>
+  <div class="synopsis">/ref:ask "&lt;question&gt;" [&lt;pmid…&gt; | --project &lt;slug&gt; | --query &lt;slug&gt; | --study &lt;id&gt; | --search "&lt;expr&gt;" | --from-file &lt;path&gt;] [refiners]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;question&gt;</dt><dd>Required free text. It is passed to the script as <code>--q</code>, because <code>--question</code> already means a project question ID in the selector grammar.</dd>
+    <dt>selector</dt><dd>Optional. Any <a href="#selectors">§5c selector</a> constrains retrieval to that set. Without one, the whole library is searched.</dd>
+    <dt>refiners</dt><dd><code>--screened</code>, <code>--read</code>, <code>--queue</code> (each with <code>--project</code>), <code>--tier</code>, <code>--exclude</code>.</dd>
+    <dt>--candidate-budget N</dt><dd>Script option, default 30.</dd>
+    <dt>--token-budget N</dt><dd>Script option, default 6000. Tokens are estimated at 4 characters each.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Claude picks 2–4 MeSH terms, synonyms, or aliases and passes them as <code>--expand</code>. The library has no embeddings, so this expansion is how related wording gets matched.</li>
+    <li><code>ask_retrieve.py</code> rebuilds <code>index/catalog.sqlite</code>, then ORs the question words and expansion terms into an FTS5 match over active claims and passages. Rejected or excluded claims are left out.</li>
+    <li>Candidates are de-duplicated, with a claim preferred over an overlapping passage. They are then spread round-robin across PMIDs and trimmed to the candidate and token budgets. The <code>report</code> states any truncation. If <code>insufficient_coverage</code> is true, the command says so and stops.</li>
+    <li>One <span class="tag agent">ref-synthesizer</span> subagent receives the question and all candidates. It returns <code>answer</code>, <code>coverage_note</code>, and <code>unresolved_questions</code>.</li>
+    <li><code>validate_citations.py</code> checks every <code>[^pmid]</code> in the answer against the candidate set. Unresolved citations are reported, never silently dropped.</li>
+    <li>You see the answer, the coverage note, open questions, and the evidence tier and retraction status behind it.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads committed claims and passages through the rebuilt <code>index/catalog.sqlite</code>, the only file it regenerates. Persists no answer. For a saved, refreshable answer, use <a href="write.html#brief"><code>/ref:brief</code></a>, which wraps this same flow.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:ask "Is cortical thickness altered in autistic adults?" --project thesis-ch3</span>
+<span class="c"># retrieval report (from ask_retrieve.py)</span>
+<span class="o">"report": { "candidate_budget": 30, "token_budget": 6000,
+  "total_matches_before_limits": 14, "returned": 14,
+  "truncated_by_candidate_budget": false, "dropped_for_token_budget": 0,
+  "insufficient_coverage": false, "selector_constrained": true }</span>
+<span class="c"># ref-synthesizer answer, then validate_citations.py</span>
+<span class="o">{ "cited_pmids": ["31000001", "31000002"], "resolved": ["31000001", "31000002"],
+  "unresolved": [], "all_resolved": true }</span></pre>
+  <p class="term-label">output from a scratch library (no extracted claims yet)</p>
+<pre class="term"><span class="c"># the three scratch papers were only added, not extracted, so the index has nothing to match</span>
+<span class="o">{
+  "candidates": [],
+  "report": {
+    "candidate_budget": 30,
+    "token_budget": 6000,
+    "match_terms": ["cortical", "thickness", "altered", "autistic", "adults",
+                    "autism spectrum disorder", "cortical morphology"],
+    "total_matches_before_limits": 0,
+    "returned": 0,
+    "truncated_by_candidate_budget": false,
+    "dropped_for_token_budget": 0,
+    "insufficient_coverage": true,
+    "selector_constrained": true
+  }
+}</span>
+<span class="c"># an empty selector is an error, not an empty answer</span>
+<span class="w">error: selector matched no papers: --project thesis-ch3 --screened excluded</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>ask_retrieve.py --repo … --q … --expand … [selector]</code> → <span class="tag agent">ref-synthesizer</span> → <code>validate_citations.py --answer-file … --candidates-file …</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="write.html#brief"><code>/ref:brief</code></a> · <a href="write.html#check-citations"><code>/ref:check-citations</code></a> · <a href="acquire.html#extract"><code>/ref:extract</code></a> · <a href="#search"><code>/ref:search</code></a></p>
+</article>
+
+<article class="cmd" id="search-pubmed">
+  <div class="cmd-head"><h3>/ref:search-pubmed</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Turn a question into a PubMed query, run it, and save the exact expression and its results as an immutable run.</p>
+  <div class="synopsis">/ref:search-pubmed &lt;question or query&gt; --slug &lt;slug&gt; [--create]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;question or query&gt;</dt><dd>Natural language, which Claude turns into a PICO-framed boolean query with MeSH and free-text terms. An explicit PubMed expression is used verbatim.</dd>
+    <dt>--slug &lt;slug&gt;</dt><dd>Required. Names <code>queries/&lt;slug&gt;.yaml</code>.</dd>
+    <dt>--create</dt><dd>Required for a slug's first run. Without it, a new slug is refused.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Claude builds the query. The script neither parses PICO nor calls PubMed.</li>
+    <li>Claude runs the query through the PubMed MCP <code>search_articles</code> tool and writes the PMIDs to a temp JSON array.</li>
+    <li><code>pubmed_query.py new-run</code> appends a run containing the <code>run_id</code>, exact <code>query</code>, <code>source</code>, <code>retrieved_at</code>, and <code>pmids</code>.</li>
+    <li>No paper is added. Screen the results or <a href="acquire.html#add"><code>/ref:add</code></a> the ones you want.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, which is JSON despite the extension. Runs only ever append, so any artifact frozen on <code>--query &lt;slug&gt; --run &lt;id&gt;</code> still resolves to the same set later.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (PMIDs supplied by hand in place of the MCP call)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-pubmed '("Autism Spectrum Disorder"[MeSH]) AND cortical thickness[tiab]' --slug asd-cortex --create</span>
+<span class="o">{
+  "run_id": "run-24eadfb8f77b",
+  "query": "(\"Autism Spectrum Disorder\"[MeSH]) AND cortical thickness[tiab]",
+  "source": "pubmed",
+  "retrieved_at": "2026-09-15T10:14:34.607296+00:00",
+  "pmids": [
+    "31000001",
+    "31000002",
+    "39999991"
+  ]
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">MCP <code>search_articles</code> → <code>pubmed_query.py new-run --repo … --slug … --query-text "…" --source pubmed --pmids-file … [--create]</code>. The script also has <code>show</code> and <code>list</code> actions.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#update-queries"><code>/ref:update-queries</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+</article>
+
+<article class="cmd" id="update-queries">
+  <div class="cmd-head"><h3>/ref:update-queries</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Re-run a saved query's stored expression, unchanged, and record what was added or removed.</p>
+  <div class="synopsis">/ref:update-queries &lt;slug&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;slug&gt;</dt><dd>Required. A saved query with at least one prior run.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li><code>pubmed_query.py show</code> reads the saved query.</li>
+    <li>Claude calls the PubMed MCP search with the exact <code>query</code> from the most recent run, unaltered.</li>
+    <li><code>pubmed_query.py rerun</code> appends a new run that reuses the stored <code>query</code> and <code>source</code>, then reports <code>added</code> and <code>removed</code> PMIDs against the previous run.</li>
+  </ol>
+  <p class="writes">Re-runs only happen when you ask. Nothing is scheduled, and earlier runs are never edited.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads and appends to <code>queries/&lt;slug&gt;.yaml</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-queries asd-cortex</span>
+<span class="o">{
+  "run": {
+    "run_id": "run-47456189b1d6",
+    "query": "(\"Autism Spectrum Disorder\"[MeSH]) AND cortical thickness[tiab]",
+    "source": "pubmed",
+    "retrieved_at": "2026-09-15T10:14:34.789920+00:00",
+    "pmids": ["31000001", "31000002", "39999992"]
+  },
+  "added": ["39999992"],
+  "removed": ["39999991"]
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>pubmed_query.py show</code> → MCP search → <code>pubmed_query.py rerun --repo … --slug … --pmids-file …</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a></p>
+</article>
+
+<article class="cmd" id="related">
+  <div class="cmd-head"><h3>/ref:related</h3><div class="chips"><span class="tag phase">phase 9</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Snowball from a paper you already have: backward through its reference list, forward through PubMed's related-articles links.</p>
+  <div class="synopsis">/ref:related &lt;pmid&gt; [--direction backward|forward|both] [--link-type &lt;type&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt;</dt><dd>Required. Must already have <code>papers/&lt;pmid&gt;/meta.json</code>.</dd>
+    <dt>--direction</dt><dd><code>backward</code>, <code>forward</code>, or <code>both</code> (default).</dd>
+    <dt>--link-type</dt><dd><code>pubmed_pubmed</code> (default), <code>pubmed_pmc</code>, <code>pubmed_gene</code>, <code>pubmed_protein</code>, or <code>pubmed_nucleotide</code>. Passed through to <code>find_related_articles</code>.</dd>
+    <dt>show</dt><dd>Script action that prints the stored <code>related.json</code> without querying anything.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li><strong>Backward</strong> needs no network. It finds a <code>References</code> heading in the current version's <code>source.md</code> and keeps each citation line as raw text with <code>resolved: false</code>. Without full text, it reports <code>available: false</code> with a reason.</li>
+    <li><strong>Forward</strong>: Claude calls MCP <code>find_related_articles</code> and takes the PMIDs from <code>linksets[0].linksetdbs[0].links</code>. The script records each one with <code>method: "find_related_articles:&lt;link_type&gt;"</code>.</li>
+    <li>Rows are upserted by (direction, method, candidate), so a re-run refreshes <code>retrieved_at</code> instead of duplicating rows. The summary counts <code>already_in_library</code> and <code>not_yet_added</code>.</li>
+  </ol>
+  <div class="note warn"><strong>Similarity, not citations.</strong> The <code>pubmed_pubmed</code> link type ranks by similar words in titles, abstracts, and MeSH terms. It is not a cited-by graph, and every forward row says which link type produced it. Zero results are reported as <code>zero_results: true</code>, never as evidence that no related work exists. Candidates are never added automatically.</div>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/&lt;pmid&gt;/current.json</code> and <code>versions/&lt;id&gt;/source.md</code>. Writes <code>papers/&lt;pmid&gt;/related.json</code> under the per-PMID lock.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (forward PMIDs supplied by hand in place of the MCP call)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 31000001</span>
+<span class="c"># backward: the paper has no full text yet</span>
+<span class="o">{
+  "available": false,
+  "reason": "no committed full-text version for this PMID (run /ref:fetch or /ref:attach first)"
+}</span>
+<span class="c"># forward (rows abbreviated to one)</span>
+<span class="o">{
+  "count": 2,
+  "rows": [
+    {
+      "candidate": "38888881",
+      "resolved": true,
+      "direction": "forward",
+      "method": "find_related_articles:pubmed_pubmed",
+      "query": { "link_type": "pubmed_pubmed", "source_pmid": "31000001" },
+      "retrieved_at": "2026-09-15T10:14:34.958685+00:00",
+      "already_in_library": false
+    }
+  ],
+  "zero_results": false,
+  "note": null,
+  "persisted": { "total_candidates": 2, "already_in_library": 1, "not_yet_added": 1 }
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>related.py backward --repo … --pmid …</code> · MCP <code>find_related_articles</code> → <code>related.py forward --repo … --pmid … --link-type … --results-file …</code> · <code>related.py show</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="acquire.html#add"><code>/ref:add</code></a> · <a href="maintain.html#audit"><code>/ref:audit --citations</code></a> · <a href="../tutorials/graph-discovery.html">Graph discovery tutorial</a></p>
+</article>
+
+</section>
+
+<nav class="pager">
+  <a href="acquire.html"><small>Previous</small>Acquire</a>
+  <a href="organize.html"><small>Next</small>Organize</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

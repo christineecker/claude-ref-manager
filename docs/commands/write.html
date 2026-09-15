@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Write &amp; compare commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>On this page</h4>
+  <ul>
+    <li><a href="#overview">How they differ</a></li>
+    <li><a href="#export-path">Export path</a></li>
+  </ul>
+  <h4>Synthesis</h4>
+  <ul>
+    <li><a href="#compare"><code>/ref:compare</code></a></li>
+    <li><a href="#methods"><code>/ref:methods</code></a></li>
+    <li><a href="#summarize"><code>/ref:summarize</code></a></li>
+    <li><a href="#review"><code>/ref:review</code></a></li>
+    <li><a href="#check-citations"><code>/ref:check-citations</code></a></li>
+    <li><a href="#brief"><code>/ref:brief</code></a></li>
+  </ul>
+  <h4>Citations &amp; handoff</h4>
+  <ul>
+    <li><a href="#cite"><code>/ref:cite</code></a></li>
+    <li><a href="#export"><code>/ref:export</code></a></li>
+    <li><a href="#export-papers"><code>/ref:export-papers</code></a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · Write &amp; compare</p>
+  <h1>Turn a set of papers into tables, prose, and citations</h1>
+  <p class="lede">These commands take papers you already hold and produce something you can write from: an evidence matrix, a methods roll-up, a narrative summary, an appraised review, a checked paragraph, a saved answer, or a bibliography. Most of them take the same selector and freeze what it resolved to, so a saved artifact never changes membership behind your back.</p>
+</header>
+
+<section id="overview">
+<h2>How the synthesis commands differ</h2>
+<p>All set-valued commands here share one selector grammar (<code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--query</code>, <code>--search</code>, <code>--from-file</code>, refined by <code>--tier</code> and <code>--exclude</code>; see <a href="../concepts.html">Concepts</a>). The selector is resolved once, reported with counts by extraction tier and retraction status, and written into the artifact's <code>manifest.json</code>. Re-running with the same <code>--batch</code> (or <code>--key</code>) reuses that frozen set; only <code>--refresh</code> re-resolves, and then it reports what was added or removed.</p>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 440" role="img" aria-label="One selector resolution feeds every synthesis command. A selector such as a PMID list or --project is resolved once into a PMID list with tier and retraction counts, and frozen into manifest.json. From there: /ref:compare builds a structured evidence matrix; /ref:summarize writes prose through the ref-synthesizer subagent; /ref:review appraises risk of bias and GRADE certainty deterministically; /ref:review --prisma counts the search flow from committed state; /ref:brief saves an answer snapshot that changes only on explicit refresh; /ref:check-citations records a verdict per assertion. Only --refresh re-resolves the selector.">
+  <defs>
+    <marker id="wArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="wArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="wArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- selector -->
+  <rect x="14" y="30" width="190" height="84" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="28" y="56" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">selector</text>
+  <text x="28" y="76" font-size="11" fill="currentColor" fill-opacity=".65">&lt;pmid…&gt; · --project</text>
+  <text x="28" y="91" font-size="11" fill="currentColor" fill-opacity=".65">--study · --query · --search</text>
+  <text x="28" y="106" font-size="11" fill="currentColor" fill-opacity=".65">--tier · --exclude</text>
+
+  <line x1="204" y1="72" x2="252" y2="72" stroke="currentColor" stroke-width="1.5" marker-end="url(#wArr)"/>
+
+  <!-- resolve -->
+  <rect x="256" y="30" width="250" height="84" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+  <text x="272" y="56" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">RESOLVE &amp; REPORT</text>
+  <text x="272" y="76" font-size="11" fill="currentColor" fill-opacity=".65">lib_selector.resolve()</text>
+  <text x="272" y="91" font-size="11" fill="currentColor" fill-opacity=".65">counts by tier · retraction status</text>
+  <text x="272" y="106" font-size="11" fill="currentColor" fill-opacity=".65">empty match is an error</text>
+
+  <line x1="506" y1="72" x2="554" y2="72" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#wArrA)"/>
+
+  <!-- freeze -->
+  <rect x="558" y="30" width="368" height="84" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="574" y="56" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">FREEZE → manifest.json</text>
+  <text x="574" y="76" font-size="11" fill="currentColor" fill-opacity=".7">selector_expression · pmids · report</text>
+  <text x="574" y="91" font-size="11" fill="currentColor" fill-opacity=".7">same --batch / --key reuses this set</text>
+  <text x="574" y="106" font-size="11" fill="currentColor" fill-opacity=".7">--refresh re-resolves, reports the diff</text>
+
+  <!-- bus -->
+  <line x1="742" y1="114" x2="742" y2="150" stroke="var(--accent)" stroke-width="1.5"/>
+  <line x1="92" y1="150" x2="862" y2="150" stroke="var(--accent)" stroke-opacity=".6" stroke-width="1.5"/>
+  <g stroke="var(--accent)" stroke-opacity=".6" stroke-width="1.5">
+    <line x1="92" y1="150" x2="92" y2="178" marker-end="url(#wArrA)"/>
+    <line x1="246" y1="150" x2="246" y2="178" marker-end="url(#wArrA)"/>
+    <line x1="400" y1="150" x2="400" y2="178" marker-end="url(#wArrA)"/>
+    <line x1="554" y1="150" x2="554" y2="178" marker-end="url(#wArrA)"/>
+    <line x1="708" y1="150" x2="708" y2="178" marker-end="url(#wArrA)"/>
+    <line x1="862" y1="150" x2="862" y2="178" marker-end="url(#wArrA)"/>
+  </g>
+
+  <!-- six outputs -->
+  <g font-size="11" fill="currentColor">
+    <rect x="20" y="182" width="144" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="32" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">compare</text>
+    <text x="32" y="224" fill-opacity=".7">structured matrix</text>
+    <text x="32" y="242" fill-opacity=".6">9 columns per paper</text>
+    <text x="32" y="257" fill-opacity=".6">cells → claim_ids</text>
+    <text x="32" y="272" fill-opacity=".6">rows grouped by study</text>
+    <text x="32" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">table.json</text>
+
+    <rect x="174" y="182" width="144" height="150" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="186" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">summarize</text>
+    <text x="186" y="224" fill-opacity=".7">prose narrative</text>
+    <text x="186" y="242" fill-opacity=".6">all active claims</text>
+    <text x="186" y="257" fill-opacity=".6">→ ref-synthesizer</text>
+    <text x="186" y="272" fill-opacity=".6">[^pmid] citations</text>
+    <text x="186" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">summary.md</text>
+
+    <rect x="328" y="182" width="144" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="340" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">review</text>
+    <text x="340" y="224" fill-opacity=".7">appraised synthesis</text>
+    <text x="340" y="242" fill-opacity=".6">RoB 2 · NOS · AMSTAR-2</text>
+    <text x="340" y="257" fill-opacity=".6">set-level GRADE</text>
+    <text x="340" y="272" fill-opacity=".6">drafts until reviewed</text>
+    <text x="340" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">grade.json</text>
+
+    <rect x="482" y="182" width="144" height="150" rx="8" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="494" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">review --prisma</text>
+    <text x="494" y="224" fill-opacity=".7">search flow counts</text>
+    <text x="494" y="242" fill-opacity=".6">runs · screening ·</text>
+    <text x="494" y="257" fill-opacity=".6">full_text · studies</text>
+    <text x="494" y="272" fill-opacity=".6">unbacked → "unknown"</text>
+    <text x="494" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">flow.md · flow.csv</text>
+
+    <rect x="636" y="182" width="144" height="150" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="648" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">brief</text>
+    <text x="648" y="224" fill-opacity=".7">saved answer</text>
+    <text x="648" y="242" fill-opacity=".6">snapshot per save</text>
+    <text x="648" y="257" fill-opacity=".6">refresh only on ask</text>
+    <text x="648" y="272" fill-opacity=".6">diff: new · withdrawn</text>
+    <text x="648" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">answer.md</text>
+
+    <rect x="790" y="182" width="144" height="150" rx="8" fill="var(--card)" stroke="currentColor"/>
+    <text x="802" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">check-citations</text>
+    <text x="802" y="224" fill-opacity=".7">assertion verdicts</text>
+    <text x="802" y="242" fill-opacity=".6">supported · overstated</text>
+    <text x="802" y="257" fill-opacity=".6">conflicting · insuff.</text>
+    <text x="802" y="272" fill-opacity=".6">unavailable</text>
+    <text x="802" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">findings.json</text>
+  </g>
+
+  <!-- notes under -->
+  <text x="20" y="370" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">NO LLM CALL IN THE SCRIPT</text>
+  <text x="20" y="388" font-size="11" fill="currentColor" fill-opacity=".7">compare · review · review --prisma are pure queries over committed claims, screening and study records.</text>
+  <text x="20" y="414" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">JUDGMENT HAPPENS UPSTREAM</text>
+  <text x="20" y="432" font-size="11" fill="currentColor" fill-opacity=".7">summarize · brief use ref-synthesizer; check-citations is judged inline by the Claude session. The script only validates and persists.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>frozen resolution</span>
+  <span><span class="sw amber"></span>uses the ref-synthesizer subagent</span>
+  <span><span class="sw dash"></span>takes <code>--project</code> + saved queries, not a selector</span>
+</div>
+<figcaption><code>/ref:brief</code> and <code>/ref:check-citations</code> run retrieval like <code>/ref:ask</code>, so a selector only scopes their search; they freeze the evidence they used rather than a batch membership. <code>/ref:methods</code> (not drawn) resolves a selector but saves nothing.</figcaption>
+</figure>
+</section>
+
+<section id="export-path">
+<h2>The export path</h2>
+<p><code>meta.json</code> is the bibliographic authority. There is exactly one path from it to a citation format, so BibTeX and CSL-JSON can't drift apart. The Papers handoff reuses the same CSL-JSON fields but renders Papers' own BibTeX dialect.</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 250" role="img" aria-label="Export path. papers/pmid/meta.json and authorship.json are converted by lib_cite.to_csl into CSL-JSON. /ref:export writes references.csl.json and renders references.bib from that CSL-JSON, plus manifest.json, under exports/batch. /ref:export-papers takes the same CSL-JSON, adds abstract, volume, issue, pages and ISSN from the stored raw record when present, and writes a Papers-dialect references.bib, copied or linked PDFs, and a manifest into the destination folder. It never writes the Papers database.">
+  <defs>
+    <marker id="eArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="eArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="eArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <rect x="14" y="80" width="180" height="70" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+  <text x="28" y="106" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">meta.json</text>
+  <text x="28" y="124" font-size="11" fill="currentColor" fill-opacity=".65">+ authorship.json</text>
+  <text x="28" y="139" font-size="11" fill="currentColor" fill-opacity=".65">citekey · title · journal</text>
+
+  <line x1="194" y1="115" x2="242" y2="115" stroke="currentColor" stroke-width="1.5" marker-end="url(#eArr)"/>
+
+  <rect x="246" y="80" width="170" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="260" y="106" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">CSL-JSON</text>
+  <text x="260" y="124" font-size="11" fill="currentColor" fill-opacity=".7">lib_cite.to_csl()</text>
+  <text x="260" y="139" font-size="11" fill="currentColor" fill-opacity=".7">one generation path</text>
+
+  <!-- upper: export -->
+  <path d="M416 100 L460 100 L460 50 L500 50" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#eArrA)"/>
+  <rect x="504" y="16" width="422" height="72" rx="8" fill="none" stroke="var(--accent)"/>
+  <text x="518" y="38" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:export → exports/&lt;batch&gt;/</text>
+  <text x="518" y="58" font-size="11" fill="currentColor" fill-opacity=".7">references.csl.json → references.bib (rendered from CSL)</text>
+  <text x="518" y="75" font-size="11" fill="currentColor" fill-opacity=".7">manifest.json · frozen, reused unless --refresh</text>
+
+  <!-- lower: export-papers -->
+  <path d="M416 130 L460 130 L460 184 L500 184" fill="none" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#eArrM)"/>
+  <rect x="504" y="142" width="422" height="92" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="518" y="164" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">/ref:export-papers → &lt;dest&gt;/</text>
+  <text x="518" y="184" font-size="11" fill="currentColor" fill-opacity=".7">references.bib in Papers' dialect (+abstract, pages, local-url)</text>
+  <text x="518" y="201" font-size="11" fill="currentColor" fill-opacity=".7">PDFs copied or linked from raw/&lt;sha256&gt;/source.pdf</text>
+  <text x="518" y="218" font-size="11" fill="currentColor" fill-opacity=".7">manifest.json · .ref-manager-written.json</text>
+
+  <text x="14" y="200" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">ONE-WAY</text>
+  <text x="14" y="218" font-size="11" fill="currentColor" fill-opacity=".7">You import references.bib through Papers' UI;</text>
+  <text x="14" y="233" font-size="11" fill="currentColor" fill-opacity=".7">its database is only ever read, for duplicates.</text>
+</svg>
+</div>
+<figcaption><code>/ref:cite</code> skips this path entirely: it just reads the citekey from <code>meta.json</code>. <code>/ref:check-citations --export-bib</code> reuses the same <code>build_exports</code> function for the PMIDs its report cites.</figcaption>
+</figure>
+<p class="muted">Examples below that say <em>output from a scratch library</em> were run against a throwaway library holding two synthetic, abstract-only papers (PMIDs <code>10000001</code> and <code>10000002</code>, in project <code>thesis-ch3</code>) with <code>HOME</code> pointed at a scratch directory. Long JSON is trimmed where marked.</p>
+</section>
+
+<section id="commands">
+<h2>Commands</h2>
+<div class="cmd-groups">
+
+<!-- ================================================================ compare -->
+<article class="cmd" id="compare">
+  <div class="cmd-head"><h3>/ref:compare</h3><div class="chips"><span class="tag phase">phase 5</span></div></div>
+  <p class="summary">Build a frozen evidence matrix over a selected set of papers, where every cell points to the claims behind it or says why it is empty.</p>
+  <div class="synopsis">/ref:compare &lt;selector&gt; --batch &lt;label&gt; [--refresh]
+/ref:compare --batch &lt;label&gt; [--project &lt;slug&gt;] --edit &lt;pmid&gt; &lt;column&gt; &lt;value&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;selector&gt;</dt><dd>Any §5c selector: <code>&lt;pmid…&gt;</code>, <code>--project</code> [<code>--question</code>], <code>--screened</code>, <code>--read</code>/<code>--queue</code>, <code>--query</code> [<code>--run</code>], <code>--study</code>, <code>--search</code>, <code>--from-file</code>, refined by <code>--tier</code>/<code>--exclude</code>. <code>--concept</code> is rejected with "not available until phase 8".</dd>
+    <dt>--batch &lt;label&gt;</dt><dd>Required. Names the table. Re-running without <code>--refresh</code> returns the frozen table unchanged.</dd>
+    <dt>--refresh</dt><dd>Re-resolve the selector, rebuild cells, and report <code>added</code>, <code>removed</code>, <code>changed_evidence_cells</code>, and <code>retraction_status_changes</code>.</dd>
+    <dt>--edit &lt;pmid&gt; &lt;column&gt; &lt;value&gt;</dt><dd>Record your own override for one cell (the script takes it as <code>--edit-pmid</code>/<code>--edit-column</code>/<code>--edit-value</code>). Pass <code>--project</code> if the table was built with one.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root; fails pointing at <code>/ref:init</code> if unconfigured.</li>
+    <li>If the batch exists and <code>--refresh</code> is absent, returns <code>reused_frozen_table</code> without touching the selector.</li>
+    <li>Otherwise resolves the selector and builds rows. Papers sharing a recorded study (<code>/ref:study</code>) share one row, with the study's confidence shown; shared datasets alone never group papers.</li>
+    <li>Fills nine columns per paper: population, design, methods, sample_size, comparator, results, uncertainty, limitations, relevance. <code>not_extracted</code> means no claim covers that dimension (sample_size and limitations always, since extraction doesn't capture them); <code>not_reported</code> means claims exist but the paper didn't state it. The two are kept distinct on purpose.</li>
+    <li>On refresh, re-applies your edits: an edit whose underlying cell is unchanged survives; one whose evidence changed is flagged <code>stale</code>, never silently dropped or silently re-applied.</li>
+    <li>Writes the table, then the manifest (including a per-PMID retraction-status snapshot for the next refresh).</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/&lt;pmid&gt;/meta.json</code>, claim registries, <code>studies/</code> records, <code>projects/&lt;slug&gt;/papers.yaml</code> (relevance). Writes <code>projects/&lt;slug&gt;/tables/&lt;batch&gt;/{manifest.json, table.json, edits.json}</code>, or <code>tables/&lt;batch&gt;/</code> at the library root without <code>--project</code>. A bare PMID list and an equivalent <code>--project</code> produce identical rows; only <code>selector_expression</code> differs.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:compare --project thesis-ch3 --batch ch3-matrix</span>
+<span class="o">{
+  "status": "created",
+  "batch": "ch3-matrix",
+  "manifest": {
+    "batch": "ch3-matrix",
+    "selector_expression": "--project thesis-ch3",
+    "pmids": ["10000001", "10000002"],
+    "project": "thesis-ch3",
+    "report": {
+      "count": 2,
+      "by_extraction_tier": {"abstract": 2, "full": 0, "unavailable": 0, "missing_record": 0},
+      "by_human_verification_state": {"not_yet_tracked": 2},
+      "by_retraction_errata_status": {"unknown": 2}
+    },
+    "retraction_status_snapshot": {"10000001": "unknown", "10000002": "unknown"}
+  },
+  "rows": [
+    {
+      "pmids": ["10000001"],
+      "study": null,
+      "cells": {
+        "10000001": {
+          "population": {"value": "not_extracted"},
+          "design": {"value": "not_extracted"},</span>
+<span class="c">          # … remaining columns and the second row trimmed; these papers have no claims yet</span>
+<span class="o">        }
+      }
+    }
+  ]
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>compare.py --repo &lt;root&gt; [selector] --batch &lt;label&gt; [--refresh]</code>, or with <code>--edit-pmid/--edit-column/--edit-value</code>. No subagent.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#methods">/ref:methods</a> · <a href="#review">/ref:review</a> · <a href="organize.html#study">/ref:study</a> · <a href="acquire.html#extract">/ref:extract</a></p>
+</article>
+
+<!-- ================================================================ methods -->
+<article class="cmd" id="methods">
+  <div class="cmd-head"><h3>/ref:methods</h3><div class="chips"><span class="tag phase">phase 5</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">List what is known about each selected paper's design, adjustment, cohort, and linked methods and datasets, without guessing the rest.</p>
+  <div class="synopsis">/ref:methods &lt;selector&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;selector&gt;</dt><dd>Same grammar as <a href="#compare">/ref:compare</a>. No <code>--batch</code>: nothing is saved.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the selector and prints its report.</li>
+    <li>Groups papers by recorded study, as <code>/ref:compare</code> does.</li>
+    <li>Per paper, collects distinct <code>study_design</code>, <code>adjustment_context</code>, <code>cohort_identity</code> from active claims, plus methods and datasets explicitly linked with <code>/ref:study create-method</code>/<code>create-dataset</code>.</li>
+    <li><code>instruments</code>, <code>software</code>, and <code>controls</code> always read <code>not_reported</code>: the claim schema doesn't capture them, and the command won't reconstruct protocol details from what similar papers usually do.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads claim registries and <code>studies/</code> method, dataset, and study records. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:methods 10000001</span>
+<span class="o">{
+  "report": {
+    "count": 1,
+    "by_extraction_tier": {"abstract": 1, "full": 0, "unavailable": 0, "missing_record": 0},
+    "by_human_verification_state": {"not_yet_tracked": 1},
+    "by_retraction_errata_status": {"unknown": 1}
+  },
+  "rows": [
+    {
+      "pmids": ["10000001"],
+      "study": null,
+      "per_paper": [
+        {
+          "pmid": "10000001",
+          "study_design": "not_reported",
+          "adjustment_context": "not_reported",
+          "cohort_identity": "not_reported",
+          "linked_methods": "not_reported",
+          "linked_datasets": "not_reported",
+          "instruments": "not_reported",
+          "software": "not_reported",
+          "controls": "not_reported"
+        }
+      ]
+    }
+  ]
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>methods.py --repo &lt;root&gt; [selector]</code>. No subagent.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#compare">/ref:compare</a> · <a href="organize.html#study">/ref:study</a></p>
+</article>
+
+<!-- ================================================================ summarize -->
+<article class="cmd" id="summarize">
+  <div class="cmd-head"><h3>/ref:summarize</h3><div class="chips"><span class="tag phase">phase 10</span><span class="tag agent">agent</span></div></div>
+  <p class="summary">Write a cited prose narrative over a selected set of papers (or one paper), saved as a frozen batch.</p>
+  <div class="synopsis">/ref:summarize &lt;selector&gt; --batch &lt;label&gt; [--refresh]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;selector&gt;</dt><dd>Required. Any §5c selector; it fixes the paper set.</dd>
+    <dt>--batch &lt;label&gt;</dt><dd>Required. Names the saved summary; reused unless <code>--refresh</code>.</dd>
+    <dt>--refresh</dt><dd>Re-resolve and regenerate, reporting <code>added_pmids</code>, <code>removed_pmids</code>, <code>withdrawn_evidence</code>, and <code>retraction_status_changes</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs the script with <code>--dump-candidates</code> to get the resolution report and the evidence before anything is written.</li>
+    <li>The candidates are <em>every active claim</em> of the resolved papers, not ranked search hits: the selector already chose the set.</li>
+    <li>An abstract-only set may still be summarized, but the summary must say so. (Contrast <a href="#review">/ref:review</a>, which refuses.)</li>
+    <li>Spawns one <span class="tag agent">ref-synthesizer</span> for the whole set, never one per paper, with a fixed instruction to cover populations, interventions, outcomes, direction of effect, disagreement, tier, and retraction status.</li>
+    <li>Saves the returned answer with its coverage note and unresolved questions. One paper and many papers go through the same code path.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads claim registries and <code>meta.json</code>. Writes <code>projects/&lt;slug&gt;/summaries/&lt;batch&gt;/{manifest.json, summary.md, evidence.json}</code>, or <code>summaries/&lt;batch&gt;/</code> without <code>--project</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (step 1 only)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:summarize 10000001 --batch rivera-summary</span>
+<span class="c"># step 1: resolve and collect candidates, before the subagent runs</span>
+<span class="o">{
+  "resolution": {
+    "pmids": ["10000001"],
+    "selector_expression": "--pmid 10000001",
+    "report": {
+      "count": 1,
+      "by_extraction_tier": {"abstract": 1, "full": 0, "unavailable": 0, "missing_record": 0},
+      "by_human_verification_state": {"not_yet_tracked": 1},
+      "by_retraction_errata_status": {"unknown": 1}
+    }
+  },
+  "candidates": []
+}</span>
+<span class="c"># empty: this synthetic paper has no extracted claims, so there is nothing to summarize</span></pre>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="c"># after ref-synthesizer returns, the saved batch is reported as</span>
+<span class="o">{
+  "status": "created",
+  "batch": "ch3-summary",
+  "manifest": {
+    "batch": "ch3-summary",
+    "project": "thesis-ch3",
+    "selector_expression": "--project thesis-ch3",
+    "pmids": ["…", "…"],
+    "report": { … },
+    "coverage_note": "…",
+    "unresolved_questions": ["…"]
+  },
+  "summary": "… prose with [^pmid] citations …"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>summarize.py --repo &lt;root&gt; [selector] --dump-candidates</code>, then <code>summarize.py … --batch &lt;label&gt; --answer-file &lt;tmp&gt; [--coverage-note …] [--unresolved …] [--refresh]</code>. The script also accepts <code>--show</code> with <code>--batch</code> to print a saved summary. Subagent: <span class="tag agent">ref-synthesizer</span>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="find.html#ask">/ref:ask</a> · <a href="#brief">/ref:brief</a> · <a href="#compare">/ref:compare</a></p>
+</article>
+
+<!-- ================================================================ review -->
+<article class="cmd" id="review">
+  <div class="cmd-head"><h3>/ref:review</h3><div class="chips"><span class="tag phase">phase 10</span><span class="tag phase">--prisma: phase 5</span></div></div>
+  <p class="summary">Either appraise a selected set (risk of bias per paper, GRADE certainty for the set) or, with <code>--prisma</code>, count a project's search flow from committed records.</p>
+  <div class="synopsis">/ref:review &lt;selector&gt; --batch &lt;label&gt; [--refresh]
+/ref:review --prisma --project &lt;slug&gt; [--query &lt;slug&gt;[:&lt;run_id&gt;] …] [--refresh]</div>
+  <p class="writes">The two modes share a name but nothing else. If the arguments are neither <code>--prisma</code> nor a selector, the command stops rather than guessing.</p>
+
+  <h4>Arguments · appraised mode</h4>
+  <dl class="args">
+    <dt>&lt;selector&gt;</dt><dd>Required. Any §5c selector.</dd>
+    <dt>--batch &lt;label&gt;</dt><dd>Required. Names the saved review; reused unless <code>--refresh</code>.</dd>
+    <dt>--refresh</dt><dd>Re-resolve and regenerate; picks up review decisions recorded since, and reports <code>added_pmids</code>/<code>removed_pmids</code>.</dd>
+  </dl>
+  <h4>What happens · appraised mode</h4>
+  <ol>
+    <li>Checks tiers first. If the resolved set has no full-tier paper, returns <code>"status": "refused"</code> and generates nothing: RoB 2, Newcastle-Ottawa, AMSTAR-2 and GRADE need full-text detail.</li>
+    <li>Picks a checklist per paper from the claims' study type: RCT → RoB 2, cohort/case-control → Newcastle-Ottawa, meta-analysis → AMSTAR-2 (a representative subset of items). Other study types get a note, not a forced rating. Abstract-tier papers in a mixed set are marked <code>insufficient_information</code>, not dropped.</li>
+    <li>Rates each domain deterministically from claim fields, with <code>claim_ids</code> and a <code>note</code>. No LLM is involved. Most domains land on <code>insufficient_information</code> because the claim schema doesn't record things like blinding or allocation concealment; that is the honest answer, not a bug.</li>
+    <li>Computes set-level GRADE: a baseline from study types, then each downgrade factor listed with <code>downgrade</code>, <code>not_assessed</code>, and <code>reason</code>. Nothing is silently omitted.</li>
+    <li>Every rating starts as <code>model_draft</code>. Record a human decision per domain with <code>verify.py review-appraisal</code> (<a href="organize.html#verify">/ref:verify</a>); a refreshed review then shows <code>human_confirmed</code>, <code>human_edited</code> or <code>human_rejected</code>. GRADE itself has no per-paper home and lives in <code>grade.json</code>.</li>
+  </ol>
+  <h4>Reads &amp; writes · appraised mode</h4>
+  <p class="writes">Reads claim registries, <code>meta.json</code>, <code>corrections.json</code> review decisions, relation records. Writes <code>projects/&lt;slug&gt;/reviews/&lt;batch&gt;/{manifest.json, grade.json, appraisals/&lt;pmid&gt;.json}</code>, or <code>reviews/&lt;batch&gt;/</code> without <code>--project</code>. A refusal writes nothing.</p>
+
+  <h4>Arguments · --prisma</h4>
+  <dl class="args">
+    <dt>--project &lt;slug&gt;</dt><dd>Required.</dd>
+    <dt>--query &lt;slug&gt;[:&lt;run_id&gt;]</dt><dd>Repeatable. A saved query whose run history feeds "identified"; without <code>:run_id</code> its latest run is used. Projects don't record their queries, so you name them each time. Omit it and identified/duplicates read <code>"unknown"</code>, not zero.</dd>
+    <dt>--refresh</dt><dd>Re-derive from current state and report <code>included_added</code>/<code>included_removed</code>; otherwise the last snapshot is returned verbatim.</dd>
+  </dl>
+  <h4>What happens · --prisma</h4>
+  <ol>
+    <li>Identified and duplicates come from <code>queries/&lt;slug&gt;.yaml</code> run histories; screened and excluded (by reason) from <code>projects/&lt;slug&gt;/screening.jsonl</code>; sought and not-retrieved from each included paper's <code>full_text</code> flag; included studies from <code>studies/studies.jsonl</code>.</li>
+    <li>Nothing is re-run or estimated. Counts with no committed evidence read <code>"unknown"</code> and are named in <code>unresolved_query_specs</code> or <code>unevidenced_*</code> rather than fudged to make the arithmetic balance.</li>
+    <li>Included publications and included studies are reported separately, since several papers can report one study.</li>
+  </ol>
+  <h4>Reads &amp; writes · --prisma</h4>
+  <p class="writes">Writes <code>projects/&lt;slug&gt;/prisma/&lt;snapshot_id&gt;/{manifest.json, flow.md, flow.csv}</code> and <code>projects/&lt;slug&gt;/prisma/latest.json</code>. Snapshot IDs are opaque (<code>prisma-…</code>).</p>
+
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review --project thesis-ch3 --batch ch3-review</span>
+<span class="o">{
+  "status": "refused",
+  "batch": "ch3-review",
+  "reason": "selected set is wholly abstract-tier -- appraisal needs full-text detail; not proceeding (§8 phase-10 gate)",
+  "by_extraction_tier": {"abstract": 2, "full": 0, "unavailable": 0, "missing_record": 0}
+}</span>
+<span class="c"># fetch or attach full text and run /ref:extract first</span>
+
+<span class="p">›</span> <span class="cmd">/ref:review --prisma --project thesis-ch3</span>
+<span class="o">{
+  "status": "created",
+  "snapshot_id": "prisma-f64fae44bffb",
+  "manifest": {
+    "snapshot_id": "prisma-f64fae44bffb",
+    "project": "thesis-ch3",
+    "query_specs": [],
+    "flow": {
+      "identified": {
+        "per_source": {},
+        "total_raw": "unknown",
+        "note": "no --query given: identified counts are unknown, not zero"
+      },
+      "duplicates_removed": "unknown",
+      "unresolved_query_specs": [],
+      "screened": 0,
+      "excluded": {"count": 0, "by_reason": {}},
+      "unevidenced_screened_pmids": [],
+      "reports": {"sought": 0, "not_retrieved": 0, "not_retrieved_pmids": [], "unevidenced_sought_pmids": []},
+      "included": {
+        "publications_count": 0,
+        "publications": [],
+        "studies_count": "unknown",
+        "studies_note": "studies/studies.jsonl not available -- included-studies count is unknown, not assumed equal to included-publications count",
+        "grouped_studies": [],
+        "ungrouped_publications": []
+      }</span>
+<span class="c">      # … project and data_cutoff fields trimmed</span>
+<span class="o">    }
+  }
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">Appraised: <code>appraise.py --repo &lt;root&gt; [selector] --batch &lt;label&gt; [--refresh]</code>; reviews recorded with <code>verify.py review-appraisal --pmid … --checklist RoB2|Newcastle-Ottawa|AMSTAR-2 --domain-key … --decision accept|edit|reject --reviewer … --rationale …</code>. PRISMA: <code>prisma.py --repo &lt;root&gt; --project &lt;slug&gt; [--query …] [--refresh]</code>. No subagent in either mode.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="organize.html#screen">/ref:screen</a> · <a href="find.html#search-pubmed">/ref:search-pubmed</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="organize.html#study">/ref:study</a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+</article>
+
+<!-- ================================================================ check-citations -->
+<article class="cmd" id="check-citations">
+  <div class="cmd-head"><h3>/ref:check-citations</h3><div class="chips"><span class="tag phase">phase 7</span></div></div>
+  <p class="summary">Split a paragraph into assertions and record, for each, whether library evidence supports it, without ever rewriting your text.</p>
+  <div class="synopsis">/ref:check-citations "&lt;paragraph&gt;" [&lt;selector&gt;] [--export-bib]
+/ref:check-citations --file &lt;path&gt; [&lt;selector&gt;] [--export-bib]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;paragraph&gt; | --file &lt;path&gt;</dt><dd>Required. The text to check.</dd>
+    <dt>&lt;selector&gt;</dt><dd>Optional: <code>--project</code>, <code>--study</code>, <code>--search</code>, <code>--from-file</code>, or a bare PMID list, to scope retrieval.</dd>
+    <dt>--export-bib</dt><dd>Also write BibTeX and CSL-JSON for every PMID the report cites as evidence.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Notes any <code>[^pmid]</code> markers already in the paragraph: those citations must be verified, not just searched around.</li>
+    <li>Retrieves candidates like <a href="find.html#ask">/ref:ask</a> (query expansion, then <code>ask_retrieve.py</code>), and adds the active claims of any cited PMID that retrieval missed.</li>
+    <li>The Claude session itself splits the paragraph and gives each assertion one verdict: <code>supported</code>, <code>overstated</code>, <code>conflicting</code>, <code>insufficient</code>, or <code>unavailable</code>. An existing citation that doesn't back its sentence gets <code>citation_mismatch: true</code>. No subagent is used, since this verifies text rather than writing it.</li>
+    <li>The script validates the findings: each <code>assertion_text</code> must be an exact substring of your paragraph, every evidence PMID and claim ID must be in the candidate set, and <code>unavailable</code> must carry no evidence.</li>
+    <li>Persists the paragraph verbatim, the findings, and verdict counts, and always prints the coverage caveat.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>checks/&lt;check_id&gt;/{input.md, findings.json, manifest.json}</code> (or under <code>projects/&lt;slug&gt;/checks/</code>), plus <code>references.bib</code> and <code>references.csl.json</code> with <code>--export-bib</code>. Check IDs are opaque (<code>check-…</code>); each check is a one-off snapshot.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:check-citations "Cortical thickness is reduced in autistic adults [^10000001]. This causes social difficulties." --project thesis-ch3</span>
+<span class="o">{
+  "check_id": "check-…",
+  "manifest": {
+    "check_id": "check-…",
+    "project": "thesis-ch3",
+    "selector_expression": "--project thesis-ch3",
+    "referenced_pmids": ["10000001"],
+    "verdict_counts": {"supported": 1, "overstated": 0, "conflicting": 0, "insufficient": 0, "unavailable": 1},
+    "caveat": "Available library coverage does not establish a comprehensive literature check (§5a) -- an 'unavailable' or 'insufficient' verdict means this library doesn't have evidence either way, not that none exists.",
+    "bibliography_exported": false
+  },
+  "findings": [
+    {"assertion_text": "Cortical thickness is reduced in autistic adults", "verdict": "supported",
+     "evidence": [{"pmid": "10000001", "claim_id": "…"}]},
+    {"assertion_text": "This causes social difficulties.", "verdict": "unavailable", "evidence": []}
+  ],
+  "caveat": "…"
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>ask_retrieve.py</code> for candidates, then <code>check_citations.py check --repo &lt;root&gt; [--project &lt;slug&gt;] --paragraph-file … --findings-file … --candidates-file … [--resolution-file …] [--export-bib]</code>. <code>check_citations.py show --id &lt;check_id&gt;</code> reprints a saved check. Judgment is inline in the session; no subagent.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="find.html#ask">/ref:ask</a> · <a href="#export">/ref:export</a> · <a href="maintain.html#audit">/ref:audit</a> · <a href="../tutorials/thesis-chapter.html">Thesis chapter tutorial</a></p>
+</article>
+
+<!-- ================================================================ brief -->
+<article class="cmd" id="brief">
+  <div class="cmd-head"><h3>/ref:brief</h3><div class="chips"><span class="tag phase">phase 6</span><span class="tag agent">agent</span></div></div>
+  <p class="summary">Save a grounded answer to a recurring question with its evidence, and change it only when you ask for a refresh.</p>
+  <div class="synopsis">/ref:brief "&lt;question&gt;" --key &lt;label&gt; [--project &lt;slug&gt;] [&lt;selector&gt;] [--refresh]
+/ref:brief --key &lt;label&gt; [--project &lt;slug&gt;] --show
+/ref:brief --key &lt;label&gt; [--project &lt;slug&gt;] --edit "&lt;text&gt;"</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;question&gt;</dt><dd>Required on first save.</dd>
+    <dt>--key &lt;label&gt;</dt><dd>Required. Your name for this standing question. Distinct from the opaque <code>snapshot_id</code> minted on every save.</dd>
+    <dt>--project &lt;slug&gt;</dt><dd>Optional; omit for a library-wide brief.</dd>
+    <dt>&lt;selector&gt;</dt><dd>Optional, constrains retrieval as in <code>/ref:ask</code>.</dd>
+    <dt>--refresh</dt><dd>Re-run retrieval and synthesis, save a new snapshot, report the diff.</dd>
+    <dt>--show</dt><dd>Print the current snapshot without running anything.</dd>
+    <dt>--edit &lt;text&gt;</dt><dd>Attach your revision to the current snapshot.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li><code>--show</code> and <code>--edit</code> call the script directly and stop.</li>
+    <li>Otherwise runs the same sequence as <a href="find.html#ask">/ref:ask</a>: query expansion, <code>ask_retrieve.py</code>, one <span class="tag agent">ref-synthesizer</span>, then <code>validate_citations.py</code>.</li>
+    <li>If a snapshot exists and <code>--refresh</code> is absent, returns <code>reused_frozen_brief</code>. There is no scheduled monitoring: a brief never updates on its own.</li>
+    <li>On refresh, reports <code>added_support_claim_ids</code>, <code>new_pmids</code>, <code>withdrawn_evidence</code> (claims no longer active or rejected via <code>/ref:verify</code>), and <code>retraction_status_changes</code>. Deciding whether new evidence <em>conflicts</em> is left to the synthesis step; the script only reports what it can check deterministically.</li>
+    <li>Your <code>--edit</code> survives a refresh whose evidence is unchanged, and is marked <code>"stale": true</code> (kept, not discarded) when it changed.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>projects/&lt;slug&gt;/briefs/&lt;key&gt;/{latest.json, edits.json, &lt;snapshot_id&gt;/{manifest.json, answer.md, evidence.json}}</code>, or <code>briefs/&lt;key&gt;/</code> at the library root. Old snapshots stay on disk.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:brief --key thickness --project thesis-ch3 --refresh</span>
+<span class="o">{
+  "status": "refreshed",
+  "snapshot_id": "brief-…",
+  "manifest": {
+    "snapshot_id": "brief-…",
+    "key": "thickness",
+    "project": "thesis-ch3",
+    "question": "Is cortical thickness altered in autistic adults?",
+    "selector_expression": "&lt;all&gt;",
+    "pmids_at_resolution": null,
+    "unresolved_questions": ["…"],
+    "evidence_hash": "…"
+  },
+  "answer": "… [^pmid] …",
+  "added_support_claim_ids": ["…"],
+  "new_pmids": ["…"],
+  "withdrawn_evidence": [
+    {"claim_id": "…", "pmid": "…", "reason": "excluded_from_synthesis (rejected via /ref:verify)"}
+  ],
+  "retraction_status_changes": [],
+  "user_edit": {"revision": "…", "based_on_evidence_hash": "…", "edited_at": "…", "stale": true}
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>brief.py save --repo &lt;root&gt; --key … [--project …] --question … --answer-file … --evidence-file … [--resolution-file …] [--unresolved …] [--refresh]</code>; <code>brief.py show</code>; <code>brief.py edit … --revision-file …</code>. Subagent: <span class="tag agent">ref-synthesizer</span>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="find.html#ask">/ref:ask</a> · <a href="#summarize">/ref:summarize</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="maintain.html#audit">/ref:audit</a></p>
+</article>
+
+<!-- ================================================================ cite -->
+<article class="cmd" id="cite">
+  <div class="cmd-head"><h3>/ref:cite</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Print the stable <code>@citekey</code> for one paper while you write.</p>
+  <div class="synopsis">/ref:cite &lt;pmid&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt;</dt><dd>Required. Must already be in the library.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads <code>papers/&lt;pmid&gt;/meta.json</code> and prints <code>@</code> plus its citekey. The citekey was allocated at <code>/ref:add</code> and does not change, so it is safe to type into a manuscript.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>meta.json</code>. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:cite 10000001</span>
+<span class="o">@rivera2021cortical</span>
+<span class="p">›</span> <span class="cmd">/ref:cite 99999999</span>
+<span class="o">error: pmid '99999999' not in library — add it first via /ref:add</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>cite.py --repo &lt;root&gt; --pmid &lt;pmid&gt;</code>. No subagent.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#export">/ref:export</a> · <a href="acquire.html#add">/ref:add</a></p>
+</article>
+
+<!-- ================================================================ export -->
+<article class="cmd" id="export">
+  <div class="cmd-head"><h3>/ref:export</h3><div class="chips"><span class="tag phase">phase 2</span></div></div>
+  <p class="summary">Export a selected set as BibTeX and CSL-JSON into a frozen, named batch.</p>
+  <div class="synopsis">/ref:export &lt;selector&gt; --batch &lt;label&gt; [--refresh]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;selector&gt;</dt><dd><code>&lt;pmid…&gt;</code>, <code>--project</code> [<code>--question</code>], <code>--screened</code>, <code>--read</code>/<code>--queue</code>, <code>--query</code> [<code>--run</code>], <code>--search</code>, <code>--from-file</code>, refined by <code>--tier</code>/<code>--exclude</code>.</dd>
+    <dt>--batch &lt;label&gt;</dt><dd>Required. Directory name under <code>exports/</code>. Reused unless <code>--refresh</code>.</dd>
+    <dt>--refresh</dt><dd>Re-resolve, rewrite both files, and report <code>added</code>/<code>removed</code> against the prior freeze.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>An existing batch without <code>--refresh</code> returns <code>reused_frozen_batch</code> and doesn't re-resolve.</li>
+    <li>Otherwise resolves the selector, builds CSL-JSON from <code>meta.json</code> + <code>authorship.json</code>, and renders BibTeX <em>from</em> that CSL-JSON, so the two formats can't disagree.</li>
+    <li>Writes both files and a manifest with the selector, PMIDs, citekeys, and resolution report.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>exports/&lt;batch&gt;/{references.bib, references.csl.json, manifest.json}</code> at the library root, even when the selector is <code>--project</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export --project thesis-ch3 --batch ch3</span>
+<span class="o">{
+  "status": "created",
+  "batch": "ch3",
+  "manifest": {
+    "batch": "ch3",
+    "selector_expression": "--project thesis-ch3",
+    "pmids": ["10000001", "10000002"],
+    "citekeys": ["rivera2021cortical", "lindqvist2019surface"],
+    "resolved_at": "2026-09-15T10:14:30.552480+00:00",
+    "report": {
+      "count": 2,
+      "by_extraction_tier": {"abstract": 2, "full": 0, "unavailable": 0, "missing_record": 0},
+      "by_human_verification_state": {"not_yet_tracked": 2},
+      "by_retraction_errata_status": {"unknown": 2}
+    }
+  }
+}</span>
+<span class="c"># exports/ch3/references.bib</span>
+<span class="o">@article{rivera2021cortical,
+  title = {Cortical thickness in autistic adults: a cohort study},
+  author = {Rivera, Ana and Okafor, Chidi},
+  journal = {Example Journal of Neuroimaging},
+  year = 2021,
+  doi = {10.0000/example.1},
+  pmid = {10000001}
+}</span>
+<span class="c"># second entry trimmed. Running the same command again:</span>
+<span class="o">{
+  "status": "reused_frozen_batch",
+  "batch": "ch3",</span>
+<span class="c">  # … same manifest</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>export.py --repo &lt;root&gt; --batch &lt;label&gt; [selector] [--refresh]</code>, using <code>lib_cite.build_exports</code>. No subagent.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#cite">/ref:cite</a> · <a href="#export-papers">/ref:export-papers</a> · <a href="#check-citations">/ref:check-citations --export-bib</a></p>
+</article>
+
+<!-- ================================================================ export-papers -->
+<article class="cmd" id="export-papers">
+  <div class="cmd-head"><h3>/ref:export-papers</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">Papers.app</span></div></div>
+  <p class="summary">Write selected papers, their PDFs, and optionally notes and tags into a folder ReadCube Papers imports from, without touching its database.</p>
+  <div class="synopsis">/ref:export-papers &lt;selector&gt; [--to &lt;dir&gt;] [--layout papers|flat] [--pdfs copy|link|none]
+                   [--notes[=force]] [--tags &lt;a,b&gt;] [--tags-from &lt;slug&gt;]
+                   [--skip-known] [--force] [--collection &lt;name&gt;]
+                   [--dry-run] [--batch &lt;label&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;selector&gt;</dt><dd>Any §5c selector.</dd>
+    <dt>--to &lt;dir&gt;</dt><dd>Destination. Default: <code>papers_export_dir</code> from <code>~/.config/ref-manager/config.json</code>, else <code>exports/papers/&lt;batch&gt;/</code> in the library (and the output says which applied).</dd>
+    <dt>--layout papers|flat</dt><dd><code>papers</code> writes <code>&lt;LastAuthor&gt;/&lt;Journal&gt;-&lt;Year&gt;.pdf</code> (default for the configured folder); <code>flat</code> writes <code>&lt;citekey&gt;.pdf</code> (default otherwise).</dd>
+    <dt>--pdfs copy|link|none</dt><dd>Default <code>copy</code>. <code>link</code> symlinks; <code>none</code> omits PDFs and <code>local-url</code>.</dd>
+    <dt>--notes[=force]</dt><dd>Push <code>notes.md</code> into the BibTeX <code>note</code> field. Refuses a paper whose note an earlier export already pushed; <code>=force</code> (script: <code>--notes-force</code>) overwrites.</dd>
+    <dt>--tags &lt;a,b&gt; · --tags-from &lt;slug&gt;</dt><dd>Fill <code>keywords</code> with explicit tags, or with the project slug for papers in that project.</dd>
+    <dt>--skip-known · --force</dt><dd>With a readable Papers database, skip papers it already holds (matched by PMID or DOI); <code>--force</code> exports them anyway.</dd>
+    <dt>--collection &lt;name&gt;</dt><dd>Recorded in the manifest only. No Papers collection is created.</dd>
+    <dt>--dry-run</dt><dd>Compute and print the plan; write nothing.</dd>
+    <dt>--batch &lt;label&gt;</dt><dd>Names the fallback <code>exports/papers/&lt;batch&gt;/</code> folder.</dd>
+    <dt>--refresh</dt><dd>Listed in the command file as "re-resolve even if a manifest exists"; the current script accepts it but always resolves live, so it has no effect.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Looks for <code>~/Library/Application Support/Papers/*.db</code> and passes the first match as <code>--papers-db</code>, read-only. If none is found or it can't be read, the export proceeds without duplicate detection; that is expected, not an error.</li>
+    <li>Resolves the selector, then per paper builds CSL-JSON and adds abstract, volume, issue, pages, and ISSN from the stored raw record when present. Missing ones are listed under <code>field_omissions</code>.</li>
+    <li>Finds an acquired PDF (via <code>acquisitions.json</code>, falling back to <code>raw/*/source.pdf</code>), allocates its destination path, and copies or links it. Papers without one appear in <code>missing_pdfs</code>.</li>
+    <li>Never overwrites a file at the destination that an earlier ref-manager export didn't write. Such paths go into <code>foreign_conflicts</code>; under the <code>papers</code> layout, name clashes get <code>-2</code>, <code>-3</code> suffixes.</li>
+    <li>Writes a Papers-dialect <code>references.bib</code> (double-braced title and abstract, literal UTF-8, <code>local-url</code>), the manifest, and the written-path index. You then import <code>references.bib</code> through Papers' own UI; this command doesn't drive the app.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>&lt;dest&gt;/{references.bib, manifest.json, .ref-manager-written.json}</code> and the PDFs; records note pushes in <code>exports/papers/note_pushes.json</code> in the library. Reads the Papers database only for duplicates; never writes it, never opens the app.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:export-papers --project thesis-ch3 --to ~/scratch/papers-out --dry-run</span>
+<span class="o">{
+  "dry_run": true,
+  "destination": "…/papers-out",
+  "manifest": {
+    "selector_expression": "--project thesis-ch3",
+    "pmids": ["10000001", "10000002"],
+    "citekeys": ["rivera2021cortical", "lindqvist2019surface"],
+    "destination": "…/papers-out",
+    "destination_reason": "--to",
+    "layout": "flat",
+    "pdfs_mode": "copy",
+    "per_paper": {
+      "10000001": {"citekey": "rivera2021cortical", "pdf_path": null, "already_known": false, "pushed_note_hash": null},
+      "10000002": {"citekey": "lindqvist2019surface", "pdf_path": null, "already_known": false, "pushed_note_hash": null}
+    },
+    "missing_pdfs": ["10000001", "10000002"],
+    "already_known": [],
+    "skipped_known": [],
+    "field_omissions": {
+      "10000001": ["volume", "issue", "pages", "issn"],
+      "10000002": ["volume", "issue", "pages", "issn"]
+    },
+    "foreign_conflicts": [],
+    "duplicate_detection_available": false,
+    "duplicate_detection_note": "no --papers-db given",
+    "collection": null
+  },
+  "note_statuses": {}
+}</span>
+<span class="c"># timestamp trimmed; no PDFs because these papers were never fetched or attached</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>export_papers.py [selector] --repo &lt;root&gt; [--to …] [--layout …] [--pdfs …] [--notes] [--notes-force] [--tags …] [--tags-from …] [--skip-known] [--force] [--collection …] [--dry-run] [--refresh] [--batch …] [--papers-db …]</code>, with <code>papers_snapshot.py</code> for the read-only duplicate check. No subagent.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#export">/ref:export</a> · <a href="acquire.html#attach">/ref:attach</a> · <a href="maintain.html#pull-annotations">/ref:pull-annotations</a> · <a href="maintain.html#open">/ref:open</a> · <a href="../tutorials/papers-handoff.html">Papers handoff tutorial</a></p>
+</article>
+
+</div>
+</section>
+
+<nav class="pager">
+  <a href="organize.html"><small>Previous</small>Organize</a>
+  <a href="graph.html" style="text-align:right"><small>Next</small>Graph</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

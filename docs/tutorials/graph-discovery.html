@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph discovery · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>From claims to a concept graph, gaps, and candidate hypotheses</h1>
+  <p class="lede">You'll turn extracted claims into concepts and typed edges, review a conflict before you call it a contradiction, ask the graph where your evidence is thin, run a Swanson ABC traversal, and snowball outward from one paper. Commands used: <code>/ref:weave</code>, <code>/ref:concept</code>, <code>/ref:gaps</code>, <code>/ref:hypothesize</code>, and <code>/ref:related</code>.</p>
+</header>
+
+<div class="note warn"><strong>Read every result as a statement about this library.</strong> A missing edge, an empty gap list or a zero-result search describes what <em>you</em> have added and extracted. It doesn't describe the literature. The scripts say so in their output, and you should say so wherever you reuse their results.</div>
+
+<section>
+<h2>The journey</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 230" role="img" aria-label="Journey map. Extracted claims in papers/pmid feed /ref:concept find and create, which write graph/concepts.jsonl. /ref:weave proposes potential_conflict edges and creates manual supports, extends or replicates edges in graph/relations.jsonl. /ref:weave review promotes a conflict to contradicts, with a rationale, on the relation record. /ref:gaps reads concepts, relations and claims and writes nothing. /ref:hypothesize traverses relations and records a PubMed check. /ref:related writes papers/pmid/related.json.">
+  <defs>
+    <marker id="gdArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+  <g font-size="11" fill="currentColor">
+    <rect x="14" y="24" width="128" height="62" rx="8" fill="none" stroke="currentColor"/>
+    <text x="26" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">0 CLAIMS</text>
+    <text x="26" y="66" fill-opacity=".7">/ref:extract</text>
+    <rect x="156" y="24" width="128" height="62" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="168" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 CONCEPTS</text>
+    <text x="168" y="66" fill-opacity=".7">find → create/alias</text>
+    <rect x="298" y="24" width="128" height="62" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="310" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 WEAVE</text>
+    <text x="310" y="66" fill-opacity=".7">typed edges</text>
+    <rect x="440" y="24" width="128" height="62" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="452" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">3 REVIEW</text>
+    <text x="452" y="66" fill-opacity=".7">conflict → contradicts</text>
+    <rect x="582" y="24" width="100" height="62" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="594" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">4 GAPS</text>
+    <text x="594" y="66" fill-opacity=".7">structural</text>
+    <rect x="696" y="24" width="112" height="62" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="708" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">5 ABC</text>
+    <text x="708" y="66" fill-opacity=".7">+ PubMed check</text>
+    <rect x="822" y="24" width="104" height="62" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="834" y="46" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">6 SNOWBALL</text>
+    <text x="834" y="66" fill-opacity=".7">related</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="142" y1="55" x2="152" y2="55" marker-end="url(#gdArr)"/>
+    <line x1="284" y1="55" x2="294" y2="55" marker-end="url(#gdArr)"/>
+    <line x1="426" y1="55" x2="436" y2="55" marker-end="url(#gdArr)"/>
+    <line x1="568" y1="55" x2="578" y2="55" marker-end="url(#gdArr)"/>
+    <line x1="682" y1="55" x2="692" y2="55" marker-end="url(#gdArr)"/>
+    <line x1="808" y1="55" x2="818" y2="55" marker-end="url(#gdArr)"/>
+  </g>
+  <g stroke="currentColor" stroke-opacity=".45" stroke-dasharray="3 3">
+    <line x1="78" y1="86" x2="78" y2="126"/><line x1="220" y1="86" x2="220" y2="126"/>
+    <line x1="362" y1="86" x2="362" y2="126"/><line x1="504" y1="86" x2="504" y2="126"/>
+    <line x1="632" y1="86" x2="632" y2="126"/><line x1="752" y1="86" x2="752" y2="126"/>
+    <line x1="874" y1="86" x2="874" y2="126"/>
+  </g>
+  <g font-family="IBM Plex Mono,monospace" font-size="10.5" fill="currentColor">
+    <rect x="14" y="126" width="128" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="24" y="145">claim_registry</text><text x="24" y="161" fill-opacity=".65">versions/…/claims</text>
+    <rect x="156" y="126" width="128" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="166" y="145">graph/</text><text x="166" y="161" fill-opacity=".65">concepts.jsonl</text>
+    <rect x="298" y="126" width="270" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="308" y="145">graph/relations.jsonl</text><text x="308" y="161" fill-opacity=".65">review_state · rationale · stale live on the edge</text>
+    <rect x="582" y="126" width="100" height="44" rx="6" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="3 3"/>
+    <text x="592" y="145" fill-opacity=".75">read-only</text><text x="592" y="161" fill-opacity=".65">stdout</text>
+    <rect x="696" y="126" width="112" height="44" rx="6" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-dasharray="3 3"/>
+    <text x="706" y="145" fill-opacity=".75">read-only</text><text x="706" y="161" fill-opacity=".65">stdout</text>
+    <rect x="822" y="126" width="104" height="44" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="830" y="145">papers/&lt;pmid&gt;/</text><text x="830" y="161" fill-opacity=".65">related.json</text>
+  </g>
+  <text x="14" y="206" font-size="11" fill="currentColor" fill-opacity=".65">/ref:weave also regenerates okf/ and graph/people_relations.jsonl. Never hand-edit okf/; edit the source records and re-run.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>deterministic</span>
+  <span><span class="sw amber"></span>calls PubMed through Claude</span>
+  <span><span class="sw dash"></span>judgement: yours, or Claude's, stated</span>
+</div>
+<figcaption><code>/ref:weave</code> has no dedicated subagent. Claude maps claims to concepts inline, and the scripts only validate and persist what it decides.</figcaption>
+</figure>
+<p class="muted">The example concepts are <code>tdcs</code>, <code>working-memory</code>, <code>attention</code> and <code>adhd</code>, the PMIDs <code>38000101</code>–<code>38000103</code> are placeholders, and the claim IDs and relation IDs come from the scratch run. Outputs labelled <em>scratch library</em> are real. In that library, claims for the relation scripts were supplied as small JSON files, which is how <code>/ref:weave</code> passes them in too.</p>
+</section>
+
+<section>
+<h2>Steps</h2>
+<ol class="steps">
+
+<li>
+<h3>Weave a set of papers</h3>
+<p>Weaving needs claims first, from <code>/ref:add</code> at the abstract tier or <code>/ref:extract</code> at the full tier. Then give <code>/ref:weave</code> a selector. For each active claim, Claude maps the intervention and outcome to concepts (step 2). For claims from <em>different</em> papers that land on the same concept pair, it proposes an edge (step 3). It finishes by regenerating the OKF views.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave --project tdcs-review</span>
+<span class="c"># Claude reports each concept created or aliased and each edge proposed or created,</span>
+<span class="c"># then prints okf_emit.py and graph_people.py output verbatim</span></pre>
+<div class="note"><strong>Scope on purpose.</strong> Weave only compares claims within the papers the selector resolved to, and only when they map to the same concept pair. A library-wide sweep is something you run deliberately, one project at a time.</div>
+</li>
+
+<li>
+<h3>Find before you mint</h3>
+<p>Concept IDs are slugs you choose, and aliases accumulate onto them, so "WM" and "working memory" end up as one concept. Matching is exact, ignoring case and extra whitespace. The scripts never fuzzy-match.</p>
+<p class="term-label">output from a scratch library (timestamps trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:concept find "working memory"</span>
+<span class="o">null</span>
+<span class="p">›</span> <span class="cmd">/ref:concept create working-memory "working memory"</span>
+<span class="o">{ "concept_id": "working-memory", "name": "working memory", "aliases": [], "alias_provenance": {}, … }</span>
+<span class="p">›</span> <span class="cmd">/ref:concept find "WM"</span>
+<span class="o">null</span>
+<span class="p">›</span> <span class="cmd">/ref:concept add-alias working-memory "WM" --source "claim:38000102:c-0002"</span>
+<span class="o">{
+  "alias_provenance": { "WM": { "source": "claim:38000102:c-0002", "added_at": "2026-09-15T10:17:06.235929+00:00" } },
+  "aliases": ["WM"],
+  "concept_id": "working-memory",
+  "name": "working memory",
+  …
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:concept find "  wm "</span>
+<span class="o">{ … "concept_id": "working-memory", … }</span>
+<span class="p">›</span> <span class="cmd">/ref:concept create wm "WM"</span>
+<span class="o">error: a concept already matches 'WM': 'working-memory' (name='working memory') -- use find_concept()/add_alias() instead of minting a duplicate</span></pre>
+<p>An alias can't be taken from another concept. That would be a merge, and merges are your decision:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:concept add-alias adhd "attention"</span>
+<span class="o">error: alias 'attention' already resolves to a DIFFERENT concept 'attention' -- this is a merge decision, not an automatic alias addition</span></pre>
+</li>
+
+<li>
+<h3>Let the edges be earned</h3>
+<p>The automatic check only ever proposes <code>potential_conflict</code>. It needs opposite directions, <code>increase</code> against <code>decrease</code>, plus identical comparator, effect measure, timepoint and population. A value of <code>unknown</code> on either side counts as a mismatch. Here the population and timepoint differ, so there's no edge:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="c"># claim 38000101:c-0001 (adults with ADHD, post-session, increase)</span>
+<span class="c"># vs 38000103:c-0001 (children, 4 weeks, decrease)</span>
+<span class="o">null</span>
+<span class="c"># vs 38000102:c-0002 (adults with ADHD, post-session, decrease): comparable, opposite</span>
+<span class="o">{
+  "relation_id": "rel-de5834755e5b",
+  "type": "potential_conflict",
+  "subject_concept_id": "tdcs",
+  "object_concept_id": "working-memory",
+  "supporting_claims": [
+    { "pmid": "38000101", "claim_id": "c-0001" },
+    { "pmid": "38000102", "claim_id": "c-0002" }
+  ],
+  "source_version_ids": ["v-aaa", "v-bbb"],
+  "review_state": "unreviewed",
+  "rationale": null,
+  "stale": false,
+  …
+}</span></pre>
+<p>Edges like <code>supports</code>, <code>extends</code> and <code>replicates</code> come from reading the papers, not from comparing PICO fields. When Claude judges that one exists, it creates the edge manually and tells you why:</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="c"># weave, manual edges: tdcs → attention, attention → adhd (supports); working-memory → adhd (extends)</span>
+<span class="o">{ "relation_id": "rel-7f125c245e2f", "type": "supports", "subject_concept_id": "tdcs", "object_concept_id": "attention", … }
+{ "relation_id": "rel-835bc46c4fed", "type": "supports", "subject_concept_id": "attention", "object_concept_id": "adhd", … }
+{ "relation_id": "rel-754640c3886b", "type": "extends", "subject_concept_id": "working-memory", "object_concept_id": "adhd", … }</span>
+<span class="c"># and the one type nothing can mint directly:</span>
+<span class="o">error: create_relation() cannot mint a 'contradicts' edge directly -- create it as 'potential_conflict' (or another type) first, then promote via review_relation() with an explicit rationale (§4a)</span></pre>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 380" role="img" aria-label="Example concept graph with four nodes. tdcs to working-memory: potential_conflict, promoted after review to contradicts, backed by claims from 38000101 and 38000102. tdcs to attention: supports, 38000103. attention to adhd: supports, 38000102. working-memory to adhd: extends, 38000101. There is no direct edge between tdcs and adhd; that pair is the hypothesis candidate. A legend lists the five implemented edge types: supports, extends and replicates are created manually from a judgement; potential_conflict is proposed automatically; contradicts is reached only by review with a rationale.">
+  <defs>
+    <marker id="cgArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="cgArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="cgArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- nodes -->
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor" text-anchor="middle">
+    <rect x="40" y="150" width="130" height="44" rx="22" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/><text x="105" y="170">tdcs</text>
+    <text x="105" y="186" font-size="10" font-weight="400" fill-opacity=".6">alias tDCS</text>
+    <rect x="300" y="40" width="160" height="44" rx="22" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/><text x="380" y="60">working-memory</text>
+    <text x="380" y="76" font-size="10" font-weight="400" fill-opacity=".6">alias WM</text>
+    <rect x="300" y="262" width="160" height="44" rx="22" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/><text x="380" y="289">attention</text>
+    <rect x="560" y="150" width="130" height="44" rx="22" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/><text x="625" y="177">adhd</text>
+  </g>
+
+  <!-- edges -->
+  <path d="M130 150 L310 86" fill="none" stroke="var(--amber)" stroke-width="2" marker-end="url(#cgArrM)"/>
+  <text x="150" y="98" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--amber)" font-weight="500">contradicts</text>
+  <text x="150" y="114" font-size="10.5" fill="currentColor" fill-opacity=".65">was potential_conflict</text>
+  <text x="150" y="128" font-size="10.5" fill="currentColor" fill-opacity=".65">38000101 + 38000102</text>
+
+  <path d="M130 194 L310 262" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#cgArrA)"/>
+  <text x="150" y="252" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--accent)">supports</text>
+  <text x="150" y="266" font-size="10.5" fill="currentColor" fill-opacity=".65">38000103</text>
+
+  <path d="M450 262 L580 194" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#cgArrA)"/>
+  <text x="520" y="252" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--accent)">supports</text>
+  <text x="520" y="266" font-size="10.5" fill="currentColor" fill-opacity=".65">38000102</text>
+
+  <path d="M450 84 L580 150" fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#cgArrA)"/>
+  <text x="520" y="98" font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--accent)">extends</text>
+  <text x="520" y="112" font-size="10.5" fill="currentColor" fill-opacity=".65">38000101</text>
+
+  <line x1="170" y1="172" x2="556" y2="172" stroke="currentColor" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="3 5"/>
+  <rect x="264" y="160" width="196" height="24" rx="4" fill="var(--card)"/>
+  <text x="362" y="176" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".7">no direct edge → A–C candidate</text>
+
+  <!-- legend -->
+  <rect x="730" y="30" width="196" height="320" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="746" y="54" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">EDGE TYPES</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <line x1="746" y1="80" x2="780" y2="80" stroke="var(--accent)" stroke-width="1.5"/><text x="790" y="84">supports</text>
+    <line x1="746" y1="104" x2="780" y2="104" stroke="var(--accent)" stroke-width="1.5"/><text x="790" y="108">extends</text>
+    <line x1="746" y1="128" x2="780" y2="128" stroke="var(--accent)" stroke-width="1.5"/><text x="790" y="132">replicates</text>
+  </g>
+  <text x="746" y="152" font-size="10.5" fill="currentColor" fill-opacity=".65">manual: create-manual,</text>
+  <text x="746" y="166" font-size="10.5" fill="currentColor" fill-opacity=".65">judgement stated</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <line x1="746" y1="196" x2="780" y2="196" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4"/><text x="790" y="200">potential_</text><text x="790" y="214">conflict</text>
+  </g>
+  <text x="746" y="236" font-size="10.5" fill="currentColor" fill-opacity=".65">proposed automatically:</text>
+  <text x="746" y="250" font-size="10.5" fill="currentColor" fill-opacity=".65">opposite + comparable</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <line x1="746" y1="280" x2="780" y2="280" stroke="var(--amber)" stroke-width="2"/><text x="790" y="284">contradicts</text>
+  </g>
+  <text x="746" y="306" font-size="10.5" fill="currentColor" fill-opacity=".65">review only, with a</text>
+  <text x="746" y="320" font-size="10.5" fill="currentColor" fill-opacity=".65">non-empty rationale</text>
+</svg>
+</div>
+<figcaption>These five edge types (<code>RELATION_TYPES</code> in <code>lib_schema.py</code>) are the ones implemented. Every edge carries its supporting <code>(pmid, claim_id)</code> pairs, and it goes <code>stale</code> when one of those claims is superseded or excluded.</figcaption>
+</figure>
+</li>
+
+<li>
+<h3>Review a conflict before calling it a contradiction</h3>
+<p>Two comparable studies pointing in opposite directions is a <em>potential</em> conflict. Maybe one was underpowered, or the samples differ in ways the claim fields don't capture. Promoting the edge takes an explicit review with a reason. That review lives on the relation record, through <code>/ref:weave review</code>, not in any single paper's <code>corrections.json</code>.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave review rel-de5834755e5b contradicts</span>
+<span class="o">error: promoting to 'contradicts' requires a non-empty rationale -- never auto-promoted from potential_conflict (§4a)</span>
+<span class="p">›</span> <span class="cmd">/ref:weave review rel-de5834755e5b contradicts --rationale "Same population, comparator, measure and timepoint; opposite direction in two adequately powered samples"</span>
+<span class="o">{
+  "relation_id": "rel-de5834755e5b",
+  "type": "contradicts",
+  "review_state": "reviewed",
+  "rationale": "Same population, comparator, measure and timepoint; opposite direction in two adequately powered samples",
+  "reviewed_at": "2026-09-15T10:17:08.193883+00:00",
+  "stale": false,
+  …
+}</span></pre>
+<div class="note"><strong>Relation review vs <code>/ref:verify</code>.</strong> <code>/ref:verify</code> covers claims, grant links, author contributions and identity matches. Relations are reviewed with <code>/ref:weave review</code>. If a supporting claim changes later, the reviewed edge keeps its rationale but is marked <code>stale</code> until you review it again.</div>
+<p>To inspect one concept's neighbourhood:</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave neighbors working-memory</span>
+<span class="o">{
+  "concept_id": "working-memory",
+  "outgoing": [ { "relation_id": "rel-754640c3886b", "type": "extends", "object_concept_id": "adhd", … } ],
+  "incoming": [ { "relation_id": "rel-de5834755e5b", "type": "contradicts", "subject_concept_id": "tdcs", … } ]
+}</span></pre>
+</li>
+
+<li>
+<h3>Ask where the evidence is thin</h3>
+<p><code>/ref:gaps</code> runs four deterministic queries over a selector. <code>single_study_fragile</code> finds claims backed by one study. <code>unresolved_conflicts</code> finds unreviewed <code>potential_conflict</code> edges and stale <code>contradicts</code> edges. <code>co_mentioned_ungrouped</code> finds concepts named together in evidence text but never linked. <code>population_outcome_gap</code> needs <code>--intervention-concept</code>. Every finding cites the IDs it rests on. This run happened before the review in step 4:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps 38000101 38000102 38000103</span>
+<span class="o">{
+  "selector_expression": "--pmid 38000101 38000102 38000103",
+  "gaps": {
+    "single_study_fragile": [],
+    "unresolved_conflicts": [
+      {
+        "gap_type": "unresolved_conflict",
+        "relation_id": "rel-de5834755e5b",
+        "type": "potential_conflict",
+        "stale": false,
+        "subject_concept_id": "tdcs",
+        "object_concept_id": "working-memory",
+        "supporting_claims": [ { "claim_id": "c-0001", "pmid": "38000101" }, { "claim_id": "c-0002", "pmid": "38000102" } ]
+      }
+    ],
+    "co_mentioned_ungrouped": []
+  }
+}</span></pre>
+<p class="muted">The empty lists here only mean the scratch library has no extracted claim registries. They don't mean the evidence is robust.</p>
+<div class="note warn"><strong><code>--concept</code> as a selector currently fails.</strong> The shared selector code still has an early-phase guard. <code>/ref:gaps --concept tdcs</code> raises <code>NotAvailableError: --concept is not available until phase 8 (concept graph)</code>, even though the graph exists. Use <code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--search</code> or <code>--from-file</code> instead.</div>
+</li>
+
+<li>
+<h3>Run a Swanson ABC traversal</h3>
+<p>Starting from concept A, the traversal follows two hops, A–B and then B–C, and keeps any C with no direct A–C edge. Candidates are ranked by how many independent chains reach them.</p>
+
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 330" role="img" aria-label="ABC traversal from A = tdcs. Chain 1 goes through B = working-memory: the A–B edge is backed by PMIDs 38000101 and 38000102, the B–C edge by 38000101; the PMID sets differ, so the chain is independent. Chain 2 goes through B = attention: A–B backed by 38000103, B–C by 38000102; independent. Both reach C = adhd, which has no direct edge from tdcs, so adhd is a candidate with chain_count 2. Rules: a chain whose two edges have exactly the same PMID set is excluded; C already directly linked to A is excluded. Each candidate is then checked with a PubMed search; zero results reads not found by this search.">
+  <defs>
+    <marker id="abArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="abArrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor" text-anchor="middle">
+    <rect x="14" y="120" width="110" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><text x="69" y="142">A</text><text x="69" y="159" font-weight="400" font-size="11">tdcs</text>
+    <rect x="300" y="30" width="160" height="50" rx="8" fill="var(--card)" stroke="currentColor"/><text x="380" y="52">B₁</text><text x="380" y="69" font-weight="400" font-size="11">working-memory</text>
+    <rect x="300" y="210" width="160" height="50" rx="8" fill="var(--card)" stroke="currentColor"/><text x="380" y="232">B₂</text><text x="380" y="249" font-weight="400" font-size="11">attention</text>
+    <rect x="620" y="120" width="110" height="50" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/><text x="675" y="142">C</text><text x="675" y="159" font-weight="400" font-size="11">adhd</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none">
+    <path d="M124 134 L296 62" marker-end="url(#abArr)"/>
+    <path d="M124 156 L296 228" marker-end="url(#abArr)"/>
+    <path d="M460 62 L616 134" marker-end="url(#abArr)"/>
+    <path d="M460 228 L616 156" marker-end="url(#abArr)"/>
+  </g>
+  <g font-size="10.5" fill="currentColor" fill-opacity=".75" font-family="IBM Plex Mono,monospace">
+    <text x="150" y="80">{38000101, 38000102}</text>
+    <text x="150" y="232">{38000103}</text>
+    <text x="500" y="80">{38000101}</text>
+    <text x="500" y="232">{38000102}</text>
+  </g>
+  <line x1="124" y1="145" x2="616" y2="145" stroke="currentColor" stroke-opacity=".4" stroke-dasharray="3 5"/>
+  <text x="370" y="140" text-anchor="middle" font-size="10.5" fill="currentColor" fill-opacity=".6">no A–C edge</text>
+  <text x="620" y="196" font-size="11" fill="var(--amber)" font-weight="500">chain_count 2</text>
+
+  <!-- pubmed check -->
+  <path d="M730 145 L770 145" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#abArrM)"/>
+  <rect x="774" y="104" width="152" height="82" rx="8" fill="none" stroke="var(--amber)" stroke-dasharray="5 4"/>
+  <text x="786" y="126" font-size="11" fill="currentColor" font-weight="500">PubMed check</text>
+  <text x="786" y="144" font-size="10.5" fill="currentColor" fill-opacity=".7">"A name" AND "C name"</text>
+  <text x="786" y="160" font-size="10.5" fill="currentColor" fill-opacity=".7">0 hits = not found</text>
+  <text x="786" y="175" font-size="10.5" fill="currentColor" fill-opacity=".7">by this search</text>
+
+  <!-- rules -->
+  <rect x="14" y="282" width="912" height="40" rx="8" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+  <text x="28" y="306" font-size="11" fill="currentColor">Excluded: a chain whose A–B and B–C edges rest on the <tspan font-weight="600">same</tspan> PMID set (one paper naming three things) · any C already directly linked to A · A itself.</text>
+</svg>
+</div>
+<figcaption>Partial overlap still counts as independent. Here, 38000101 backs both hops of chain 1, but the two edges' PMID sets aren't identical. Requiring fully separate papers would be too strict once one well-studied paper backs many edges.</figcaption>
+</figure>
+
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:hypothesize --concept tdcs</span>
+<span class="c"># 1. graph traversal, no network</span>
+<span class="o">[
+  {
+    "concept_a": "tdcs",
+    "concept_c": "adhd",
+    "chain_count": 2,
+    "chains": [
+      { "concept_b": "working-memory", "a_b_relation_id": "rel-de5834755e5b", "a_b_type": "contradicts",
+        "b_c_relation_id": "rel-754640c3886b", "b_c_type": "extends", … },
+      { "concept_b": "attention", "a_b_relation_id": "rel-7f125c245e2f", "a_b_type": "supports",
+        "b_c_relation_id": "rel-835bc46c4fed", "b_c_type": "supports", … }
+    ]
+  }
+]</span>
+<span class="c"># 2. Claude searches PubMed for each candidate and records query, time and PMIDs</span>
+<span class="c">#    (in the scratch run, this check result was supplied by hand)</span>
+<span class="o">[
+  {
+    "concept_a": "tdcs",
+    "concept_c": "adhd",
+    "chain_count": 2,
+    …
+    "pubmed_check": {
+      "query": "\"transcranial direct current stimulation\" AND \"attention-deficit/hyperactivity disorder\"",
+      "retrieved_at": "2026-09-15T10:30:00+00:00",
+      "result_pmids": []
+    },
+    "pubmed_note": "Not found by this search ('\"transcranial direct current stimulation\" AND \"attention-deficit/hyperactivity disorder\"') -- untested in the library, and this specific search found no evidence it's studied in the wider literature either. Not proof of novelty: a different query might find something this one didn't.",
+    "limitations": "Candidate derived from 2 independent A-B/B-C chain(s) in this library's graph between 'tdcs' and 'adhd'. Missing edges describe library coverage, not established literature gaps (§5b). This is a reading-list candidate, not a validated claim."
+  }
+]</span></pre>
+<div class="note warn"><strong>Zero hits isn't novelty. Hits aren't a dismissal.</strong> A search returning nothing reads "not found by this search", nothing more. A search returning PMIDs means the connection may already be studied, which is useful to know, and the candidate stays in the list. The output is a reading list, not a set of findings.</div>
+</li>
+
+<li>
+<h3>Snowball from a paper</h3>
+<p>Backward snowballing reads the References section of the paper's committed full text, with no network needed. Forward snowballing calls PubMed's <code>find_related_articles</code>. Both only surface candidates. Nothing gets added.</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 38000101</span>
+<span class="c"># backward, which needs full text:</span>
+<span class="o">{
+  "available": false,
+  "reason": "no committed full-text version for this PMID (run /ref:fetch or /ref:attach first)"
+}</span>
+<span class="c"># forward, with the link_type the MCP tool used recorded on every row:</span>
+<span class="o">{
+  "count": 2,
+  "rows": [
+    { "candidate": "38000102", "resolved": true, "direction": "forward",
+      "method": "find_related_articles:pubmed_pubmed", "query": { "link_type": "pubmed_pubmed", "source_pmid": "38000101" },
+      "retrieved_at": "2026-09-15T10:17:08.776383+00:00", "already_in_library": true },
+    { "candidate": "38000555", "resolved": true, "direction": "forward",
+      "method": "find_related_articles:pubmed_pubmed", …, "already_in_library": false }
+  ],
+  "zero_results": false,
+  "note": null,
+  "persisted": { "total_candidates": 2, "already_in_library": 1, "not_yet_added": 1 }
+}</span></pre>
+<div class="note warn"><strong>Forward means similar, not citing.</strong> <code>pubmed_pubmed</code> weights words in titles, abstracts and MeSH terms. It isn't a cited-by graph, and no link type available in this environment is one. Every row names its method, so the result can't pass for citation data. A zero-result forward run returns <code>zero_results: true</code> with the note "not evidence of no related work, just this query's result". Backward candidates are raw citation strings (<code>resolved: false</code>) until you look one up. To bring a candidate in, run <code>/ref:add</code> yourself.</div>
+</li>
+
+</ol>
+</section>
+
+<section>
+<h2>What you now have</h2>
+<pre class="tree">&lt;LIBRARY&gt;/
+  graph/
+    <span class="a">concepts.jsonl              # tdcs, working-memory, attention, adhd, with alias provenance</span>
+    <span class="a">relations.jsonl             # 1 reviewed contradicts (with rationale), 2 supports, 1 extends</span>
+    people_relations.jsonl      <span class="c"># regenerated by /ref:weave</span>
+  okf/                          <span class="c"># generated OKF v0.2 bundle; never hand-edit</span>
+  papers/38000101/
+    related.json                <span class="c"># forward/backward candidates, upserted by (direction, method, candidate)</span>
+<span class="c"># /ref:gaps and /ref:hypothesize write nothing: their output is the report in your session</span></pre>
+<p>Command reference: <a href="../commands/graph.html#weave"><code>/ref:weave</code></a>, <a href="../commands/graph.html#concept"><code>/ref:concept</code></a>, <a href="../commands/graph.html#gaps"><code>/ref:gaps</code></a>, <a href="../commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="papers-handoff.html"><small>Previous</small>Papers handoff</a>
+  <a href="../commands/index.html"><small>Next</small>Command reference</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

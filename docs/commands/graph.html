@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph commands · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="../tutorials/index.html">Tutorials</a>
+    <a href="index.html" aria-current="page">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell with-toc">
+<aside class="toc">
+  <h4>On this page</h4>
+  <ul>
+    <li><a href="#model">The graph model</a></li>
+    <li><a href="#abc">Swanson ABC</a></li>
+  </ul>
+  <h4>Commands</h4>
+  <ul>
+    <li><a href="#weave"><code>/ref:weave</code></a></li>
+    <li><a href="#concept"><code>/ref:concept</code></a></li>
+    <li><a href="#gaps"><code>/ref:gaps</code></a></li>
+    <li><a href="#hypothesize"><code>/ref:hypothesize</code></a></li>
+  </ul>
+  <h4>Groups</h4>
+  <ul>
+    <li><a href="acquire.html">acquire</a></li>
+    <li><a href="find.html">find</a></li>
+    <li><a href="organize.html">organize</a></li>
+    <li><a href="write.html">write</a></li>
+    <li><a href="graph.html">graph</a></li>
+    <li><a href="people.html">people</a></li>
+    <li><a href="maintain.html">maintain</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<header class="page">
+  <p class="eyebrow">Commands · graph · phases 8–9</p>
+  <h1>Connect and discover</h1>
+  <p class="lede">Claims already carry context: population, comparator, outcome, timepoint, direction. The graph commands map those claims onto stable concept nodes, record typed edges between concepts, and then ask structural questions of the result: where is the evidence thin, what disagrees, and which untested connections are worth reading about.</p>
+</header>
+
+<section id="model">
+<h2>The graph model</h2>
+<p>Two JSONL files are the source of truth. <code>graph/concepts.jsonl</code> holds one row per concept, keyed by a slug you choose, with aliases that accumulate over time. <code>graph/relations.jsonl</code> holds typed edges between concepts, each listing the claims that back it. Everything under <code>okf/</code> is generated from those files, so you never edit it by hand.</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 430" role="img" aria-label="Graph data flow. Active claims in papers' claim registries are mapped inline to concepts in graph/concepts.jsonl, always checking find before create and adding aliases such as SBP to systolic blood pressure. Pairs of claims from different papers on the same concept pair go to relation.py propose, which only emits potential_conflict when directions are increase versus decrease and comparator, effect measure, timepoint and population match. Supports, extends and replicates are created manually with create-manual. Contradicts is reachable only through review with a rationale. okf_emit.py regenerates the okf bundle of concept, paper, person and grant views; graph_people.py writes graph/people_relations.jsonl.">
+  <defs>
+    <marker id="g-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="g-arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="g-arrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <!-- claims -->
+  <rect x="14" y="30" width="200" height="150" rx="8" fill="none" stroke="currentColor"/>
+  <text x="28" y="54" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">active claims</text>
+  <text x="28" y="72" font-size="11" fill="currentColor" fill-opacity=".65">papers/&lt;pmid&gt;/claim_registry.json</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <rect x="28" y="84" width="172" height="40" rx="6" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+    <text x="38" y="101">38000001 · drug X</text>
+    <text x="38" y="116" fill-opacity=".65">SBP · decrease</text>
+    <rect x="28" y="130" width="172" height="40" rx="6" fill="var(--card)" stroke="currentColor" stroke-opacity=".5"/>
+    <text x="38" y="147">38000002 · drug X</text>
+    <text x="38" y="162" fill-opacity=".65">SBP · increase</text>
+  </g>
+
+  <!-- concepts -->
+  <line x1="214" y1="80" x2="264" y2="80" stroke="currentColor" stroke-width="1.5" marker-end="url(#g-arr)"/>
+  <text x="222" y="70" font-size="10.5" fill="currentColor" fill-opacity=".6">map</text>
+  <rect x="268" y="30" width="300" height="104" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="284" y="54" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="var(--accent)">graph/concepts.jsonl</text>
+  <g font-size="11" fill="currentColor">
+    <rect x="284" y="66" width="130" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="294" y="86" font-family="IBM Plex Mono,monospace" font-weight="500">sbp</text>
+    <text x="294" y="102" fill-opacity=".65">systolic blood pressure</text>
+    <text x="294" y="115" fill-opacity=".65">aliases: SBP</text>
+    <rect x="424" y="66" width="130" height="54" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="434" y="86" font-family="IBM Plex Mono,monospace" font-weight="500">drug-x</text>
+    <text x="434" y="102" fill-opacity=".65">drug X</text>
+    <text x="434" y="115" fill-opacity=".65">aliases: —</text>
+  </g>
+  <text x="284" y="152" font-size="10.5" fill="currentColor" fill-opacity=".65">find first · create only on no match · add-alias on near-match</text>
+
+  <!-- relations -->
+  <rect x="268" y="186" width="300" height="200" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="284" y="210" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="var(--accent)">graph/relations.jsonl</text>
+  <text x="284" y="228" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">RELATION_TYPES</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
+    <rect x="284" y="238" width="130" height="26" rx="6" fill="var(--card)" stroke="currentColor"/>
+    <text x="294" y="255">potential_conflict</text>
+    <rect x="424" y="238" width="130" height="26" rx="6" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="434" y="255">contradicts</text>
+    <rect x="284" y="272" width="84" height="26" rx="6" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="294" y="289">supports</text>
+    <rect x="376" y="272" width="84" height="26" rx="6" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="386" y="289">extends</text>
+    <rect x="468" y="272" width="86" height="26" rx="6" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="476" y="289">replicates</text>
+  </g>
+  <line x1="414" y1="251" x2="420" y2="251" stroke="var(--amber)" stroke-width="1.5" marker-end="url(#g-arrM)"/>
+  <g font-size="10.5" fill="currentColor" fill-opacity=".7">
+    <text x="284" y="318">propose / create: auto, only increase vs decrease</text>
+    <text x="284" y="333">with matching comparator, effect_measure,</text>
+    <text x="284" y="348">timepoint, population ("unknown" never matches)</text>
+    <text x="284" y="366" fill="var(--amber)" fill-opacity="1">contradicts: review + rationale only</text>
+  </g>
+
+  <line x1="214" y1="150" x2="264" y2="250" stroke="currentColor" stroke-width="1.5" marker-end="url(#g-arr)"/>
+  <text x="170" y="222" font-size="10.5" fill="currentColor" fill-opacity=".6">claim pairs,</text>
+  <text x="170" y="236" font-size="10.5" fill="currentColor" fill-opacity=".6">different PMIDs</text>
+  <line x1="418" y1="134" x2="418" y2="182" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#g-arrA)"/>
+
+  <!-- regenerate -->
+  <line x1="568" y1="210" x2="626" y2="210" stroke="currentColor" stroke-width="1.5" marker-end="url(#g-arr)"/>
+  <line x1="568" y1="82" x2="626" y2="190" stroke="currentColor" stroke-width="1.5" marker-end="url(#g-arr)"/>
+  <rect x="630" y="150" width="296" height="142" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text x="646" y="174" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">okf_emit.py → okf/</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor" fill-opacity=".75">
+    <text x="646" y="196">concepts/&lt;id&gt;.md</text>
+    <text x="646" y="212">papers/&lt;citekey&gt;.md</text>
+    <text x="646" y="228">people/&lt;slug&gt;.md · grants/&lt;slug&gt;.md</text>
+    <text x="646" y="244">index.md · log.md</text>
+  </g>
+  <text x="646" y="270" font-size="10.5" fill="currentColor" fill-opacity=".6">OKF v0.2 bundle · generated · never hand-edit</text>
+
+  <rect x="630" y="312" width="296" height="74" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="646" y="336" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">graph_people.py</text>
+  <text x="646" y="354" font-size="11" fill="currentColor" fill-opacity=".7">graph/people_relations.jsonl</text>
+  <text x="646" y="370" font-size="10.5" fill="currentColor" fill-opacity=".6">separate file · see People commands</text>
+
+  <text x="14" y="420" font-size="10.5" fill="currentColor" fill-opacity=".6">/ref:gaps and /ref:hypothesize read concepts.jsonl + relations.jsonl + claim registries directly; they write nothing.</text>
+</svg>
+</div>
+<div class="legend">
+  <span><span class="sw solid"></span>source of truth (JSONL)</span>
+  <span><span class="sw amber"></span>needs a recorded human decision</span>
+  <span><span class="sw dash"></span>created manually, by judgment</span>
+</div>
+<figcaption>The automatic path is deliberately narrow. A false "these aren't comparable" can be fixed later by hand; a false "these conflict" misleads every answer built on it. So only opposite directions under fully matching context become <code>potential_conflict</code>, and nothing becomes <code>contradicts</code> without a rationale.</figcaption>
+</figure>
+</section>
+
+<section id="abc">
+<h2>Swanson ABC discovery</h2>
+<p><code>/ref:hypothesize</code> walks two hops from a starting concept A. If some papers connect A to B and other papers connect B to C, and no edge joins A and C directly, then A–C is a candidate worth reading about. Each candidate is checked against PubMed, so you can tell "missing from this library" apart from "not found by this search".</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 330" role="img" aria-label="Swanson ABC diagram. Concept A, drug-x, connects to concept B, sbp, through an edge backed by PMIDs 38000001 and 38000002. Concept B connects to concept C, cognitive-decline, through an edge backed by PMID 38000003. Because the two edges rest on different PMID sets, the chain counts as independent. There is no direct A to C edge, so A–C is a candidate. The calling agent runs a PubMed search for A AND C, records query, timestamp and result PMIDs, and hypothesize.py finalize reports zero results as not found by this search, never as novel.">
+  <defs>
+    <marker id="h-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="h-arrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker>
+  </defs>
+
+  <g font-family="IBM Plex Mono,monospace" fill="currentColor">
+    <rect x="30" y="50" width="150" height="60" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="46" y="74" font-size="12" font-weight="500" fill="var(--accent)">A · drug-x</text>
+    <text x="46" y="94" font-size="11" fill-opacity=".65">starting concept</text>
+
+    <rect x="330" y="50" width="150" height="60" rx="10" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="346" y="74" font-size="12" font-weight="500">B · sbp</text>
+    <text x="346" y="94" font-size="11" fill-opacity=".65">bridge concept</text>
+
+    <rect x="630" y="50" width="170" height="60" rx="10" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
+    <text x="646" y="74" font-size="12" font-weight="500">C · cognitive-decline</text>
+    <text x="646" y="94" font-size="11" fill-opacity=".65">candidate end</text>
+  </g>
+
+  <line x1="180" y1="80" x2="326" y2="80" stroke="currentColor" stroke-width="1.5" marker-end="url(#h-arr)"/>
+  <text x="196" y="68" font-size="11" fill="currentColor" font-family="IBM Plex Mono,monospace">potential_conflict</text>
+  <text x="196" y="100" font-size="10.5" fill="currentColor" fill-opacity=".65">PMIDs 38000001, 38000002</text>
+
+  <line x1="480" y1="80" x2="626" y2="80" stroke="currentColor" stroke-width="1.5" marker-end="url(#h-arr)"/>
+  <text x="496" y="68" font-size="11" fill="currentColor" font-family="IBM Plex Mono,monospace">supports</text>
+  <text x="496" y="100" font-size="10.5" fill="currentColor" fill-opacity=".65">PMID 38000003</text>
+
+  <path d="M105 110 C 105 190, 715 190, 715 114" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#h-arrM)"/>
+  <text x="330" y="176" font-size="11" fill="var(--amber)" font-family="IBM Plex Mono,monospace">A–C: no direct edge in this library</text>
+
+  <g font-size="11" fill="currentColor">
+    <rect x="30" y="214" width="270" height="92" rx="8" fill="none" stroke="currentColor"/>
+    <text x="44" y="236" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 candidates</text>
+    <text x="44" y="256" fill-opacity=".7">pure traversal, no network</text>
+    <text x="44" y="272" fill-opacity=".7">skip chains whose two edges have the</text>
+    <text x="44" y="288" fill-opacity=".7">exact same PMID set (one paper, three things)</text>
+
+    <rect x="330" y="214" width="270" height="92" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="344" y="236" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 PubMed check</text>
+    <text x="344" y="256" fill-opacity=".7">agent searches "A name" AND "C name"</text>
+    <text x="344" y="272" fill-opacity=".7">records query, retrieved_at,</text>
+    <text x="344" y="288" fill-opacity=".7">result_pmids (may be empty)</text>
+
+    <rect x="630" y="214" width="280" height="92" rx="8" fill="none" stroke="currentColor"/>
+    <text x="644" y="236" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">3 finalize</text>
+    <text x="644" y="256" fill-opacity=".7">0 hits → "not found by this search"</text>
+    <text x="644" y="272" fill-opacity=".7">n hits → library-coverage gap, kept</text>
+    <text x="644" y="288" fill-opacity=".7">ranked by independent chain count</text>
+  </g>
+  <line x1="300" y1="260" x2="326" y2="260" stroke="currentColor" stroke-width="1.5" marker-end="url(#h-arr)"/>
+  <line x1="600" y1="260" x2="626" y2="260" stroke="currentColor" stroke-width="1.5" marker-end="url(#h-arr)"/>
+</svg>
+</div>
+<figcaption>This is the scratch library used in the examples below. A candidate with PubMed hits is not dropped: it tells you the connection may already be studied elsewhere, which is itself useful. Zero hits is never reported as "novel".</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>Reference</h2>
+<div class="cmd-groups">
+
+<article class="cmd" id="weave">
+  <div class="cmd-head"><h3>/ref:weave</h3><div class="chips"><span class="tag phase">phase 8</span></div></div>
+  <p class="summary">Map claims to concepts, propose typed edges between them, then regenerate the OKF bundle and the researcher/grant relation file.</p>
+  <div class="synopsis">/ref:weave &lt;pmid…&gt; | &lt;selector&gt;
+/ref:weave --regenerate-only
+/ref:weave review &lt;relation-id&gt; &lt;type&gt; --rationale "…"
+/ref:weave neighbors &lt;concept-slug&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt; | selector</dt><dd>The papers whose claims to weave. With nothing given, the command skips to regeneration.</dd>
+    <dt>--regenerate-only</dt><dd>Skip claim comparison and only rebuild derived views. Useful after <code>/ref:verify</code> or an <code>/ref:extract</code> rerun changes data without adding claims.</dd>
+    <dt>review &lt;id&gt; &lt;type&gt;</dt><dd>Promote or demote a relation, e.g. <code>potential_conflict</code> → <code>contradicts</code>. <code>contradicts</code> is refused without a non-empty <code>--rationale</code>. A review also clears <code>stale</code>.</dd>
+    <dt>neighbors &lt;slug&gt;</dt><dd>Every relation touching a concept, split into <code>outgoing</code> and <code>incoming</code>, with the supporting-claim trail.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root and the selector to a PMID list (<code>lib_selector.py</code>).</li>
+    <li>For each active claim, maps its intervention/outcome (or whichever fields it is about) to concepts, done inline in the session since no subagent covers this. It always runs <code>concept.py find</code> first, adds a near-match wording as an alias, and creates a concept only when nothing matches.</li>
+    <li>For claim pairs from <em>different</em> PMIDs on the same concept pair, runs <code>relation.py propose</code>. It returns <code>null</code> unless directions are <code>increase</code> vs <code>decrease</code> and comparator, effect_measure, timepoint and population all match. A proposal is persisted with <code>create</code>.</li>
+    <li>When the agent reads two papers and judges that one supports, extends or replicates the other, it uses <code>relation.py create-manual --type …</code> and states its reasoning. Weave never marks <code>contradicts</code>.</li>
+    <li>Always regenerates: <code>okf_emit.py</code> writes <code>okf/</code>, and <code>graph_people.py</code> writes <code>graph/people_relations.jsonl</code>.</li>
+  </ol>
+  <p class="writes">Scope: only claims already mapped to the same concept pair, within the selected papers. A library-wide sweep is a separate operation, batched by selector.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>papers/&lt;pmid&gt;/claim_registry.json</code>, <code>meta.json</code>, <code>authorship.json</code>, <code>funding.json</code>, <code>people/</code>, <code>grants/</code>. Writes <code>graph/concepts.jsonl</code>, <code>graph/relations.jsonl</code>, <code>graph/people_relations.jsonl</code>, and <code>okf/concepts/&lt;id&gt;.md</code>, <code>okf/papers/&lt;citekey&gt;.md</code>, <code>okf/people/&lt;slug&gt;.md</code>, <code>okf/grants/&lt;slug&gt;.md</code>, <code>okf/index.md</code>, <code>okf/log.md</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave 38000001 38000002</span>
+<span class="c"># two RCT claims on drug X → SBP, same population/comparator/12 weeks, opposite directions</span>
+<span class="o">{
+  "relation_id": "rel-026322c5ae88",
+  "type": "potential_conflict",
+  "subject_concept_id": "drug-x",
+  "object_concept_id": "sbp",
+  "supporting_claims": [
+    {"pmid": "38000001", "claim_id": "c-9ba8993385ec"},
+    {"pmid": "38000002", "claim_id": "c-cd1ab0018c9f"}
+  ],
+  "source_version_ids": ["v-12d4ca1b6864", "v-913f399b38b5"],
+  "review_state": "unreviewed",
+  "rationale": null,
+  "stale": false,
+  …
+}
+{
+  "concepts": 3,
+  "papers": 3,
+  "people": 0,
+  "grants": 0,
+  "relations_available": true
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:weave review rel-026322c5ae88 contradicts</span>
+<span class="w">error: promoting to 'contradicts' requires a non-empty rationale -- never auto-promoted from potential_conflict (§4a)</span>
+<span class="p">›</span> <span class="cmd">/ref:weave review rel-026322c5ae88 contradicts --rationale "Same population, comparator and 12-week timepoint; directions genuinely oppose."</span>
+<span class="o">{
+  "relation_id": "rel-026322c5ae88",
+  "type": "contradicts",
+  "review_state": "reviewed",
+  "rationale": "Same population, comparator and 12-week timepoint; directions genuinely oppose.",
+  "reviewer": "user",
+  "reviewed_at": "2026-09-15T10:15:49.128008+00:00",
+  "stale": false,
+  …
+}</span></pre>
+  <p class="writes">The generated <code>okf/concepts/sbp.md</code> lists its aliases and relations with review state, e.g. <code>**potential_conflict** -&gt; [drug-x](../concepts/drug-x.md) [unreviewed]</code>.</p>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>concept.py find|create|add-alias</code>, <code>relation.py propose|create|create-manual|review|neighbors</code>, <code>okf_emit.py --repo</code>, <code>graph_people.py --repo</code>. <code>relation.py</code> also has <code>refresh</code> (marks edges stale when a supporting claim is superseded or excluded), <code>show</code> and <code>list</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#concept">/ref:concept</a> · <a href="#gaps">/ref:gaps</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="acquire.html#extract">/ref:extract</a> · <a href="../tutorials/graph-discovery.html">Graph discovery tutorial</a></p>
+</article>
+
+<article class="cmd" id="concept">
+  <div class="cmd-head"><h3>/ref:concept</h3><div class="chips"><span class="tag phase">phase 8</span></div></div>
+  <p class="summary">Look up, create and alias the stable concept nodes in <code>graph/concepts.jsonl</code>.</p>
+  <div class="synopsis">/ref:concept find "&lt;name or alias&gt;"
+/ref:concept create &lt;slug&gt; "&lt;canonical name&gt;"
+/ref:concept add-alias &lt;slug&gt; "&lt;alias&gt;" [--source "claim:&lt;pmid&gt;:&lt;claim_id&gt;" | manual]
+/ref:concept show &lt;slug&gt;
+/ref:concept list</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>find</dt><dd>Case-insensitive, whitespace-normalized match against every concept's name and aliases. Prints the concept, or <code>null</code>. Always run this before minting a concept.</dd>
+    <dt>create</dt><dd>Mints a concept. Refused if <code>find</code> would already match the name, and refused if the slug is taken.</dd>
+    <dt>add-alias</dt><dd>Adds a wording with provenance (<code>--source</code>, default <code>manual</code>). A no-op if it already resolves here; refused if it resolves to a <em>different</em> concept, because that is a merge decision.</dd>
+    <dt>show / list</dt><dd>One concept by slug, or all of them.</dd>
+  </dl>
+  <p class="writes">Why a slug you choose? Aliases pile up over time, so "MI" and "myocardial infarction" end up on one node. The key has to be stable and independent of any single wording.</p>
+  <h4>What happens</h4>
+  <ol>
+    <li>Resolves the library root.</li>
+    <li>Runs the matching <code>concept.py</code> action and prints its JSON verbatim.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads and writes <code>graph/concepts.jsonl</code> under the library lock (<code>find</code>, <code>show</code>, <code>list</code> are read-only). Rows: <code>concept_id</code>, <code>name</code>, <code>aliases</code>, <code>alias_provenance</code>, <code>created_at</code>, <code>updated_at</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:concept find "drug X"</span>
+<span class="o">null</span>
+<span class="p">›</span> <span class="cmd">/ref:concept create sbp "systolic blood pressure"</span>
+<span class="p">›</span> <span class="cmd">/ref:concept add-alias sbp "SBP"</span>
+<span class="o">{
+  "alias_provenance": {
+    "SBP": {"source": "manual", "added_at": "2026-09-15T10:15:24.748773+00:00"}
+  },
+  "aliases": ["SBP"],
+  "concept_id": "sbp",
+  "created_at": "2026-09-15T10:15:24.666167+00:00",
+  "name": "systolic blood pressure",
+  "updated_at": "2026-09-15T10:15:24.749358+00:00"
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:concept create sbp2 "sbp"</span>
+<span class="w">error: a concept already matches 'sbp': 'sbp' (name='systolic blood pressure') -- use find_concept()/add_alias() instead of minting a duplicate</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>concept.py {find|create|add-alias|show|list} --repo &lt;root&gt; [--id &lt;slug&gt;] [--name …] [--alias …] [--source …]</code></p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#weave">/ref:weave</a> · <a href="#hypothesize">/ref:hypothesize</a> · <a href="../concepts.html">Concepts: identifiers</a></p>
+</article>
+
+<article class="cmd" id="gaps">
+  <div class="cmd-head"><h3>/ref:gaps</h3><div class="chips"><span class="tag phase">phase 9</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Run deterministic structural gap queries over a selected set of papers, with every finding pointing at the claims, relations or PMIDs it rests on.</p>
+  <div class="synopsis">/ref:gaps &lt;selector&gt; [--intervention-concept &lt;slug&gt;] [--types &lt;type…&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>selector</dt><dd>Required: bare <code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--search</code>, <code>--from-file</code>, and the rest of the shared grammar.</dd>
+    <dt>--intervention-concept</dt><dd>Needed only for <code>population_outcome_gap</code>; omit to skip that query.</dd>
+    <dt>--types</dt><dd>Any of <code>single_study_fragile</code>, <code>unresolved_conflicts</code>, <code>co_mentioned_ungrouped</code>, <code>population_outcome_gap</code>. Default: all applicable.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li><strong>single_study_fragile</strong>: an active claim is fragile unless its paper is in a study group with ≥2 PMIDs, or it shares a <code>supports</code>/<code>extends</code>/<code>replicates</code> edge with a claim from another PMID.</li>
+    <li><strong>unresolved_conflicts</strong>: unreviewed <code>potential_conflict</code> edges, plus <code>contradicts</code> edges that have gone stale, touching the selected PMIDs.</li>
+    <li><strong>co_mentioned_ungrouped</strong>: two concepts whose names or aliases both appear in one claim's <code>evidence_span</code> with no edge between them.</li>
+    <li><strong>population_outcome_gap</strong>: for the intervention concept, a population × outcome combination with no claim while sibling combinations have one.</li>
+  </ol>
+  <p class="writes">No LLM judgment. Missing edges describe this library's coverage, not an established gap in the literature, and results should be presented that way.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>claim_registry.json</code>, <code>graph/concepts.jsonl</code>, <code>graph/relations.jsonl</code>, <code>studies/studies.jsonl</code>. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps 38000001 38000002 38000003 --intervention-concept drug-x</span>
+<span class="o">{
+  "selector_expression": "--pmid 38000001 38000002 38000003",
+  "gaps": {
+    "single_study_fragile": [
+      {"gap_type": "single_study_fragile", "claim_id": "c-9ba8993385ec", "pmid": "38000001",
+       "outcome": "systolic blood pressure", "intervention": "drug X"},
+      …
+    ],
+    "unresolved_conflicts": [
+      {
+        "gap_type": "unresolved_conflict",
+        "relation_id": "rel-026322c5ae88",
+        "type": "potential_conflict",
+        "stale": false,
+        "subject_concept_id": "drug-x",
+        "object_concept_id": "sbp",
+        "supporting_claims": [
+          {"claim_id": "c-9ba8993385ec", "pmid": "38000001"},
+          {"claim_id": "c-cd1ab0018c9f", "pmid": "38000002"}
+        ]
+      }
+    ],
+    "co_mentioned_ungrouped": [],
+    "population_outcome_gap": []
+  }
+}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>gaps.py --repo &lt;root&gt; &lt;selector…&gt; [--intervention-concept &lt;slug&gt;] [--types …]</code>. Note: the shared <code>--concept</code> selector still raises "not available until phase 8" in <code>lib_selector.py</code>, so select by PMIDs, project, study or search instead.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#weave">/ref:weave</a> · <a href="#hypothesize">/ref:hypothesize</a> · <a href="organize.html#study">/ref:study</a> · <a href="find.html#related">/ref:related</a></p>
+</article>
+
+<article class="cmd" id="hypothesize">
+  <div class="cmd-head"><h3>/ref:hypothesize</h3><div class="chips"><span class="tag phase">phase 9</span><span class="tag net">PubMed</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Find untested A–C concept pairs by two-hop traversal and check each against PubMed, producing a ranked reading list with full evidence chains.</p>
+  <div class="synopsis">/ref:hypothesize --concept &lt;slug&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--concept &lt;slug&gt;</dt><dd>Required. The starting concept A.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li><code>hypothesize.py candidates</code> traverses A→B→C with no network. A chain is skipped when both edges rest on the exact same PMID set, and any C already joined to A directly is excluded.</li>
+    <li>Candidates are ranked by the number of independent chains, with ties broken alphabetically by C. If there are none, the command says so and stops.</li>
+    <li>For each candidate, the agent calls PubMed <code>search_articles</code> with a query combining A's and C's names or aliases, and records the query, an ISO timestamp and the result PMIDs.</li>
+    <li>Those checks go into a JSON file keyed by <code>concept_c</code>, which is passed to <code>hypothesize.py finalize</code>. Candidates the agent didn't check are left out rather than filled in.</li>
+    <li>Output is printed verbatim. Zero hits reads "Not found by this search", never "novel" or "confirmed gap".</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>graph/relations.jsonl</code> and a temporary checks file. Writes nothing to the library.</p>
+  <h4>Example</h4>
+  <p class="term-label">output from a scratch library (PubMed check supplied by hand)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:hypothesize --concept drug-x</span>
+<span class="c"># candidates: 1 · PubMed: "drug X" AND "cognitive decline" → 0 results</span>
+<span class="o">[
+  {
+    "concept_a": "drug-x",
+    "concept_c": "cognitive-decline",
+    "chain_count": 1,
+    "chains": [
+      {
+        "concept_b": "sbp",
+        "a_b_relation_id": "rel-026322c5ae88",
+        "a_b_type": "potential_conflict",
+        "a_b_supporting_claims": [ … 38000001, 38000002 … ],
+        "b_c_relation_id": "rel-1211e326b079",
+        "b_c_type": "supports",
+        "b_c_supporting_claims": [ … 38000003 … ]
+      }
+    ],
+    "pubmed_check": {
+      "query": "\"drug X\" AND \"cognitive decline\"",
+      "retrieved_at": "2026-09-15T10:00:00+00:00",
+      "result_pmids": []
+    },
+    "pubmed_note": "Not found by this search ('\"drug X\" AND \"cognitive decline\"') -- untested in the library, and this specific search found no evidence it's studied in the wider literature either. Not proof of novelty: a different query might find something this one didn't.",
+    "limitations": "Candidate derived from 1 independent A-B/B-C chain(s) in this library's graph between 'drug-x' and 'cognitive-decline'. Missing edges describe library coverage, not established literature gaps (§5b). This is a reading-list candidate, not a validated claim."
+  }
+]</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>hypothesize.py candidates --repo &lt;root&gt; --concept &lt;slug&gt;</code>, then <code>hypothesize.py finalize --repo &lt;root&gt; --concept &lt;slug&gt; --checks-file &lt;json&gt;</code>. The PubMed call is made by the command, never by the script.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#gaps">/ref:gaps</a> · <a href="find.html#search-pubmed">/ref:search-pubmed</a> · <a href="acquire.html#add">/ref:add</a> · <a href="../tutorials/graph-discovery.html">Graph discovery tutorial</a></p>
+</article>
+
+</div>
+</section>
+
+<nav class="pager">
+  <a href="write.html"><small>Previous</small>Write commands</a>
+  <a href="people.html" style="text-align:right"><small>Next</small>People commands</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code>.</footer>
+</body>
+</html>

@@ -97,6 +97,22 @@ pre.tree .m{color:var(--amber);font-weight:500}
   color:var(--ink);white-space:nowrap;margin:0;
 }
 .cmd-list dd{margin:0;color:var(--muted);font-size:.8125rem;line-height:1.5}
+
+.sel-wrap{overflow-x:auto}
+table.sel{border-collapse:collapse;width:100%;font-size:.8125rem;min-width:34rem}
+table.sel th{
+  text-align:left;font-weight:500;color:var(--accent);
+  font-family:"IBM Plex Mono",monospace;font-size:.7rem;
+  text-transform:uppercase;letter-spacing:.08em;
+  padding:0 1rem .5rem 0;border-bottom:1px solid var(--line);
+}
+table.sel td{padding:.45rem 1rem .45rem 0;vertical-align:top;border-bottom:1px solid var(--line);color:var(--muted)}
+table.sel td:first-child{font-family:"IBM Plex Mono",monospace;color:var(--ink);white-space:nowrap}
+table.sel td:last-child{font-variant-numeric:tabular-nums;white-space:nowrap;padding-right:0}
+table.sel tr.base td{background:var(--accent-soft)}
+table.sel tr.base td:first-child{font-weight:500}
+.sel-note{color:var(--muted);font-size:.8125rem;margin:.9rem 0 0;max-width:46rem}
+.sel-note code{font-family:"IBM Plex Mono",monospace;color:var(--ink)}
 </style>
 
 <main>
@@ -275,6 +291,28 @@ pre.tree .m{color:var(--amber);font-weight:500}
 </section>
 
 <section>
+<h2>Selecting papers</h2>
+<p class="sel-note">One grammar, shared by every command that works on a set — <code>compare</code>, <code>summarize</code>, <code>review</code>, <code>ask</code>, <code>export</code>, and the batch acquisition commands. There is no free-text <code>topic</code> argument: it would re-resolve on every run, so a saved artifact could silently change membership underneath its conclusions.</p>
+<div class="sel-wrap">
+<table class="sel">
+  <thead><tr><th>Selector</th><th>Resolves to</th><th>From</th></tr></thead>
+  <tbody>
+    <tr class="base"><td>&lt;pmid…&gt;</td><td>exactly those papers — the base case</td><td>phase 1</td></tr>
+    <tr><td>--project &lt;slug&gt;</td><td>project membership, narrowed by <code>--question &lt;qid&gt;</code></td><td>phase 1</td></tr>
+    <tr><td>--screened &lt;state&gt;</td><td>recorded screening decisions</td><td>phase 2</td></tr>
+    <tr><td>--read / --queue &lt;state&gt;</td><td>human reading state, never model promotion</td><td>phase 1</td></tr>
+    <tr><td>--query &lt;slug&gt; [--run &lt;id&gt;]</td><td>one immutable saved search run</td><td>phase 2</td></tr>
+    <tr><td>--search "&lt;expr&gt;"</td><td>FTS hits, resolved once and frozen</td><td>phase 2</td></tr>
+    <tr><td>--study &lt;id&gt;</td><td>every publication of one investigation</td><td>phase 5</td></tr>
+    <tr><td>--concept &lt;id&gt;</td><td>a graph concept, via its alias table</td><td>phase 8</td></tr>
+    <tr><td>--from-file &lt;path&gt;</td><td>a PMID list from a file</td><td>phase 1</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="sel-note">Selectors combine with AND, and <code>--tier</code> / <code>--exclude</code> refine any of them. Before expensive work runs, the set resolves to an explicit PMID list reported with counts by extraction tier, verification state, and retraction status. That list is then frozen into the artifact manifest alongside the selector expression, so explicit refresh reports added, removed, and changed-evidence papers rather than quietly substituting a different set.</p>
+</section>
+
+<section>
 <h2>Planned commands</h2>
 <div class="cmd-groups">
 
@@ -313,10 +351,10 @@ pre.tree .m{color:var(--amber);font-weight:500}
   <div class="cmd-group">
     <h3>Write &amp; compare</h3>
     <dl class="cmd-list">
-      <dt>/ref:summarize &lt;pmid|topic&gt;</dt><dd>per-paper or per-topic summary</dd>
-      <dt>/ref:review [topic]</dt><dd>evidence table with GRADE-style certainty and risk-of-bias appraisal (full tier)</dd>
+      <dt>/ref:summarize &lt;selector&gt;</dt><dd>prose narrative across the selected set; a one-paper set degrades to a single-paper summary</dd>
+      <dt>/ref:review &lt;selector&gt;</dt><dd>appraised synthesis over the set — GRADE-style certainty and risk-of-bias, plus evidence tables (full tier)</dd>
       <dt>/ref:review --prisma --project &lt;slug&gt;</dt><dd>PRISMA 2020 flow record rendered from saved query runs, screening decisions, and acquisition availability; unevidenced counts stay unknown</dd>
-      <dt>/ref:compare --project &lt;slug&gt;</dt><dd>project-scoped, editable evidence matrix with source-linked cells and study-level grouping</dd>
+      <dt>/ref:compare &lt;selector&gt;</dt><dd>editable evidence matrix with source-linked cells and study-level grouping; no appraisal needed</dd>
       <dt>/ref:methods &lt;topic&gt;</dt><dd>retrieve protocols, datasets, software, instruments, and analysis choices with evidence locators</dd>
       <dt>/ref:check-citations &lt;text&gt;</dt><dd>check a paragraph's assertions against evidence; flag unsupported wording or conflicting results</dd>
       <dt>/ref:brief</dt><dd>save an answer, evidence snapshot, and open questions as a versioned research brief</dd>
@@ -328,8 +366,8 @@ pre.tree .m{color:var(--amber);font-weight:500}
   <div class="cmd-group">
     <h3>Explore the graph</h3>
     <dl class="cmd-list">
-      <dt>/ref:gaps [topic]</dt><dd>structural graph query — single-study claims, unresolved contradictions, untested concept pairs</dd>
-      <dt>/ref:hypothesize</dt><dd>Swanson ABC traversal over the concept graph; candidates re-checked against PubMed</dd>
+      <dt>/ref:gaps &lt;selector&gt;</dt><dd>structural graph query — single-study claims, unresolved contradictions, untested concept pairs</dd>
+      <dt>/ref:hypothesize --concept &lt;id&gt;</dt><dd>Swanson ABC traversal over the concept graph; candidates re-checked against PubMed</dd>
     </dl>
   </div>
 

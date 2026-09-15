@@ -81,6 +81,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-15 · [`62964e0`](https://github.com/christineecker/claude-ref-manager/commit/62964e0) release: v0.2.0
 - 2026-09-15 · [`a317423`](https://github.com/christineecker/claude-ref-manager/commit/a317423) feat: create only core library dirs at init, rest lazily on first write
 - 2026-09-15 · [`4e80136`](https://github.com/christineecker/claude-ref-manager/commit/4e80136) docs: add "Adding papers" tutorial covering four ways to find papers
 - 2026-09-15 · [`da340ee`](https://github.com/christineecker/claude-ref-manager/commit/da340ee) Auto-acquire JATS figure images; add no-selector picker fallback
@@ -95,5 +96,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`69f757b`](https://github.com/christineecker/claude-ref-manager/commit/69f757b) fix: correct linkset parsing doc, add relation.py create-manual
 - 2026-09-15 · [`19cf7e2`](https://github.com/christineecker/claude-ref-manager/commit/19cf7e2) Phase 9 (gaps half): /ref:gaps, /ref:hypothesize
 - 2026-09-15 · [`f188b28`](https://github.com/christineecker/claude-ref-manager/commit/f188b28) Phase 9 (related half): /ref:related backward/forward snowballing
-- 2026-09-15 · [`58f724a`](https://github.com/christineecker/claude-ref-manager/commit/58f724a) fix: okf_emit.py concept entries carry tags even with no aliases yet
 <!-- changelog:end -->

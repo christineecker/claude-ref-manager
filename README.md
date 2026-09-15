@@ -81,6 +81,8 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-15 · [`e453797`](https://github.com/christineecker/claude-ref-manager/commit/e453797) Add PDF identification wrapper
+- 2026-09-15 · [`7e65c5f`](https://github.com/christineecker/claude-ref-manager/commit/7e65c5f) Add reader rendering and PMC PDF fetch
 - 2026-09-15 · [`5ac4b9d`](https://github.com/christineecker/claude-ref-manager/commit/5ac4b9d) Add add-fetch wrapper and improve fetch assets
 - 2026-09-15 · [`62964e0`](https://github.com/christineecker/claude-ref-manager/commit/62964e0) release: v0.2.0
 - 2026-09-15 · [`a317423`](https://github.com/christineecker/claude-ref-manager/commit/a317423) feat: create only core library dirs at init, rest lazily on first write
@@ -94,6 +96,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`4c5d8de`](https://github.com/christineecker/claude-ref-manager/commit/4c5d8de) Phase 11: /ref:audit, citation observations, cache invalidation, /ref:report --citations
 - 2026-09-15 · [`03aec9e`](https://github.com/christineecker/claude-ref-manager/commit/03aec9e) fix: /ref:summarize's candidate-building step is a real CLI path, not a fragile inline snippet
 - 2026-09-15 · [`41487c0`](https://github.com/christineecker/claude-ref-manager/commit/41487c0) Phase 10: /ref:summarize, advanced /ref:review (GRADE, RoB2/NOS/AMSTAR-2)
-- 2026-09-15 · [`69f757b`](https://github.com/christineecker/claude-ref-manager/commit/69f757b) fix: correct linkset parsing doc, add relation.py create-manual
-- 2026-09-15 · [`19cf7e2`](https://github.com/christineecker/claude-ref-manager/commit/19cf7e2) Phase 9 (gaps half): /ref:gaps, /ref:hypothesize
 <!-- changelog:end -->

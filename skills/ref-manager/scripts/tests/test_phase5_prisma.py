@@ -131,7 +131,8 @@ class TestStudiesVsPublications(TempLibrary):
         for pmid in ("40", "41", "42"):
             screen.decide(self.library_root, "thesis", pmid, "included", "x", None)
         self._write_studies_jsonl([
-            {"study_id": "s1", "publications": ["40", "41"], "grouping_confidence": "confirmed", "review_state": "reviewed"},
+            {"study_id": "s1", "pmids": ["40", "41"], "confidence": "confirmed",
+             "evidence": "shared trial registration", "review_state": "reviewed"},
         ])
 
         result = prisma.run_prisma(self.library_root, "thesis", [("q1", None)], refresh=False)

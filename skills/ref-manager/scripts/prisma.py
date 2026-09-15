@@ -164,11 +164,15 @@ def _included_studies(library_root: Path, included_pmids: list[str]) -> dict | N
         if not line.strip():
             continue
         rec = json.loads(line)
-        pubs = [p for p in rec.get("publications", []) if p in included_set]
+        # study.py (phase 5's actual writer) uses "pmids"/"confidence", not
+        # the phase-0 lib_schema.py stub's "publications"/"grouping_confidence"
+        # -- this reader was originally written against the stale stub before
+        # the concurrently-developed study.py landed; reconciled post-merge.
+        pubs = [p for p in rec.get("pmids", []) if p in included_set]
         if pubs:
             groups.append({
                 "study_id": rec["study_id"], "publications": sorted(pubs),
-                "grouping_confidence": rec.get("grouping_confidence", "unknown"),
+                "grouping_confidence": rec.get("confidence", "unknown"),
             })
             covered.update(pubs)
     ungrouped = sorted(included_set - covered)  # each ungrouped PMID is its own independent study

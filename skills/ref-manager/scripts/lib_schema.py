@@ -114,10 +114,15 @@ def validate_correction(obj: dict) -> None:
 
 
 def validate_study(obj: dict) -> None:
-    """studies/studies.jsonl entry (§3d)."""
+    """studies/studies.jsonl entry (§3d). Field names match study.py's
+    actual phase-5 writer, not this validator's original phase-0 stub
+    (renamed publications->pmids, grouping_confidence->confidence; added
+    the required "evidence" field §3b calls for: "Store grouping evidence,
+    confidence, and review state")."""
     _require(obj, "study_id", str)
-    _require(obj, "publications", list)
-    _require(obj, "grouping_confidence", str)
+    _require(obj, "pmids", list)
+    _require(obj, "confidence", str)
+    _require(obj, "evidence", str)
     _require(obj, "review_state", str)
 
 

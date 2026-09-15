@@ -50,6 +50,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, library_lock
 from lib_ids import allocate_slug, SlugError
+from lib_schema import validate_study
 
 CONFIDENCES = ("confirmed", "likely", "uncertain")
 
@@ -58,8 +59,13 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_JSONL_FILENAMES = {"study": "studies.jsonl", "dataset": "datasets.jsonl", "method": "methods.jsonl"}
+
+
 def _jsonl_path(library_root: Path, kind: str) -> Path:
-    return library_root / "studies" / f"{kind}.jsonl"
+    # PLAN.md §3's repo layout (and prisma.py's reader) names these
+    # studies.jsonl/datasets.jsonl/methods.jsonl -- plural, not f"{kind}.jsonl".
+    return library_root / "studies" / _JSONL_FILENAMES[kind]
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -98,6 +104,7 @@ def create_study(library_root: Path, study_id: str, pmids: list[str], confidence
         "confidence": confidence, "evidence": evidence,
         "review_state": "unreviewed", "created_at": now, "updated_at": now,
     }
+    validate_study(row)
     return _append_row(library_root, "study", row)
 
 

@@ -6,8 +6,7 @@
 
 Claude Code plugin for scientific reference management: acquire, extract, and
 retrieve PMID-keyed papers into a personal library, with an OKF knowledge graph
-over claims and concepts. The repository's implementation plan is in
- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md).
+over claims and concepts.
 
 **Documentation:** <https://christineecker.github.io/claude-ref-manager/>
 (source in [`docs/`](docs/index.html); open `docs/index.html` locally for an offline copy)

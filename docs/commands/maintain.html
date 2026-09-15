@@ -28,6 +28,7 @@
   <h4>Maintain</h4>
   <ol>
     <li><a href="#overview">How they fit</a></li>
+    <li><a href="#help"><code>/ref:help</code></a></li>
     <li><a href="#audit"><code>/ref:audit</code></a></li>
     <li><a href="#index"><code>/ref:index</code></a></li>
     <li><a href="#status"><code>/ref:status</code></a></li>
@@ -50,7 +51,7 @@
 <header class="page">
   <p class="eyebrow">Commands · Keep the library healthy</p>
   <h1>Maintain</h1>
-  <p class="lede">Re-check papers for retractions, rebuild the search index from the files on disk, see what's configured, and move papers into Papers.app and your annotations back out. Files are the authority; these commands refresh projections and flag what changed without rewriting history.</p>
+  <p class="lede">Look up any command's spec, re-check papers for retractions, rebuild the search index from the files on disk, see what's configured, and move papers into Papers.app and your annotations back out. Files are the authority; these commands refresh projections and flag what changed without rewriting history.</p>
 </header>
 
 <section id="overview">
@@ -168,6 +169,36 @@
 <section>
 <h2>Commands</h2>
 <div class="cmd-groups">
+
+<!-- ================= help ================= -->
+<article class="cmd" id="help">
+  <div class="cmd-head"><h3>/ref:help</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Quick-start tour: list every <code>/ref:*</code> command grouped by what it's for, or show one command's full spec without leaving the terminal. No library required.</p>
+  <div class="synopsis">/ref:help
+/ref:help &lt;command&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;command&gt;</dt><dd>Optional. The bare command name with or without its <code>ref-</code>/<code>/ref:</code> prefix — <code>status</code>, <code>ref-status</code>, and <code>/ref:status</code> all resolve the same way.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>With no argument: checks whether a library is configured. If not, leads with a pointer to <a href="acquire.html#init"><code>/ref:init &lt;path&gt;</code></a>. Then prints the grouped overview verbatim — every line a real command and description, not a summary written fresh each time. If a library is configured, closes with a pointer to <a href="#status"><code>/ref:status</code></a>.</li>
+    <li>With a command name: resolves it to its command file (stripping a leading <code>/ref:</code> or <code>ref-</code>), then prints that file's own spec unparaphrased. If no such command exists, says so and suggests the closest matches, or points at the grouped overview.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code> to decide which closing pointer to print, and the target command's own file when one is named. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">looking up one command</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:help status</span>
+<span class="o">Quick-start tour: list every `/ref:*` command grouped by what it's for, or show
+one command's full spec without leaving the terminal. Read-only, no library
+required.
+…</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">No script — Claude reads <code>commands/ref-help.md</code> directly and, for a named command, the matching <code>commands/ref-&lt;name&gt;.md</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#init"><code>/ref:init</code></a> · <a href="#status"><code>/ref:status</code></a> · <a href="find.html#selectors">selector grammar</a></p>
+</article>
 
 <!-- ================= audit ================= -->
 <article class="cmd" id="audit">

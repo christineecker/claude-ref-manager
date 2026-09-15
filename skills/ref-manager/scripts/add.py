@@ -88,6 +88,9 @@ def add_one(library_root: Path, record: dict) -> dict:
         abstract = record.get("abstract")
         year = record.get("year") or "n.d."
 
+        if not title and not authors:
+            raise ValueError(f"no metadata returned for PMID {pmid}")
+
         citekey = allocate_citekey(
             library_root,
             _first_author_lastname(authors),

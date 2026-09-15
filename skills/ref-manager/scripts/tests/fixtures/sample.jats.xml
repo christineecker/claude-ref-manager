@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article xmlns:xlink="http://www.w3.org/1999/xlink">
+  <front>
+    <article-meta>
+      <title-group><article-title>A Test Article About Herbs</article-title></title-group>
+      <funding-group>
+        <award-group>
+          <funding-source>National Research Foundation of Korea</funding-source>
+          <award-id>2020R1A2C1</award-id>
+        </award-group>
+      </funding-group>
+    </article-meta>
+  </front>
+  <body>
+    <sec><title>Introduction</title><p>Herbs are useful. See Figure 1.</p></sec>
+    <sec sec-type="results"><title>Results</title>
+      <p>Results here.</p>
+      <fig id="fig1">
+        <label>Figure 1</label>
+        <caption><p>Chromatogram of the three herbs.</p></caption>
+        <graphic xlink:href="fig1.jpg"/>
+      </fig>
+    </sec>
+    <sec sec-type="funding"><title>Acknowledgements</title>
+      <p>This work was supported by a grant from the National Research Foundation of Korea.</p>
+    </sec>
+  </body>
+</article>

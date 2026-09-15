@@ -48,6 +48,7 @@ from pathlib import Path
 from lib_atomic import atomic_write_json
 from lib_selector import resolve_from_args, add_selector_args, SelectorError
 from lib_verify_link import load_registry
+from lib_status_check import current_status, diff_status
 import study as study_mod
 
 CLAIM_COLUMNS = {
@@ -202,11 +203,15 @@ def run_compare(library_root: Path, batch: str, project: str | None,
         raise SelectorError("no selector resolution available for a new/refreshed table")
 
     prior_pmids = []
+    prior_status_snapshot = {}
     if manifest_path.exists():
-        prior_pmids = json.loads(manifest_path.read_text())["pmids"]
+        prior_manifest = json.loads(manifest_path.read_text())
+        prior_pmids = prior_manifest["pmids"]
+        prior_status_snapshot = prior_manifest.get("retraction_status_snapshot", {})
 
     pmids = resolution["pmids"]
     rows = build_rows(library_root, pmids, project)
+    status_changes = diff_status(library_root, prior_status_snapshot) if prior_pmids else []
 
     edits = json.loads(edits_path.read_text()) if edits_path.exists() else {}
     changed_evidence = []
@@ -237,6 +242,9 @@ def run_compare(library_root: Path, batch: str, project: str | None,
         "project": project,
         "resolved_at": datetime.now(timezone.utc).isoformat(),
         "report": resolution["report"],
+        # Phase 11: snapshot current status per PMID so the NEXT refresh can
+        # detect a retraction-status change against this frozen version.
+        "retraction_status_snapshot": {pmid: current_status(library_root, pmid) for pmid in pmids},
     }
     atomic_write_json(manifest_path, manifest)
 
@@ -247,6 +255,7 @@ def run_compare(library_root: Path, batch: str, project: str | None,
         result["removed"] = sorted(set(prior_pmids) - set(pmids))
         if changed_evidence:
             result["changed_evidence_cells"] = sorted(set(changed_evidence))
+        result["retraction_status_changes"] = status_changes
     return result
 
 

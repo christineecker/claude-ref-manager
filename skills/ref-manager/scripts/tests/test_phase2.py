@@ -67,7 +67,10 @@ class TestSelectorReportsBeforeWork(TempLibrary):
         self.assertEqual(result["pmids"], ["1001"])
         self.assertEqual(result["report"]["by_extraction_tier"]["abstract"], 1)
         self.assertEqual(result["report"]["by_human_verification_state"], {"not_yet_tracked": 1})
-        self.assertEqual(result["report"]["by_retraction_errata_status"], {"not_yet_tracked": 1})
+        # Phase 11: retraction_status is real (from meta.json) as of phase 4,
+        # not a placeholder -- a freshly-added paper has never been checked,
+        # so it correctly reports "unknown", not a fabricated "none".
+        self.assertEqual(result["report"]["by_retraction_errata_status"], {"unknown": 1})
 
 
 class TestSelectorEmptyIsNamedError(TempLibrary):

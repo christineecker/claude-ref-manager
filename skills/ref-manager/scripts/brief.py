@@ -42,6 +42,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, atomic_write_text
 from lib_ids import gen_opaque_id
+from lib_status_check import diff_status
 
 
 def _key_dir(library_root: Path, project: str | None, key: str) -> Path:
@@ -120,6 +121,14 @@ def save_brief(
     prior_claim_ids = {e["claim_id"] for e in prior_evidence if e.get("kind") == "claim"}
     added_support = sorted(new_claim_ids - prior_claim_ids)
     new_pmids = sorted({c["pmid"] for c in candidates} - {e["pmid"] for e in prior_evidence})
+    # Phase 11: a paper's retraction_status can change (via /ref:audit) after
+    # this brief was generated -- report that on refresh, same
+    # never-silent-never-overwrite-history spirit as withdrawn claim evidence.
+    prior_status_by_pmid = {
+        e["pmid"]: e.get("retraction_status", "unknown")
+        for e in prior_evidence if e.get("retraction_status") is not None
+    }
+    status_changes = diff_status(library_root, prior_status_by_pmid) if latest_id else []
 
     snapshot_id = gen_opaque_id("brief-")
     sdir = _snapshot_dir(library_root, project, key, snapshot_id)
@@ -150,6 +159,7 @@ def save_brief(
         result["added_support_claim_ids"] = added_support
         result["new_pmids"] = new_pmids
         result["withdrawn_evidence"] = withdrawn
+        result["retraction_status_changes"] = status_changes
     if edits:
         result["user_edit"] = edits
     return result

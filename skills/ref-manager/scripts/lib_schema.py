@@ -176,3 +176,68 @@ def validate_citation_check_finding(obj: dict) -> None:
     for ev in obj["evidence"]:
         _require(ev, "pmid", str)
     # existing_citation_pmid / citation_mismatch / note are optional
+
+
+RELATION_TYPES = ("supports", "potential_conflict", "contradicts", "extends", "replicates")
+
+
+def validate_concept(obj: dict) -> None:
+    """graph/concepts.jsonl entry (§3, §3d). Primary key is a user-chosen
+    slug (not a code) precisely because concepts accumulate aliases from
+    normalization over time -- "MI" and "myocardial infarction" both
+    resolve to one concept_id via the aliases list."""
+    _require(obj, "concept_id", str)
+    _require(obj, "name", str)
+    _require(obj, "aliases", list)
+    _require(obj, "alias_provenance", dict)
+    _require(obj, "created_at", str)
+    _require(obj, "updated_at", str)
+
+
+def validate_relation(obj: dict) -> None:
+    """graph/relations.jsonl entry (§3, §3a, §4a). A typed edge between two
+    CONCEPTS (not two claims directly) -- §4a's claim-to-claim comparison
+    is what PROPOSES an edge, but the edge itself lives at the concept
+    level so "what contradicts concept X" (§5's structural retrieval
+    layer) is a single lookup, not a claim-pair search. Every edge names
+    its supporting claims (pmid + claim_id pairs, since claim_id alone
+    isn't globally unique across papers) and source version ids, per §3a:
+    "Each edge names supporting claims and source version IDs."
+
+    `contradicts` requires review_state == "reviewed" and a non-empty
+    rationale -- never auto-promoted from potential_conflict (§4a).
+    `stale` flips true when a refresh finds a supporting claim no longer
+    active (superseded or excluded_from_synthesis) -- §3a: "Re-extraction
+    invalidates affected evidence links and triggers an incremental graph
+    refresh." Going stale never clears review_state/rationale (§3a:
+    "Reviewed edge decisions persist in relation records") -- it only
+    flags the review's evidence changed and may need reconfirming, same
+    pending-review-not-silently-dropped pattern §3b uses for claim
+    corrections.
+    """
+    _require(obj, "relation_id", str)
+    _require(obj, "type", str)
+    if obj["type"] not in RELATION_TYPES:
+        raise SchemaError(f"type: unexpected value {obj['type']!r}")
+    _require(obj, "subject_concept_id", str)
+    _require(obj, "object_concept_id", str)
+    _require(obj, "supporting_claims", list)
+    if not obj["supporting_claims"]:
+        raise SchemaError("a relation must name at least one supporting claim (§3a)")
+    for sc in obj["supporting_claims"]:
+        _require(sc, "pmid", str)
+        _require(sc, "claim_id", str)
+    _require(obj, "source_version_ids", list)
+    _require(obj, "review_state", str)
+    if obj["review_state"] not in ("unreviewed", "reviewed"):
+        raise SchemaError(f"review_state: unexpected value {obj['review_state']!r}")
+    _require(obj, "rationale", (str, type(None)))
+    if obj["type"] == "contradicts":
+        if obj["review_state"] != "reviewed" or not (obj["rationale"] or "").strip():
+            raise SchemaError(
+                "type 'contradicts' requires review_state='reviewed' and a "
+                "non-empty rationale -- never auto-promoted from potential_conflict (§4a)"
+            )
+    _require(obj, "stale", bool)
+    _require(obj, "created_at", str)
+    _require(obj, "updated_at", str)

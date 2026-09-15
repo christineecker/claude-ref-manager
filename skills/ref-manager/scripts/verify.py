@@ -6,13 +6,15 @@
 overlay rules (§3c closing line), researcher-identity / grant-alias /
 author-contribution review.
 
-Five target types share one corrections.json record shape per paper
+Six target types share one corrections.json record shape per paper
 (target_type: claim | concept_mapping | person_identity | grant_link |
-author_contribution). person_identity review delegates to person.py's
-confirm_publication/reject_publication (already built in phase 2) rather
-than reimplementing identity matching here -- verify.py's job for that
-target_type is just to also log a correction record for audit symmetry
-with the other four types.
+author_contribution | appraisal). person_identity review delegates to
+person.py's confirm_publication/reject_publication (already built in phase
+2) rather than reimplementing identity matching here -- verify.py's job for
+that target_type is just to also log a correction record for audit symmetry
+with the other types. appraisal (phase 10) reviews one RoB2/NOS/AMSTAR-2
+domain drafted by appraise.py for one PMID; target_id = "<pmid>:<checklist>:
+<domain_key>".
 """
 from __future__ import annotations
 
@@ -216,6 +218,37 @@ def review_person_identity(library_root: Path, pmid: str, person_slug: str, auth
     return correction
 
 
+def review_appraisal(
+    library_root: Path, pmid: str, checklist: str, domain_key: str, decision: str,
+    reviewer: str, rationale: str, replacement_value: dict | None,
+) -> dict:
+    """Phase 10: accept/edit/reject one RoB2/NOS/AMSTAR-2 domain or item
+    drafted by appraise.py for this PMID. target_id = "<pmid>:<checklist>:
+    <domain_key>", matching exactly what appraise.py's
+    merge_appraisal_review() looks up so a reviewed domain shows
+    human_confirmed/human_edited/human_rejected instead of model_draft the
+    next time the appraisal is regenerated or displayed. The cross-paper
+    GRADE certainty rating is NOT reviewable here -- it's a set-level
+    judgment with no single PMID to scope a correction to; it lives
+    directly on the persisted review artifact (grade.json), same pattern
+    phase 8 used for relation review living on the relation record itself."""
+    correction = {
+        "correction_id": gen_opaque_id("cor-"),
+        "target_type": "appraisal",
+        "target_id": f"{pmid}:{checklist}:{domain_key}",
+        "decision": decision,
+        "original_value": None,
+        "replacement_value": replacement_value,
+        "rationale": rationale,
+        "reviewer": reviewer,
+        "timestamp": _now(),
+        "evidence_locator": f"appraisal:{checklist}:{domain_key}",
+        "status": "active",
+    }
+    _append_correction(library_root, pmid, correction)
+    return correction
+
+
 def show(library_root: Path, pmid: str) -> list[dict]:
     revalidate_corrections(library_root, pmid)
     return load_corrections(library_root, pmid)
@@ -225,7 +258,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("action", choices=[
         "review-claim", "review-grant-link", "review-author-contribution",
-        "review-person-identity", "show",
+        "review-person-identity", "review-appraisal", "show",
     ])
     ap.add_argument("--repo", required=True)
     ap.add_argument("--pmid", required=True)
@@ -241,6 +274,8 @@ def main() -> int:
     ap.add_argument("--flag")
     ap.add_argument("--evidence-statement")
     ap.add_argument("--person")
+    ap.add_argument("--checklist")
+    ap.add_argument("--domain-key")
     args = ap.parse_args()
 
     library_root = Path(args.repo).expanduser().resolve()
@@ -263,6 +298,10 @@ def main() -> int:
         elif args.action == "review-person-identity":
             result = review_person_identity(library_root, args.pmid, args.person, args.author_index,
                                               args.decision, args.reviewer, args.rationale)
+        elif args.action == "review-appraisal":
+            replacement = json.loads(Path(args.replacement_file).read_text()) if args.replacement_file else None
+            result = review_appraisal(library_root, args.pmid, args.checklist, args.domain_key,
+                                       args.decision, args.reviewer, args.rationale, replacement)
         else:
             result = show(library_root, args.pmid)
     except (SchemaError, ValueError) as e:

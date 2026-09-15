@@ -92,13 +92,15 @@ def validate_claim(obj: dict) -> None:
 def validate_correction(obj: dict) -> None:
     """corrections.json overlay entry (§3b). target_type distinguishes what
     kind of thing is under review -- claim / concept mapping / person
-    identity / grant link / author contribution statement -- all sharing
-    this one overlay shape per §3c's closing line ('the same persistent-
-    overlay rules as claim correction')."""
+    identity / grant link / author contribution statement / a per-PMID
+    risk-of-bias appraisal domain (phase 10, target_id = "<pmid>:<checklist>:
+    <domain_or_item_key>") -- all sharing this one overlay shape per §3c's
+    closing line ('the same persistent-overlay rules as claim correction')."""
     _require(obj, "correction_id", str)
     _require(obj, "target_type", str)
     if obj["target_type"] not in (
         "claim", "concept_mapping", "person_identity", "grant_link", "author_contribution",
+        "appraisal",
     ):
         raise SchemaError(f"target_type: unexpected value {obj['target_type']!r}")
     _require(obj, "target_id", str)  # claim_id / concept mapping id / etc.

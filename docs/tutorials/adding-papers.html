@@ -29,7 +29,7 @@
 <header class="page">
   <p class="eyebrow">Tutorial</p>
   <h1>Four ways to find papers, one way in</h1>
-  <p class="lede">Whatever route surfaces a PMID — a citation you already have, a PICO question, a snowball from a key paper, or a researcher's back-catalog — <code>/ref:add</code> is always the explicit, deliberate step that actually creates a record (D12). This tutorial walks all four routes. Commands used: <code>/ref:add</code>, <code>/ref:search-pubmed</code>, <code>/ref:update-queries</code>, <code>/ref:related</code>, <code>/ref:person</code>, and <code>/ref:discover</code>.</p>
+  <p class="lede">Whatever route surfaces a PMID — a citation you already have, a PICO question, a snowball from a key paper, or a researcher's back-catalog — <code>/ref:add</code> is always the explicit, deliberate step that actually creates a record (D12). What you're holding often isn't a bare PMID, though: a URL, a downloaded PDF, a folder of PDFs, a <code>.bib</code>/<code>.csl.json</code> export, or a DOI. <code>/ref:add-url</code>, <code>/ref:add-pdf</code>, and the source-aware <code>/ref:import</code> resolve those to a PMID first, then call the same underlying add step — so the identity guarantee holds no matter which door you came in. This tutorial walks all four discovery routes plus the intake commands for whatever form the paper takes. Commands used: <code>/ref:add</code>, <code>/ref:add-url</code>, <code>/ref:add-pdf</code>, <code>/ref:add-fetch</code>, <code>/ref:import</code>, <code>/ref:search-pubmed</code>, <code>/ref:update-queries</code>, <code>/ref:related</code>, <code>/ref:person</code>, and <code>/ref:discover</code>.</p>
 </header>
 
 <section>
@@ -88,7 +88,7 @@
 </section>
 
 <section>
-<h2>Route 1 — you already have the PMID</h2>
+<h2>Route 1 — you already have something to add</h2>
 <p>Most of the time you already know what you want: a citation from a paper you're reading, a list a colleague emailed, an export from another reference manager. <code>/ref:add</code> takes one or more PMIDs directly — this is the base case every other route eventually feeds into.</p>
 <p class="term-label">output from a scratch library</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000101 99000102 99000103</span>
@@ -97,6 +97,33 @@
 99000103: added (citekey=okoye2022transcriptomic) — no abstract available — metadata-only record, not fabricated (§3a)</span></pre>
 <div class="note"><strong>A file of PMIDs works the same way.</strong> There's no separate flag for it — <code>/ref:add</code> only takes PMIDs as arguments, so if a colleague sent you <code>pmids.txt</code> (one per line), have Claude read the file and pass its contents as the argument list: <code>/ref:add $(cat pmids.txt)</code>, or just paste the list. Every PMID still gets its own independent <code>added</code> / <code>already_present</code> / <code>failed</code> line.</div>
 <div class="note warn"><strong>No abstract is not a failure.</strong> Some records genuinely have none. <code>added</code> with a metadata-only note is the honest outcome — never a silently fabricated abstract.</div>
+
+<h3>When what you have isn't a bare PMID</h3>
+<p>PMID is still the identity key everything resolves to, but plenty of what actually lands in front of you isn't a PMID yet — a link, a downloaded PDF, a whole folder of PDFs from a shared drive, a <code>.bib</code>/<code>.csl.json</code> export from another reference manager, or a bare DOI copied off a reference list. Four commands cover these, each resolving a candidate PMID first and then calling the same add step:</p>
+<ul>
+<li><code>/ref:add-url &lt;url...&gt;</code> — extracts PMID/PMCID/DOI clues from PubMed, PMC, DOI, and publisher URLs (locally first, then a page fetch if needed), confirms ambiguous matches, adds the resolved PMIDs, and fetches full text unless <code>--no-fetch</code> is passed.</li>
+<li><code>/ref:add-pdf &lt;path...&gt;</code> — extracts DOI/PMID/PMCID/title clues from local PDFs with <code>pdftotext</code> (no network call), resolves each to a PMID, adds the metadata, then attaches every PDF to its paper.</li>
+<li><code>/ref:add-fetch &lt;pmid...&gt;</code> — for when you already have PMIDs and just want add-then-fetch in one step instead of running <code>/ref:add</code> and <code>/ref:fetch</code> separately.</li>
+<li><code>/ref:import &lt;item...&gt;</code> — the source-aware front door. Hand it a mix of PMIDs, URLs, PDF paths, a folder of PDFs, <code>.bib</code>/<code>.csl.json</code> files, or bare DOIs in one call. It splits the inputs by type, routes URLs and PDFs through the same identification helpers as <code>/ref:add-url</code> and <code>/ref:add-pdf</code>, expands directories to the PDFs they contain, resolves bibliography-file entries and bare DOIs to PMIDs through PubMed MCP (asking for confirmation on anything ambiguous), then adds and — unless <code>--no-fetch</code> is passed — fetches everything that resolved.</li>
+</ul>
+<p><code>/ref:import</code> is the one to reach for whenever the source type is mixed or you don't want to figure out which specific command applies; <code>/ref:add-url</code> and <code>/ref:add-pdf</code> are worth using directly when you already know you only have one type of thing.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:import 99000109 https://doi.org/10.1038/s41586-026-00001-2 ~/Downloads/nguyen2025striatal.pdf</span>
+<span class="o">identify:
+99000109: manual -> 99000109
+https://doi.org/10.1038/s41586-026-00001-2: doi -> 99000110
+~/Downloads/nguyen2025striatal.pdf: pmid -> 99000111
+
+add:
+99000109: added (citekey=singh2024cortical)
+99000110: added (citekey=weber2026striatal)
+99000111: already_present
+
+fetch:
+99000109: acquired
+99000110: abstract_only
+99000111: duplicate_noop</span></pre>
+<div class="note"><strong>Bibliography files are source material, not authoritative IDs.</strong> A <code>.bib</code> or <code>.csl.json</code> file tells <code>/ref:import</code> what to look for; the entries still have to resolve to a PMID through PubMed MCP before anything is added, the same as a DOI or a title clue would. And as with every route here, one input's failure — an unresolved PDF, an ambiguous DOI, a bad URL — never blocks the rest.</div>
 </section>
 
 <section>
@@ -194,7 +221,7 @@
     related.json                    <span class="c"># backward + forward candidates, upserted not overwritten</span>
   people/
     ecker-c.json                     <span class="c"># confirmed / candidate / rejected publication state</span></pre>
-<p>Once papers are in, get their full text with the <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a> tutorial steps in <a href="systematic-review.html">Systematic review</a>, or jump straight to <a href="thesis-chapter.html">Thesis chapter</a> for the read-screen-extract-synthesize path. Command reference: <a href="../commands/acquire.html#add"><code>/ref:add</code></a>, <a href="../commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a>, <a href="../commands/find.html#update-queries"><code>/ref:update-queries</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>, <a href="../commands/people.html#discover"><code>/ref:discover</code></a>.</p>
+<p>Once papers are in, get their full text with the <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a> tutorial steps in <a href="systematic-review.html">Systematic review</a>, or jump straight to <a href="thesis-chapter.html">Thesis chapter</a> for the read-screen-extract-synthesize path. Command reference: <a href="../commands/acquire.html#add"><code>/ref:add</code></a>, <a href="../commands/acquire.html#add-url"><code>/ref:add-url</code></a>, <a href="../commands/acquire.html#add-pdf"><code>/ref:add-pdf</code></a>, <a href="../commands/acquire.html#add-fetch"><code>/ref:add-fetch</code></a>, <a href="../commands/acquire.html#import"><code>/ref:import</code></a>, <a href="../commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a>, <a href="../commands/find.html#update-queries"><code>/ref:update-queries</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>, <a href="../commands/people.html#discover"><code>/ref:discover</code></a>.</p>
 </section>
 
 <nav class="pager" aria-label="Tutorial pages">

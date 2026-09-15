@@ -83,6 +83,58 @@ class TestConvertHtml(TempLibrary):
         self.assertNotIn("Subscribe", md)  # nav boilerplate stripped
 
 
+class TestConvertJatsRejectsNonXml(TempLibrary):
+    def test_plain_text_is_refused_not_silently_mangled(self):
+        # Verified live against the PubMed MCP get_full_text_article tool:
+        # it returns pre-extracted plain text, not JATS XML. pandoc -f jats
+        # does not error on non-XML input -- it silently falls back to
+        # plain-text parsing and destroys heading/section structure with no
+        # diagnostic. convert_jats must refuse this input explicitly.
+        staging = self.tmp / "staging-badjats"
+        staging.mkdir()
+        result = convert.convert_jats("INTRODUCTION\n\nSome plain prose.\n", staging)
+        self.assertEqual(result["status"], "error")
+        self.assertIn("not well-formed XML", result["diagnostics"][0])
+        self.assertFalse((staging / "source.md").exists())
+
+
+class TestConvertPlainText(TempLibrary):
+    def test_plain_text_written_through_with_loss_stated(self):
+        staging = self.tmp / "staging-plain"
+        staging.mkdir()
+        text = "INTRODUCTION\n\nWomen living with HIV...\n\nMETHODS\n\n98 participants."
+        result = convert.convert_plain_text(text, staging)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual((staging / "source.md").read_text(), text)
+        self.assertTrue(any("not recoverable" in d for d in result["diagnostics"]))
+
+    def test_html_converter_would_silently_lose_plain_text(self):
+        # Regression guard for the bug this test file's sibling test caught:
+        # trafilatura returns an EMPTY document (status "ok") on non-HTML
+        # plain text, which is why fetch.py routes plain_text through
+        # convert_plain_text instead of convert_html.
+        staging = self.tmp / "staging-html-on-plain"
+        staging.mkdir()
+        result = convert.convert_html("INTRODUCTION\n\nSome plain prose with no tags.\n", staging)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual((staging / "source.md").read_text(), "")
+
+
+class TestFetchPlainText(TempLibrary):
+    def test_plain_text_source_commits_and_preserves_content(self):
+        self.add_paper("34713412")
+        text = "INTRODUCTION\n\nWomen living with HIV...\n"
+        result = fetch.fetch_one(self.library_root, {
+            "pmid": "34713412", "doi": None, "jats_xml": None,
+            "publisher_html": None, "plain_text": text,
+        }, unpaywall_email=None)
+        self.assertEqual(result["result"], "acquired")
+        self.assertEqual(result["source"], "plain_text")
+        version_dirs = list((self.library_root / "papers" / "34713412" / "versions").iterdir())
+        self.assertEqual(len(version_dirs), 1)
+        self.assertEqual((version_dirs[0] / "source.md").read_text(), text)
+
+
 class TestConvertPdfUnavailable(TempLibrary):
     def test_anydoc_absent_reports_unavailable_not_crash(self):
         staging = self.tmp / "staging-pdf"

@@ -17,11 +17,24 @@ Input envelope (--input-file): a JSON array, one object per PMID:
 {
   "pmid": "12345",
   "doi": "10.1234/x" | null,                 # needed for the Unpaywall step
-  "jats_xml": "<article>...</article>" | null,  # from get_full_text_article
+  "jats_xml": "<article>...</article>" | null,  # genuine JATS markup only --
+                                                 # NOT the live get_full_text_article
+                                                 # tool's output, which is
+                                                 # pre-extracted plain text
+                                                 # (verified live); convert.py
+                                                 # now refuses non-well-formed
+                                                 # XML rather than mangling it
   "publisher_html": "<html>...</html>" | null,  # from WebFetch/firecrawl, if
                                                  # the calling agent already
                                                  # tried it (this script will
                                                  # NOT fetch a URL itself)
+  "plain_text": "..." | null,                   # pre-extracted full text with
+                                                 # no markup -- e.g. the live
+                                                 # get_full_text_article tool's
+                                                 # `articles[].full_text`.
+                                                 # Written through as-is;
+                                                 # section structure/figures
+                                                 # are not recoverable from it.
 }
 Each PMID must already exist (papers/<pmid>/meta.json from /ref:add) -- fetch
 augments a record, it doesn't create one (that's RESOLVE/DEDUP, §4 step 1-2).
@@ -38,7 +51,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, commit_version, pmid_lock
 from lib_ids import gen_opaque_id
-from convert import convert_jats, convert_html
+from convert import convert_jats, convert_html, convert_plain_text
 from funding_extract import extract_funding_observations
 
 UNPAYWALL_TIMEOUT = 15
@@ -128,6 +141,10 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
         if source is None and html:
             source, conv_kind, conv_input = "publisher_html", "html", html
 
+        plain_text = record.get("plain_text")
+        if source is None and plain_text:
+            source, conv_kind, conv_input = "plain_text", "plain_text", plain_text
+
         if source is None:
             meta["full_text"] = False
             meta["checked_at"] = meta.get("checked_at")
@@ -143,8 +160,10 @@ def fetch_one(library_root: Path, record: dict, unpaywall_email: str | None) -> 
         def write_fn(staging: Path) -> None:
             if conv_kind == "jats":
                 conv = convert_jats(conv_input, staging)
-            else:
+            elif conv_kind == "html":
                 conv = convert_html(conv_input, staging)
+            else:
+                conv = convert_plain_text(conv_input, staging)
             if conv["status"] != "ok":
                 raise ValueError(f"conversion failed ({conv['status']}): {conv['diagnostics']}")
             manifest = {

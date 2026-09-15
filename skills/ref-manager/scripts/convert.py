@@ -84,6 +84,18 @@ def convert_jats(xml_text: str, staging: Path) -> dict:
         return {"converter": "pandoc-jats", "version": None, "status": "unavailable",
                 "diagnostics": ["JATS conversion unavailable: pandoc not installed"], "figures": []}
 
+    # pandoc -f jats does not reject non-XML input -- it silently falls back
+    # to treating it as plain text, collapsing headings/sections with no
+    # error and no diagnostic (verified against real PubMed MCP full-text
+    # output, which is pre-extracted plain text, not JATS markup). Refuse
+    # explicitly rather than let that corruption pass as status "ok".
+    try:
+        ET.fromstring(xml_text)
+    except ET.ParseError as e:
+        return {"converter": "pandoc-jats", "version": None, "status": "error",
+                "diagnostics": [f"input is not well-formed XML, refusing to treat as JATS: {e}"],
+                "figures": []}
+
     proc = subprocess.run(
         [pandoc, "-f", "jats", "-t", "gfm"],
         input=xml_text.encode("utf-8"), capture_output=True,
@@ -155,6 +167,27 @@ def convert_html(html_text: str, staging: Path) -> dict:
 
     return {"converter": "trafilatura", "version": "runtime-resolved-by-uv", "status": "ok",
             "diagnostics": diags, "figures": figures}
+
+
+# ---------------- pre-extracted plain text (no markup to convert) ----------------
+
+def convert_plain_text(text: str, staging: Path) -> dict:
+    """For sources that arrive as already-extracted plain text with no HTML/
+    XML markup (e.g. the live PubMed MCP `get_full_text_article` tool, which
+    returns `articles[].full_text` as a flat string, not JATS). Neither
+    pandoc -f jats (silently mangles non-XML input) nor trafilatura (returns
+    an EMPTY document on non-HTML input, verified live) is the right tool
+    here -- there is no markup to strip or parse, so the text is written
+    through as-is. No section/heading structure or figures survive this
+    path; that loss is real and stated, not silently accepted as "ok" data."""
+    if not text or not text.strip():
+        return {"converter": "raw-text", "version": None, "status": "error",
+                "diagnostics": ["empty input"], "figures": []}
+    atomic_write_text(staging / "source.md", text)
+    return {"converter": "raw-text", "version": None, "status": "ok",
+            "diagnostics": ["source has no markup (plain extracted text); "
+                             "section/heading structure and figures are not recoverable"],
+            "figures": []}
 
 
 # ---------------- PDF -> anydoc ----------------

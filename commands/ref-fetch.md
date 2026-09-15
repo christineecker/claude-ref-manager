@@ -10,8 +10,21 @@ Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).
 2. For each PMID, try in order, stopping at the first that succeeds:
    a. Call `mcp__claude_ai_PubMed__get_full_text_article` for a reusable PMC OA
-      JATS full text. A PMCID alone does not guarantee availability (D16) — if the
-      tool returns nothing usable, move on.
+      full text. A PMCID alone does not guarantee availability (D16) — if the
+      tool returns nothing usable, move on. **Verified against the live tool:
+      it returns pre-extracted plain text in `articles[].full_text`, not raw
+      JATS XML** — do not put that string into `jats_xml`; `convert.py` now
+      rejects non-well-formed-XML input rather than silently mangling it
+      (pandoc's JATS reader falls back to plain-text parsing on bad input and
+      destroys section/heading structure with no error). Only populate
+      `jats_xml` if you obtain genuine JATS markup some other way (e.g. a
+      direct PMC OA `efetch` XML fetch via WebFetch) — leave it null otherwise.
+      Pass the tool's plain `full_text` as `plain_text` instead (not
+      `publisher_html` — verified live that trafilatura returns an EMPTY
+      document on non-HTML plain text, which would silently discard the
+      content; `plain_text` is written through as-is by a dedicated
+      no-markup path, with the structure/figure loss stated as a diagnostic
+      rather than hidden).
    b. Otherwise leave `jats_xml` null — the script itself checks Unpaywall directly
       (a single deterministic REST call needing no judgment, §6 point 2) using the
       paper's DOI and the `unpaywall_email` recorded in `config.json` at `/ref:init`.
@@ -31,7 +44,8 @@ Steps:
      "pmid": "<string>",
      "doi": "<string or null>",
      "jats_xml": "<string or null>",
-     "publisher_html": "<string or null>"
+     "publisher_html": "<string or null>",
+     "plain_text": "<string or null>"
    }
    ```
 4. Write the JSON array to a temp file, then print and run:

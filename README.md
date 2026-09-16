@@ -84,6 +84,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-16 · [`b0bac59`](https://github.com/christineecker/claude-ref-manager/commit/b0bac59) fix: SVG diagram text unreadable in dark mode (default black fill)
 - 2026-09-16 · [`afdd656`](https://github.com/christineecker/claude-ref-manager/commit/afdd656) docs: restore dropped adding-papers content, document library viewer
 - 2026-09-16 · [`f8b247b`](https://github.com/christineecker/claude-ref-manager/commit/f8b247b) Add library viewer: /ref:list, /ref:dashboard, lint --diff
 - 2026-09-16 · [`160dfe6`](https://github.com/christineecker/claude-ref-manager/commit/160dfe6) Add maintenance feature: ref-maintain, ref-lint, ref-repair-fulltext
@@ -98,5 +99,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`5133704`](https://github.com/christineecker/claude-ref-manager/commit/5133704) Add PubMed query workflow wrappers
 - 2026-09-15 · [`e453797`](https://github.com/christineecker/claude-ref-manager/commit/e453797) Add PDF identification wrapper
 - 2026-09-15 · [`7e65c5f`](https://github.com/christineecker/claude-ref-manager/commit/7e65c5f) Add reader rendering and PMC PDF fetch
-- 2026-09-15 · [`5ac4b9d`](https://github.com/christineecker/claude-ref-manager/commit/5ac4b9d) Add add-fetch wrapper and improve fetch assets
 <!-- changelog:end -->

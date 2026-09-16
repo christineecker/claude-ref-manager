@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paper library dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Paper library</h1>
+      <span class="path" id="lib-path"></span>
+    </div>
+    <span class="spacer"></span>
+    <button class="iconbtn" id="btn-refresh" type="button" hidden title="Re-fetch rows from the live server">&#x21bb;</button>
+    <span class="meta-line" id="generated-line"></span>
+  </header>
+
+  <div class="errbanner" id="errbanner" role="alert" hidden></div>
+
+  <div class="grid g3">
+    <section class="panel" aria-labelledby="h-health">
+      <h2 id="h-health">Health <span id="health-count"></span></h2>
+      <div class="state"><i class="dot" id="health-dot"></i><b id="health-label"></b></div>
+      <ul class="attn" id="attn"></ul>
+    </section>
+
+    <section class="panel" aria-labelledby="h-source">
+      <h2 id="h-source">Source coverage <span id="src-total"></span></h2>
+      <div class="stack" id="stack"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-funnel">
+      <h2 id="h-funnel">Pipeline funnel <span>papers reaching each stage</span></h2>
+      <svg class="chart" id="funnel" viewBox="0 0 420 170" role="img" aria-label="Pipeline funnel"></svg>
+    </section>
+  </div>
+
+  <div class="grid g2">
+    <section class="panel" aria-labelledby="h-year">
+      <h2 id="h-year">Papers by year <span>stacked by source state</span></h2>
+      <svg class="chart" id="years" viewBox="0 0 560 190" role="img" aria-label="Papers per publication year"></svg>
+    </section>
+    <section class="panel" aria-labelledby="h-trend">
+      <h2 id="h-trend">Open lint issues <span id="trend-caption"></span></h2>
+      <svg class="chart" id="trend" viewBox="0 0 560 190" role="img" aria-label="Lint issues over time"></svg>
+    </section>
+  </div>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" id="tab-papers" data-tab="papers" aria-selected="true">Papers<span class="count" id="c-papers"></span></button>
+    <button role="tab" id="tab-coverage" data-tab="coverage" aria-selected="false">Coverage matrix</button>
+    <button role="tab" id="tab-projects" data-tab="projects" aria-selected="false">Projects<span class="count" id="c-projects"></span></button>
+    <button role="tab" id="tab-maint" data-tab="maint" aria-selected="false">Maintenance</button>
+  </nav>
+
+  <section id="p-papers" class="grid" style="gap:10px">
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="Search title, citekey, journal, PMID" aria-label="Search papers">
+      <select id="proj" aria-label="Project">
+        <option value="all">All projects</option>
+      </select>
+      <span id="activefilters" class="toolbar"></span>
+      <span class="views">
+        <select id="viewselect" aria-label="Saved view"><option value="">Saved views…</option></select>
+        <button id="view-apply" type="button">Apply</button>
+        <button id="view-save" type="button">Save current…</button>
+        <button id="view-rename" type="button">Rename</button>
+        <button id="view-delete" type="button">Delete</button>
+      </span>
+      <span class="result" id="result" role="status" aria-live="polite"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th style="width:32px"><input type="checkbox" id="selall" aria-label="Select all visible"></th>
+          <th><button data-sort="source_badge">Source</button></th>
+          <th><button data-sort="title">Paper</button></th>
+          <th class="num"><button data-sort="year">Year</button></th>
+          <th><button data-sort="journal">Journal</button></th>
+          <th><button data-sort="project">Project</button></th>
+          <th class="num"><button data-sort="claims_active">Claims</button></th>
+          <th class="num"><button data-sort="days_since_check">Last check</button></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>
+    <div class="actionbar" id="actionbar" hidden>
+      <span><span class="n" id="seln"></span> selected</span>
+      <code id="cmd-fetch"></code><button data-copy="cmd-fetch">Copy</button>
+      <code id="cmd-extract"></code><button data-copy="cmd-extract">Copy</button>
+      <code id="cmd-fetchpdf"></code><button data-copy="cmd-fetchpdf">Copy</button>
+      <code id="cmd-audit"></code><button data-copy="cmd-audit">Copy</button>
+      <button id="clearsel">Clear</button>
+    </div>
+  </section>
+
+  <section id="p-coverage" hidden>
+    <div class="heat"><table id="heat"></table></div>
+    <div class="pager" id="matrix-pager"></div>
+  </section>
+
+  <section id="p-projects" class="projgrid" hidden></section>
+
+  <section id="p-maint" class="grid g2" hidden>
+    <div class="panel">
+      <h2>Lint buckets <span id="maint-caption"></span></h2>
+      <div id="sparks"></div>
+    </div>
+    <div class="panel">
+      <h2>Changed since previous snapshot</h2>
+      <ul class="changes" id="changes"></ul>
+    </div>
+    <div class="panel">
+      <h2>Changed papers</h2>
+      <ul class="changes" id="changes-by-paper"></ul>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>Copied</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title" hidden>
+  <div class="d-head">
+    <div class="d-nav">
+      <div class="d-mode" role="group" aria-label="View">
+        <button data-mode="details" id="m-details" aria-pressed="true">Details</button>
+        <button data-mode="pdf" id="m-pdf" aria-pressed="false">PDF</button>
+      </div>
+      <span class="pos" id="d-pos"></span>
+      <button class="iconbtn" id="d-prev" aria-label="Previous paper">&uarr;</button>
+      <button class="iconbtn" id="d-next" aria-label="Next paper">&darr;</button>
+      <button class="iconbtn" id="d-close" aria-label="Close details">&times;</button>
+    </div>
+    <div class="d-badges" id="d-badges"></div>
+    <h2 class="d-title" id="d-title"></h2>
+    <div class="d-byline" id="d-byline"></div>
+    <nav class="d-sections" id="d-sections" aria-label="Sections" hidden></nav>
+  </div>
+  <div class="d-body" id="d-body"></div>
+  <div class="pdfv" id="d-pdf" hidden></div>
+  <div class="d-foot" id="d-foot"></div>
+</aside>
+
+<script id="dashboard-data" type="application/json">
+/*__DASHBOARD_DATA__*/
+</script>
+<script src="app.js"></script>
+</body>
+</html>

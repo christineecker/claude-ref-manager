@@ -18,6 +18,9 @@ Steps:
 3. Print the script's own output verbatim, and point the user at
    `reports/<label>/publications.csv` and `report.md`. Re-running with the same
    inputs and no data changes reproduces identical report content.
+   The exported rows now include provenance columns (`extraction_tier`,
+   `abstract_available`, `full_text`, `checked_at`) so freshness/state travel
+   with the report instead of living only in `meta.json`.
 4. With `--citations`: every count is labeled with its source and retrieval
    date, and captioned "citing articles indexed in PMC; not a total citation
    count" — relay that caveat, never present the number as "citations."

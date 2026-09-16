@@ -22,6 +22,7 @@ import queue as queue_mod  # noqa: E402
 import note  # noqa: E402
 import person  # noqa: E402
 import grant  # noqa: E402
+import report  # noqa: E402
 from lib_ids import SlugError  # noqa: E402
 from lib_schema import SchemaError  # noqa: E402
 
@@ -104,6 +105,33 @@ class TestAddPreservesRawOrderAndGrants(TempLibrary):
         funding = json.loads((self.library_root / "papers" / "3001" / "funding.json").read_text())
         self.assertEqual(funding["observations"][0]["grant"]["raw"], "NIH R01-AB12345 (Doe)")
         self.assertEqual(funding["state"], "indexed_funding_association")
+
+
+class TestAddIdentityWarnings(TempLibrary):
+    def test_same_doi_different_title_warns(self):
+        add.add_one(self.library_root, {
+            "pmid": "3002", "title": "First Title", "abstract": "abs",
+            "authors": [author("Smith", "Jane")], "year": "2020", "doi": "10.1/dup",
+        })
+        result = add.add_one(self.library_root, {
+            "pmid": "3003", "title": "Second Title", "abstract": "abs",
+            "authors": [author("Smith", "Jane")], "year": "2020", "doi": "10.1/dup",
+        })
+        self.assertIn("warnings", result)
+        self.assertTrue(any("shares doi" in w for w in result["warnings"]))
+        self.assertTrue(any("metadata mismatch" in w for w in result["warnings"]))
+
+    def test_same_title_different_doi_warns(self):
+        add.add_one(self.library_root, {
+            "pmid": "3004", "title": "Shared Title", "abstract": "abs",
+            "authors": [author("Smith", "Jane")], "year": "2020", "doi": "10.1/a",
+        })
+        result = add.add_one(self.library_root, {
+            "pmid": "3005", "title": "Shared Title", "abstract": "abs",
+            "authors": [author("Smith", "Jane")], "year": "2020", "doi": "10.1/b",
+        })
+        self.assertIn("warnings", result)
+        self.assertTrue(any("shares title" in w for w in result["warnings"]))
 
 
 # ---- /ref:project ----

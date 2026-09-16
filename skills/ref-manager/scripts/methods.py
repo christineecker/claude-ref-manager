@@ -44,6 +44,8 @@ def methods_for_pmid(library_root: Path, pmid: str) -> dict:
 
     return {
         "pmid": pmid,
+        "extraction_tier": (json.loads((library_root / "papers" / pmid / "meta.json").read_text()).get("extraction_tier") or "unknown") if (library_root / "papers" / pmid / "meta.json").exists() else "unknown",
+        "checked_at": (json.loads((library_root / "papers" / pmid / "meta.json").read_text()).get("checked_at") or "") if (library_root / "papers" / pmid / "meta.json").exists() else "",
         "study_design": designs or "not_reported",
         "adjustment_context": adjustments or "not_reported",
         "cohort_identity": cohorts or "not_reported",

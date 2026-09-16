@@ -19,9 +19,20 @@ Human-verification state (phase 4 corrections) and retraction/errata status
 (phase 11 audit) don't exist as concepts yet — reported as "not_yet_tracked"
 rather than fabricated. An empty resolution is a SelectorError naming the
 selector expression, never a silent empty list.
+
+One exception to "not a standalone command": `recent()` backs the shared
+no-selector fallback (ref_manager_feature_requests.md #2) that every
+`/ref:*` command taking a §5c selector falls back to when invoked with no
+PMID/selector at all -- list recently-added papers instead of failing or
+asking the user to recall a PMID from memory. `kind="unresolved"` adds a
+follow-up view for records that still need source work (metadata-only or
+OA-location-pending). Centralized here (rather than reimplemented per
+command) since every caller needs the same listing. `main()` below is the
+minimal CLI those command specs shell out to.
 """
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -260,3 +271,73 @@ def resolve_from_args(library_root: Path, args) -> dict:
         tier=args.tier,
         exclude=args.exclude,
     )
+
+
+def has_pdf(paper_dir: Path) -> bool:
+    raw_dir = paper_dir / "raw"
+    return raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
+
+
+def source_badge(paper_dir: Path, meta: dict) -> str:
+    """Single source-state classifier shared by status, lint, and the picker."""
+    if has_pdf(paper_dir):
+        return "pdf-backed"
+    if meta.get("full_text"):
+        return "full-text"
+    if meta.get("oa_location"):
+        return "oa-pending"
+    if meta.get("abstract_available"):
+        return "abstract-only"
+    return "metadata-only"
+
+
+def recent(library_root: Path, limit: int = 15, kind: str = "recent") -> list[dict]:
+    """Browse-first paper lists used by the shared no-selector picker.
+
+    `kind="recent"` / `kind="imports"` returns the newest papers by
+    `meta.json.checked_at`. `kind="unresolved"` returns papers that still
+    need source follow-up, newest first.
+    Each row carries what a checkbox UI needs to label an option: pmid,
+    citekey, title, year, source badge, and checked_at. Built from
+    `lib_inventory.rows()` (LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md §4.4) so
+    this picker and every other view agree on source-badge classification.
+    """
+    # local import: lib_inventory imports catalog, which callers that never
+    # touch recent() (e.g. selector-only commands) shouldn't have to load.
+    from lib_inventory import rows as inventory_rows
+
+    picks = []
+    for row in inventory_rows(library_root):
+        if kind == "unresolved" and row["source_badge"] not in ("metadata-only", "oa-pending"):
+            continue
+        picks.append({
+            "pmid": row["pmid"],
+            "citekey": row["citekey"],
+            "title": row["title"],
+            "year": row["year"],
+            "checked_at": row["checked_at"] or "",
+            "source_badge": row["source_badge"],
+        })
+    picks.sort(key=lambda r: r["checked_at"], reverse=True)
+    return picks[:limit]
+
+
+def main() -> int:
+    """`python3 lib_selector.py recent --repo <root> [--limit N]` -- prints
+    `recent()` as JSON. The one standalone entry point this module exposes
+    (see module docstring); everything else is imported, not shelled out to."""
+    ap = argparse.ArgumentParser(description=__doc__)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    recent_ap = sub.add_parser("recent", help="list browse-first papers for the no-selector fallback picker")
+    recent_ap.add_argument("--repo", required=True)
+    recent_ap.add_argument("--limit", type=int, default=15)
+    recent_ap.add_argument("--kind", choices=["recent", "imports", "unresolved"], default="recent")
+    args = ap.parse_args()
+
+    library_root = Path(args.repo).expanduser().resolve()
+    print(json.dumps(recent(library_root, args.limit, args.kind), indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -33,7 +33,7 @@ committed text to index (phase 4's claims.json/claim_registry.json, phase
 Because FTS5 virtual tables can't be ALTERed to add columns, and this
 catalog is explicitly documented as a rebuildable projection (§3a: "Files
 hold authoritative records; SQLite and OKF are rebuildable projections"),
-`rebuild()` deletes and recreates the whole catalog.sqlite file rather than
+`rebuild()` builds a fresh catalog.sqlite and atomically swaps it in rather than
 trying to migrate an existing one in place. Incomplete staging directories
 (versions/.staging-*) are never read -- only papers/*/current.json's
 pointer and what it names are indexed, exactly like every other committed-
@@ -42,11 +42,18 @@ state reader in this codebase.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
+
+from lib_atomic import catalog_lock
 
 CLAIM_NORMALIZED_FIELDS = (
     "population", "intervention", "comparator", "outcome", "timepoint",
@@ -107,13 +114,55 @@ CREATE TABLE catalog_meta (
 """
 
 
-def _connect(library_root: Path) -> sqlite3.Connection:
-    db_path = library_root / "index" / "catalog.sqlite"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    conn.executescript(SCHEMA)
-    conn.commit()
-    return conn
+def _db_path(library_root: Path) -> Path:
+    return library_root / "index" / "catalog.sqlite"
+
+
+def _current_version(pdir: Path) -> str | None:
+    current_path = pdir / "current.json"
+    if not current_path.exists():
+        return None
+    return json.loads(current_path.read_text()).get("version")
+
+
+def fingerprint(library_root: Path) -> str:
+    """Hash of (path, size, mtime) for every file rebuild() reads."""
+    h = hashlib.sha256()
+    papers_dir = library_root / "papers"
+    if not papers_dir.is_dir():
+        return h.hexdigest()
+    for pdir in sorted(p for p in papers_dir.iterdir() if p.is_dir()):
+        paths = [pdir / "meta.json", pdir / "current.json", pdir / "claim_registry.json"]
+        try:
+            version_id = _current_version(pdir)
+        except (OSError, ValueError):
+            version_id = None
+        if version_id:
+            paths.append(pdir / "versions" / version_id / "source.md")
+        for path in paths:
+            try:
+                st = path.stat()
+            except FileNotFoundError:
+                continue
+            h.update(f"{path.relative_to(library_root)}\0{st.st_size}\0{st.st_mtime_ns}\n".encode())
+    return h.hexdigest()
+
+
+def catalog_info(library_root: Path) -> dict | None:
+    """catalog_meta as a dict, or None if the catalog is missing or unreadable."""
+    db_path = _db_path(library_root)
+    if not db_path.exists():
+        return None
+    try:
+        with contextlib.closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as conn:
+            return dict(conn.execute("SELECT key, value FROM catalog_meta").fetchall())
+    except sqlite3.Error:
+        return None
+
+
+def is_stale(library_root: Path) -> bool:
+    info = catalog_info(library_root)
+    return info is None or info.get("fingerprint") != fingerprint(library_root)
 
 
 _HEADING_RE = re.compile(r"^#{1,6}\s+(.*)")
@@ -148,12 +197,37 @@ def _claim_fts_text(c: dict) -> str:
 
 def rebuild(library_root: Path) -> dict:
     """Reconstruct the catalog from committed records. Incomplete staging
-    directories are never read (§3a) -- only current.json's pointer."""
-    db_path = library_root / "index" / "catalog.sqlite"
-    if db_path.exists():
-        db_path.unlink()
-    conn = _connect(library_root)
+    directories are never read (§3a) -- only current.json's pointer.
 
+    Builds into a temp file under catalog_lock and swaps it in with
+    os.replace, so readers see the old catalog or the complete new one."""
+    db_path = _db_path(library_root)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with catalog_lock(library_root):
+        # Taken before reading: an edit during the build leaves the catalog marked stale.
+        fp = fingerprint(library_root)
+        fd, tmp_name = tempfile.mkstemp(dir=db_path.parent, prefix=".catalog.", suffix=".sqlite.tmp")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+        try:
+            with contextlib.closing(sqlite3.connect(tmp_path)) as conn:
+                conn.executescript(SCHEMA)
+                result = _populate(conn, library_root)
+                meta = {**result, "fingerprint": fp, "built_at": datetime.now(timezone.utc).isoformat()}
+                conn.executemany(
+                    "INSERT OR REPLACE INTO catalog_meta (key, value) VALUES (?, ?)",
+                    [(k, str(v)) for k, v in meta.items()],
+                )
+                conn.commit()
+            os.replace(tmp_path, db_path)
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                tmp_path.unlink()
+            raise
+    return result
+
+
+def _populate(conn: sqlite3.Connection, library_root: Path) -> dict:
     n_papers = n_passages = n_claims = 0
     papers_dir = library_root / "papers"
     if papers_dir.is_dir():
@@ -176,10 +250,7 @@ def rebuild(library_root: Path) -> dict:
             )
             n_papers += 1
 
-            current_path = pdir / "current.json"
-            version_id = None
-            if current_path.exists():
-                version_id = json.loads(current_path.read_text()).get("version")
+            version_id = _current_version(pdir)
             if version_id:
                 source_path = pdir / "versions" / version_id / "source.md"
                 if source_path.exists():
@@ -220,10 +291,6 @@ def rebuild(library_root: Path) -> dict:
                     )
                     n_claims += 1
 
-    for k, v in (("papers_indexed", n_papers), ("passages_indexed", n_passages), ("claims_indexed", n_claims)):
-        conn.execute("INSERT OR REPLACE INTO catalog_meta (key, value) VALUES (?, ?)", (k, str(v)))
-    conn.commit()
-    conn.close()
     return {"papers_indexed": n_papers, "passages_indexed": n_passages, "claims_indexed": n_claims}
 
 

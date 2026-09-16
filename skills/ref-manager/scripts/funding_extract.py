@@ -25,6 +25,25 @@ _FUNDING_WORDS = re.compile(
 )
 
 
+def _funder_fields(funder_el: ET.Element | None) -> tuple[str | None, str | None]:
+    """Read `<funding-source>`'s `<institution>` (the funder name) and
+    `<institution-id>` (the FundRef DOI etc.) as separate children instead of
+    flattening all descendant text together, which used to concatenate the
+    id straight onto the name (§9.1, e.g. "EU-Project STIPED (Horizon2020)
+    10.13039/501100000780"). A plain `<funding-source>Name</funding-source>`
+    (no `<institution>` wrapper) still works via the `.text` fallback."""
+    if funder_el is None:
+        return None, None
+    institution_el = funder_el.find(".//institution")
+    if institution_el is not None:
+        funder = "".join(institution_el.itertext()).strip() or None
+    else:
+        funder = (funder_el.text or "").strip() or None
+    id_el = funder_el.find(".//institution-id")
+    fundref_id = "".join(id_el.itertext()).strip() or None if id_el is not None else None
+    return funder, fundref_id
+
+
 def extract_funding_observations(xml_text: str) -> tuple[list[dict], str]:
     """Returns (observations, state) where state is one of
     explicit_acknowledgement_verified / possible_match / unknown, taking the
@@ -40,13 +59,14 @@ def extract_funding_observations(xml_text: str) -> tuple[list[dict], str]:
         for ag in fg.iter("award-group"):
             funder_el = ag.find(".//funding-source")
             award_el = ag.find(".//award-id")
-            funder = "".join(funder_el.itertext()).strip() if funder_el is not None else None
+            funder, fundref_id = _funder_fields(funder_el)
             award = "".join(award_el.itertext()).strip() if award_el is not None else None
-            if funder or award:
+            if funder or fundref_id or award:
                 observations.append({
                     "kind": "explicit_acknowledgement_verified",
                     "source": "jats_funding_group",
                     "funder": funder,
+                    "fundref_id": fundref_id,
                     "award_number": award,
                     "locator": "funding-group/award-group",
                 })
@@ -59,6 +79,7 @@ def extract_funding_observations(xml_text: str) -> tuple[list[dict], str]:
                     "kind": "explicit_acknowledgement_verified",
                     "source": "jats_funding_statement",
                     "funder": None,
+                    "fundref_id": None,
                     "award_number": None,
                     "text": text,
                     "locator": "funding-group/funding-statement",
@@ -77,6 +98,7 @@ def extract_funding_observations(xml_text: str) -> tuple[list[dict], str]:
                         "kind": "possible_match",
                         "source": "jats_acknowledgement_prose",
                         "funder": None,
+                        "fundref_id": None,
                         "award_number": None,
                         "text": text[:1000],
                         "locator": f"sec[sec-type={sec_type or 'acknowledgements'}]",

@@ -59,6 +59,12 @@ def library_lock(library_root: Path):
     return _flock(library_root / "index" / ".library.lock")
 
 
+def catalog_lock(library_root: Path):
+    """Serializes catalog rebuilds. Separate from library_lock so a caller
+    already holding the library lock can still trigger a rebuild."""
+    return _flock(library_root / "index" / ".catalog.lock")
+
+
 def pmid_lock(library_root: Path, pmid: str):
     """Per-PMID lock: one paper's stage commits are serialized against
     themselves, but independent of every other paper's (§4, batch commands

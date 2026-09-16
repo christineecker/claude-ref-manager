@@ -426,11 +426,12 @@ person.py reject-publication  --slug moreau-c --pmid 37999999</span>
     <li>Takes confirmed publications only. Papers with no <code>meta.json</code> or no year are excluded, never guessed.</li>
     <li>Classifies role as <code>/ref:publications</code> does and sorts by year, then PMID.</li>
     <li>Writes the CSV and Markdown, then a manifest recording the policies used. Rerunning with unchanged data reproduces identical CSV/Markdown; only <code>generated_at</code> differs.</li>
+    <li>Each exported row now includes provenance fields (<code>extraction_tier</code>, <code>abstract_available</code>, <code>full_text</code>, and <code>checked_at</code>) so freshness and source state travel with the report.</li>
     <li>With <code>--citations</code>, each count carries its source and retrieval date. No observation reads <code>unknown</code>, never <code>0</code>, and the number is never called "citations".</li>
   </ol>
   <p class="writes">Not implemented yet: grouping by grant or lab. This is the basic single-person report.</p>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads <code>people/&lt;slug&gt;.json</code>, <code>meta.json</code>, <code>authorship.json</code>, citation observations. Writes <code>reports/&lt;label&gt;/manifest.json</code>, <code>publications.csv</code> (<code>pmid, citekey, doi, year, journal, title, author_role</code>, plus <code>citation_count, citation_source, citation_retrieved_at, citation_coverage, citation_stale</code> with <code>--citations</code>), <code>report.md</code>.</p>
+  <p class="writes">Reads <code>people/&lt;slug&gt;.json</code>, <code>meta.json</code>, <code>authorship.json</code>, citation observations. Writes <code>reports/&lt;label&gt;/manifest.json</code>, <code>publications.csv</code> (<code>pmid, citekey, doi, year, journal, title, author_role</code>, plus <code>extraction_tier, abstract_available, full_text, checked_at, citation_count, citation_source, citation_retrieved_at, citation_coverage, citation_stale</code> with <code>--citations</code>), <code>report.md</code>.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:report --person moreau-c --from 2023 --to 2024</span>

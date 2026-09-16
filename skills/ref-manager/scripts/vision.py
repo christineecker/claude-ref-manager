@@ -70,6 +70,25 @@ def _find_cached(fig: dict, model: str, prompt: str) -> dict | None:
     return None
 
 
+def list_figures(library_root: Path, pmid: str, version: str = "current") -> dict:
+    path = _figures_path(library_root, pmid, version)
+    figures = _load_figures(path)
+    return {
+        "pmid": pmid,
+        "version": version,
+        "figures": [
+            {
+                "id": fig.get("id"),
+                "label": fig.get("label"),
+                "caption": fig.get("caption"),
+                "source_locator": fig.get("source_locator"),
+                "asset_available": bool(fig.get("asset_available")),
+            }
+            for fig in figures
+        ],
+    }
+
+
 def request(library_root: Path, pmid: str, version: str, figure_id: str, model: str, prompt: str) -> dict:
     path = _figures_path(library_root, pmid, version)
     figures = _load_figures(path)
@@ -119,13 +138,13 @@ def store(library_root: Path, pmid: str, version: str, figure_id: str, model: st
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["request", "store"])
+    ap.add_argument("action", choices=["request", "store", "list"])
     ap.add_argument("--repo", required=True)
     ap.add_argument("--pmid", required=True)
     ap.add_argument("--version", default="current")
-    ap.add_argument("--figure-id", required=True)
-    ap.add_argument("--model", required=True)
-    ap.add_argument("--prompt", required=True)
+    ap.add_argument("--figure-id")
+    ap.add_argument("--model")
+    ap.add_argument("--prompt")
     ap.add_argument("--description")
     args = ap.parse_args()
 
@@ -135,11 +154,16 @@ def main() -> int:
         return 1
 
     try:
-        if args.action == "request":
+        if args.action == "list":
+            result = list_figures(library_root, args.pmid, args.version)
+        elif args.action == "request":
+            if not (args.figure_id and args.model and args.prompt):
+                print("error: --figure-id, --model, and --prompt are required for request", file=sys.stderr)
+                return 1
             result = request(library_root, args.pmid, args.version, args.figure_id, args.model, args.prompt)
         else:
-            if not args.description:
-                print("error: --description is required for store", file=sys.stderr)
+            if not (args.figure_id and args.model and args.prompt and args.description):
+                print("error: --figure-id, --model, --prompt, and --description are required for store", file=sys.stderr)
                 return 1
             result = store(library_root, args.pmid, args.version, args.figure_id, args.model, args.prompt, args.description)
     except ValueError as e:

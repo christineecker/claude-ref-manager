@@ -42,3 +42,7 @@ Steps:
    summary; never silently overwrite the prior answer without them. A user's
    `--edit` revision survives a refresh whose underlying evidence is unchanged,
    and is reported `"stale": true` (not discarded) when the evidence changed.
+
+The saved manifest now also carries a provenance block with the resolved PMIDs
+and the question/project context so a saved brief can be traced back to the
+exact library slice that produced it.

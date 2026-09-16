@@ -17,10 +17,14 @@ from lib_schema import validate_config
 
 CONFIG_PATH = Path.home() / ".config" / "ref-manager" / "config.json"
 
+# Core dirs only -- everything else (projects, people, labs, grants, reports,
+# studies, graph, okf, queries) is created lazily by the command that first
+# writes into it (every writer goes through atomic_write_json/_text, which
+# mkdir(parents=True)'s its own parent, or mkdir's explicitly -- see
+# project.py:create, report.py, okf_emit.py, graph_people.py).
 LIBRARY_DIRS = [
-    "papers", "projects", "people", "labs", "grants", "reports",
-    "studies", "graph", "okf", "index", "index/.locks", "index/aliases",
-    "queries", "exports", "exports/papers",
+    "papers", "index", "index/.locks", "index/aliases",
+    "exports", "exports/papers",
 ]
 
 
@@ -41,8 +45,19 @@ def init_library(path: Path, force: bool = False) -> dict:
         )
 
     library_root = path.expanduser().resolve()
-    for rel in LIBRARY_DIRS:
-        (library_root / rel).mkdir(parents=True, exist_ok=True)
+    if library_root.exists() and not library_root.is_dir():
+        raise SystemExit(
+            f"error: {library_root} already exists and is not a directory. "
+            "Choose a different path."
+        )
+    try:
+        for rel in LIBRARY_DIRS:
+            (library_root / rel).mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError) as e:
+        raise SystemExit(
+            f"error: could not create library at {library_root}: {e}. "
+            "Check the path is writable, then retry."
+        )
     log = library_root / "log.md"
     if not log.exists():
         log.write_text("# ref-manager log\n")
@@ -62,6 +77,13 @@ def main() -> int:
     config = init_library(Path(args.path), force=args.force)
     print(f"library initialized at {config['library_root']}")
     print(f"config written to {CONFIG_PATH}")
+    print()
+    print("Next steps:")
+    print("  /ref:add <pmid>   add your first paper")
+    print("  /ref:status       check library health")
+    print("  /ref:project      create a project to organize papers")
+    print()
+    print("Example: /ref:add 12345678")
     return 0
 
 

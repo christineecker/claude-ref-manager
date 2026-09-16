@@ -365,7 +365,7 @@
 <li>
 <h3>Record dated citation observations</h3>
 <p><code>/ref:audit --citations</code> appends one dated observation per paper to <code>citations.json</code>. It never overwrites an earlier one. A paper without a PMCID gets a <code>no_pmcid</code> marker. A failed lookup gets <code>check_failed</code>, never a zero.</p>
-<div class="note warn"><strong>No cited-by source is wired in yet.</strong> None of the PubMed MCP tools in this environment return a PMC cited-by count. <code>find_related_articles</code> measures similarity, not citations. The persistence machinery is complete and tested. Until a real PMC ELink source is available, Claude should tell you there's nothing to record rather than invent counts. The output below comes from observations we supplied by hand.</div>
+<div class="note warn"><strong>Coverage is PMC-only.</strong> The cited-by count comes from a direct NCBI ELink call (<code>pmc_pmc_citedby</code>), not a PubMed MCP tool — none of those return a citation count (<code>find_related_articles</code> measures similarity, not citations). It only counts citing articles that are themselves indexed in PMC, so it undercounts total literature citations. The output below comes from observations we supplied by hand for this scratch library.</div>
 <p class="term-label">output from a scratch library (hand-supplied observations)</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:audit 38000101 38000102 38000103 --citations</span>
 <span class="o">[

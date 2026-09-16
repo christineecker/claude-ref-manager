@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""`/ref:dashboard` -- HTML dashboard over the paper library
+(LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md §6-§7). Two subcommands:
+
+`build` (§6, static mode) renders `dashboard_assets/index.html` (template)
+with the library's `rows()`, a lint report, the coverage matrix, and the
+lint snapshot history inlined as one escaped JSON blob, plus one
+`reports/dashboard/details/<pmid>.js` per paper
+(`window.__paperDetail(pmid, detail())`), loaded on demand via
+`<script src>` because file:// pages can't `fetch()` local files
+(§6 rationale). `app.js`/`app.css` are copied verbatim alongside
+`index.html`. Build is atomic (`lib_atomic.py` conventions): render into
+`reports/.dashboard-staging-<ts>/`, then swap it for `reports/dashboard/`
+via two directory renames -- a failed build never touches the previous
+dashboard, and a rebuild replaces it in one visible step.
+
+`serve` (§7, the default `/ref:dashboard` mode) runs a `127.0.0.1`-only
+`ThreadingHTTPServer` with a live JSON API, an in-page pdf.js viewer, and
+notes that write straight through `note.py append()` (which holds
+`pmid_lock()`). Both modes are read-only except that one write path --
+nothing else in this module or its handler ever writes to the library.
+"""
+from __future__ import annotations
+
+import argparse
+import hmac
+import http.server
+import json
+import mimetypes
+import os
+import re
+import secrets
+import shutil
+import sys
+import urllib.parse
+import webbrowser
+from datetime import datetime, timezone
+from pathlib import Path
+
+import lib_intake
+import lib_inventory
+import lint as lint_module
+import list as list_cli  # noqa: A004 -- reuse the /ref:list coverage-matrix cell semantics (§6.1)
+import note as note_module
+
+ASSETS_DIR = Path(__file__).resolve().parent / "dashboard_assets"
+
+# ---------------------------------------------------------------- serve (§7)
+
+# `lib_ids.py` mints slugs/citekeys/opaque ids but has no PMID rule of its
+# own -- the actual PMID shape check lives in `lib_intake.py` (used by
+# `/ref:import` to classify a raw PMID string). Reused here rather than
+# duplicated so a "valid pmid" means the same thing everywhere (§7.3).
+_PMID_RE = lib_intake.PMID_RE
+
+# §7.1's allowlist, exactly: raw/<hash>/source.pdf, reader/article.pdf,
+# versions/<v>/figures/*. `<hash>`/`<v>`/the figure filename are each
+# constrained to a single path segment (no "/") by `_decode_path_segments`
+# below; the regexes below are a second, independent check on the shape of
+# that segment (§7.3: "both checks, not just one").
+_FILE_ALLOWLIST_PATTERNS = (
+    re.compile(r"^raw/[^/]+/source\.pdf$"),
+    re.compile(r"^reader/article\.pdf$"),
+    re.compile(r"^versions/[^/]+/figures/[^/]+$"),
+)
+
+MAX_NOTE_TEXT_BYTES = 20 * 1024  # §7.3 "note text length cap (e.g. 20 KB)"
+MAX_BODY_BYTES = 24 * 1024  # a little headroom over MAX_NOTE_TEXT_BYTES for the JSON envelope
+
+
+def _valid_pmid(pmid: str) -> bool:
+    return bool(_PMID_RE.match(pmid))
+
+
+def _host_allowed(headers, port: int) -> bool:
+    """DNS-rebinding defense (§7.3): only our own loopback host:port."""
+    host = headers.get("Host", "")
+    return host in (f"127.0.0.1:{port}", f"localhost:{port}")
+
+
+def _origin_allowed(headers, port: int) -> bool:
+    origin = headers.get("Origin")
+    if not origin:
+        return False
+    return origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+
+
+def _decode_path_segments(raw_path: str) -> list[str] | None:
+    """Split a still-percent-encoded URL path on literal '/' separators and
+    percent-decode each segment on its own. Returns None if decoding a
+    segment reveals a '/' inside it -- an encoded slash (%2f/%2F) smuggled in
+    to fake extra path structure past the allowlist check (§7.3, §7.5)."""
+    segments = raw_path.split("/")
+    out = []
+    for seg in segments:
+        decoded = urllib.parse.unquote(seg)
+        if "/" in decoded:
+            return None
+        out.append(decoded)
+    return out
+
+
+class _DashboardHandler(http.server.BaseHTTPRequestHandler):
+    """Set on a per-server subclass by `build_server()`: `library_root`
+    (Path) and `token` (str, §7.3's per-run random token)."""
+
+    library_root: Path
+    token: str
+    server_version = "RefDashboard/1.0"
+
+    # -------------------------------------------------------------- helpers
+
+    def _send_bytes(self, body: bytes, content_type: str, status: int = 200) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_json(self, obj: object, status: int = 200) -> None:
+        self._send_bytes(json.dumps(obj).encode("utf-8"), "application/json; charset=utf-8", status=status)
+
+    def _reject(self, status: int, message: str) -> None:
+        self._send_json({"error": message}, status=status)
+
+    def _check_token(self) -> bool:
+        """Required (as a header, never a query param) on every /api and
+        /files request (§7.3). A GET of `/` itself needs no token -- the
+        browser doesn't have it yet; it reads it from `location.search`
+        (put there by the launch URL) before making its first API call."""
+        supplied = self.headers.get("X-Ref-Token", "")
+        if not supplied or not hmac.compare_digest(supplied, self.token):
+            self._reject(403, "missing or invalid X-Ref-Token")
+            return False
+        return True
+
+    # ------------------------------------------------------------------ GET
+
+    def do_GET(self) -> None:  # noqa: N802 -- stdlib method name
+        port = self.server.server_address[1]
+        if not _host_allowed(self.headers, port):
+            self._reject(403, "invalid Host header")
+            return
+
+        path = urllib.parse.urlsplit(self.path).path
+        if path in ("/", "/index.html"):
+            self._serve_index()
+        elif path == "/app.js":
+            self._serve_static_file(ASSETS_DIR / "app.js", "application/javascript")
+        elif path == "/app.css":
+            self._serve_static_file(ASSETS_DIR / "app.css", "text/css")
+        elif path == "/vendor/pdfjs/pdf.min.js":
+            self._serve_static_file(ASSETS_DIR / "vendor" / "pdfjs" / "pdf.min.js", "application/javascript")
+        elif path == "/vendor/pdfjs/pdf.worker.min.js":
+            self._serve_static_file(ASSETS_DIR / "vendor" / "pdfjs" / "pdf.worker.min.js", "application/javascript")
+        elif path == "/api/rows":
+            if self._check_token():
+                self._send_json(lib_inventory.rows(self.library_root))
+        elif path == "/api/lint":
+            if self._check_token():
+                self._send_json(lint_module.lint(self.library_root))
+        elif path == "/api/matrix":
+            if self._check_token():
+                self._serve_matrix()
+        elif path == "/api/snapshots":
+            if self._check_token():
+                self._send_json(_read_snapshots(self.library_root))
+        elif path.startswith("/api/paper/"):
+            if self._check_token():
+                self._serve_detail(path[len("/api/paper/"):])
+        elif path.startswith("/files/"):
+            if self._check_token():
+                self._serve_file(path[len("/files/"):])
+        else:
+            self._reject(404, "not found")
+
+    def _serve_index(self) -> None:
+        template = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
+        data = {
+            "live": True,
+            "library_root": str(self.library_root),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        rendered = template.replace("/*__DASHBOARD_DATA__*/", _escape_for_script_tag(data))
+        self._send_bytes(rendered.encode("utf-8"), "text/html; charset=utf-8")
+
+    def _serve_static_file(self, path: Path, content_type: str) -> None:
+        try:
+            body = path.read_bytes()
+        except OSError:
+            self._reject(404, "not found")
+            return
+        self._send_bytes(body, content_type)
+
+    def _serve_matrix(self) -> None:
+        """`/api/matrix` (§7 live-mode gap): the coverage matrix, computed
+        the same way the static build does at build time -- reusing
+        `list.py`'s `_matrix_row()`/`MATRIX_COLUMNS` over `rows()` rather
+        than reimplementing the cell semantics (§1.2 "one inventory")."""
+        rows = lib_inventory.rows(self.library_root)
+        self._send_json({
+            "columns": list(list_cli.MATRIX_COLUMNS),
+            "rows": [list_cli._matrix_row(r) for r in rows],
+        })
+
+    def _serve_detail(self, raw_pmid: str) -> None:
+        pmid = urllib.parse.unquote(raw_pmid.rstrip("/"))
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        try:
+            detail = lib_inventory.detail(self.library_root, pmid)
+        except FileNotFoundError:
+            self._reject(404, "pmid not found")
+            return
+        self._send_json(detail)
+
+    def _serve_file(self, raw_rel: str) -> None:
+        segments = _decode_path_segments(raw_rel)
+        if not segments or len(segments) < 2 or not all(segments):
+            self._reject(400, "invalid path")
+            return
+        pmid, *rest = segments
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        rel_path = "/".join(rest)
+        if not any(p.match(rel_path) for p in _FILE_ALLOWLIST_PATTERNS):
+            self._reject(403, "path not allowed")
+            return
+
+        papers_dir = self.library_root / "papers" / pmid
+        candidate = papers_dir / rel_path
+        try:
+            resolved = candidate.resolve(strict=True)
+            base = papers_dir.resolve(strict=True)
+        except OSError:
+            self._reject(404, "not found")
+            return
+        if resolved == base or not str(resolved).startswith(str(base) + os.sep):
+            self._reject(403, "path escapes the paper directory")
+            return
+        if not resolved.is_file():
+            self._reject(404, "not found")
+            return
+
+        content_type = mimetypes.guess_type(str(resolved))[0] or "application/octet-stream"
+        try:
+            body = resolved.read_bytes()
+        except OSError:
+            self._reject(404, "not found")
+            return
+        self._send_bytes(body, content_type)
+
+    # ----------------------------------------------------------------- POST
+
+    def do_POST(self) -> None:  # noqa: N802 -- stdlib method name
+        port = self.server.server_address[1]
+        if not _host_allowed(self.headers, port):
+            self._reject(403, "invalid Host header")
+            return
+        if not _origin_allowed(self.headers, port):
+            self._reject(403, "invalid or missing Origin header")
+            return
+
+        path = urllib.parse.urlsplit(self.path).path
+        if not (path.startswith("/api/paper/") and path.endswith("/notes")):
+            self._reject(404, "not found")
+            return
+        if not self._check_token():
+            return
+
+        pmid = urllib.parse.unquote(path[len("/api/paper/"):-len("/notes")].rstrip("/"))
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self._reject(411, "Content-Length required")
+            return
+        if length < 0 or length > MAX_BODY_BYTES:
+            self._reject(413, "request body too large")
+            return
+        raw_body = self.rfile.read(length)
+
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            self._reject(400, "invalid JSON body")
+            return
+        if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
+            self._reject(400, "body must be {text: str, page?: int}")
+            return
+        text = payload["text"]
+        if not text.strip():
+            self._reject(400, "text must not be empty")
+            return
+        if len(text.encode("utf-8")) > MAX_NOTE_TEXT_BYTES:
+            self._reject(413, "note text too long")
+            return
+        page = payload.get("page")
+        if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
+            self._reject(400, "page must be an integer")
+            return
+
+        final_text = f"p. {page}: {text}" if page is not None else text
+
+        # The only mutation path anywhere in this server: note.append(),
+        # which itself holds pmid_lock() (§7.5's "note.py change").
+        try:
+            note_module.append(self.library_root, pmid, final_text)
+        except FileNotFoundError:
+            self._reject(404, "pmid not found")
+            return
+
+        detail = lib_inventory.detail(self.library_root, pmid)
+        entry = detail["notes"][-1] if detail.get("notes") else {"at": None, "text": final_text}
+        self._send_json(entry, status=201)
+
+    def log_message(self, format: str, *args) -> None:  # noqa: A002 -- stdlib signature
+        pass  # keep the terminal clean; the one line serve() prints is the launch URL
+
+
+def build_server(library_root: Path, *, port: int = 0, token: str | None = None) -> http.server.ThreadingHTTPServer:
+    """Construct (but don't start) the loopback dashboard server. Exposed
+    separately from `serve()` so tests can start/stop it on an ephemeral
+    port without going through `serve_forever()`/`webbrowser.open()`."""
+    token = token or secrets.token_urlsafe(24)
+
+    class _BoundHandler(_DashboardHandler):
+        pass
+
+    _BoundHandler.library_root = library_root
+    _BoundHandler.token = token
+
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), _BoundHandler)
+    httpd.ref_token = token  # type: ignore[attr-defined]
+    return httpd
+
+
+def serve(library_root: Path, *, port: int = 0, open_browser: bool = False) -> None:
+    httpd = build_server(library_root, port=port)
+    actual_port = httpd.server_address[1]
+    url = f"http://127.0.0.1:{actual_port}/?token={httpd.ref_token}"  # type: ignore[attr-defined]
+    print(f"dashboard serving at {url}", flush=True)
+    if open_browser:
+        webbrowser.open(url)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
+
+
+def _escape_for_script_tag(payload: object) -> str:
+    """`json.dumps` with `</` neutralised so embedding inside an inline
+    `<script>` tag can't be broken out of by a `</script>` (or any other
+    closing tag) hiding in the data
+    (LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md §6.3)."""
+    return json.dumps(payload, indent=2).replace("</", "<\\/")
+
+
+def _read_snapshots(library_root: Path) -> list[dict]:
+    """`maintenance/*.json` in filename (timestamp) order -- `lint.py`'s
+    `_write_snapshot()` names them `<UTC-timestamp>.json` and each file is
+    exactly `lint()`'s return shape (`summary`/`issues`/`recommendations`)."""
+    maintenance_dir = library_root / "maintenance"
+    if not maintenance_dir.is_dir():
+        return []
+    out = []
+    for path in sorted(maintenance_dir.glob("*.json")):
+        try:
+            report = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(report, dict) or "issues" not in report:
+            continue
+        out.append({
+            "stamp": path.stem,
+            "summary": report.get("summary", {}),
+            "issues": report.get("issues", {}),
+        })
+    return out
+
+
+def _project_summaries(rows: list[dict]) -> list[dict]:
+    """One entry per project slug, aggregated from `rows()`'s `projects[]`
+    membership -- `dashboard.py` has no project API of its own to keep to
+    "one inventory, never re-derived" (§1.2)."""
+    projects: dict[str, list[dict]] = {}
+    for row in rows:
+        for p in row.get("projects") or []:
+            slug = p.get("slug")
+            if not slug:
+                continue
+            projects.setdefault(slug, []).append({
+                "pmid": row["pmid"],
+                "title": row["title"],
+                "reading_status": p.get("reading_status"),
+                "added_at": p.get("added_at"),
+                "has_fulltext": row["has_fulltext"],
+                "claims_active": row["claims_active"],
+            })
+    out = []
+    for slug, papers in sorted(projects.items()):
+        papers.sort(key=lambda p: p["pmid"])
+        out.append({"slug": slug, "papers": papers})
+    return out
+
+
+def _build_into(staging: Path, library_root: Path) -> None:
+    """Populate `staging` with the full dashboard. Raises (and leaves
+    `staging` for the caller to clean up) rather than promoting anything
+    on any failure -- see `build()`'s atomicity contract."""
+    rows = lib_inventory.rows(library_root)
+    report = lint_module.lint(library_root)
+    matrix_rows = [list_cli._matrix_row(r) for r in rows]
+
+    data = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "library_root": str(library_root),
+        "rows": rows,
+        "lint": report,
+        "matrix_columns": list(list_cli.MATRIX_COLUMNS),
+        "matrix": matrix_rows,
+        "snapshots": _read_snapshots(library_root),
+        "projects": _project_summaries(rows),
+    }
+
+    template = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
+    if "/*__DASHBOARD_DATA__*/" not in template:
+        raise RuntimeError("dashboard_assets/index.html is missing the /*__DASHBOARD_DATA__*/ placeholder")
+    rendered = template.replace("/*__DASHBOARD_DATA__*/", _escape_for_script_tag(data))
+
+    staging.mkdir(parents=True, exist_ok=True)
+    (staging / "index.html").write_text(rendered, encoding="utf-8")
+    shutil.copyfile(ASSETS_DIR / "app.js", staging / "app.js")
+    shutil.copyfile(ASSETS_DIR / "app.css", staging / "app.css")
+
+    details_dir = staging / "details"
+    details_dir.mkdir(parents=True, exist_ok=True)
+    for row in rows:
+        pmid = row["pmid"]
+        try:
+            detail = lib_inventory.detail(library_root, pmid)
+        except FileNotFoundError:
+            continue  # meta.json missing/malformed -- rows() already flagged it
+        payload = json.dumps(detail).replace("</", "<\\/")
+        (details_dir / f"{pmid}.js").write_text(
+            f"window.__paperDetail({json.dumps(pmid)}, {payload});\n",
+            encoding="utf-8",
+        )
+
+
+def build(library_root: Path, *, open_browser: bool = False) -> Path:
+    """Atomically (re)write `<library_root>/reports/dashboard/`. Returns
+    the path to the built `index.html`."""
+    reports_dir = library_root / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    final = reports_dir / "dashboard"
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    staging = reports_dir / f".dashboard-staging-{stamp}"
+    if staging.exists():
+        shutil.rmtree(staging)
+
+    try:
+        _build_into(staging, library_root)
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+
+    if not final.exists():
+        os.replace(staging, final)
+    else:
+        # os.rename/replace only swaps onto an *empty* directory, so a
+        # non-empty existing dashboard is moved aside first; the second
+        # rename is what actually promotes the new build, and on failure
+        # the old dashboard is restored from the aside copy (§6: "Rebuild
+        # replaces the directory atomically").
+        old = reports_dir / f".dashboard-old-{stamp}"
+        os.replace(final, old)
+        try:
+            os.replace(staging, final)
+        except BaseException:
+            os.replace(old, final)
+            raise
+        shutil.rmtree(old, ignore_errors=True)
+
+    index_path = final / "index.html"
+    if open_browser:
+        webbrowser.open(f"file://{index_path}")
+    return index_path
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    build_ap = sub.add_parser("build", help="render the static dashboard")
+    build_ap.add_argument("--repo", required=True)
+    build_ap.add_argument("--open", action="store_true", help="open the built dashboard in the default browser")
+
+    serve_ap = sub.add_parser("serve", help="serve the dashboard live over 127.0.0.1 (§7)")
+    serve_ap.add_argument("--repo", required=True)
+    serve_ap.add_argument("--port", type=int, default=0, help="0 = OS-assigned ephemeral port")
+    serve_ap.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
+
+    args = ap.parse_args()
+    library_root = Path(args.repo).expanduser().resolve()
+    if not library_root.is_dir():
+        print(f"error: no library at {library_root}", file=sys.stderr)
+        return 1
+
+    if args.cmd == "build":
+        index_path = build(library_root, open_browser=args.open)
+        print(f"dashboard written: {index_path}")
+        return 0
+    if args.cmd == "serve":
+        serve(library_root, port=args.port, open_browser=args.open)
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

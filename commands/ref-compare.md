@@ -35,6 +35,9 @@ Notes:
   when a claim exists but its normalized field is the extractor's own
   explicit "unknown" — these are deliberately different states, don't
   collapse them when presenting the table.
+- Each row also carries a `provenance` block keyed by PMID with paper-state
+  metadata such as extraction tier, last checked timestamp, and whether the
+  record currently has abstract/full-text material available.
 - Papers sharing a recorded study (`/ref:study create-study`) group into
   one row; papers merely sharing a dataset do not. An uncertain-confidence
   study grouping is shown as uncertain, not presented as equally solid as a

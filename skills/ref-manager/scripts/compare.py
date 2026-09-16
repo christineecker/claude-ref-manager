@@ -117,6 +117,19 @@ def _relevance_cell(library_root: Path, project: str | None, pmid: str) -> dict:
     return {"value": relevance}
 
 
+def _paper_provenance(library_root: Path, pmid: str) -> dict:
+    meta_path = library_root / "papers" / pmid / "meta.json"
+    if not meta_path.exists():
+        return {"extraction_tier": "missing_record", "checked_at": "", "abstract_available": False, "full_text": False}
+    meta = json.loads(meta_path.read_text())
+    return {
+        "extraction_tier": meta.get("extraction_tier") or "unavailable",
+        "checked_at": meta.get("checked_at") or "",
+        "abstract_available": bool(meta.get("abstract_available")),
+        "full_text": bool(meta.get("full_text")),
+    }
+
+
 def _methods_cell(library_root: Path, pmid: str) -> dict:
     matches = [m for m in study_mod.list_methods(library_root) if pmid in m.get("pmids", [])]
     if not matches:
@@ -167,12 +180,14 @@ def build_rows(library_root: Path, pmids: list[str], project: str | None) -> lis
                     "evidence": study_row["evidence"],
                 },
                 "cells": {p: build_cells(library_root, p, project) for p in group_pmids},
+                "provenance": {p: _paper_provenance(library_root, p) for p in group_pmids},
             })
         elif not study_row:
             remaining.discard(pmid)
             grouped.append({
                 "pmids": [pmid], "study": None,
                 "cells": {pmid: build_cells(library_root, pmid, project)},
+                "provenance": {pmid: _paper_provenance(library_root, pmid)},
             })
         # else: pmid belongs to an already-grouped study, handled above
 

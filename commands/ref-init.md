@@ -12,8 +12,10 @@ Steps:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/init_repo.py" <path> [--force]
    ```
-2. Report the library root created and that `--repo` is no longer needed — every other
-   `/ref:*` command resolves the active library from `~/.config/ref-manager/config.json`.
+2. Print the script's output verbatim, including the next-steps checklist — it already
+   tells the user what to run next. Add only that `--repo` is no longer needed: every
+   other `/ref:*` command resolves the active library from
+   `~/.config/ref-manager/config.json`.
 
 This library is the prerequisite for every other `/ref:*` command; they fail loudly if
 no library is configured yet.

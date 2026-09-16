@@ -28,6 +28,40 @@ from lib_schema import validate_project, SchemaError
 
 READING_STATES = ("to_screen", "to_read", "reading", "read")
 
+# Starter templates (UX_BACKLOG.md "Project starter templates") -- each
+# `next_steps` entry is copied verbatim from that command's own doc
+# (docs/tutorials/systematic-review.html, docs/tutorials/thesis-chapter.html),
+# not invented here. A template only stamps which workflow this project
+# follows and prints its proven command sequence after `create`; it never
+# pre-fills scope/questions with placeholder research content -- that's
+# always the user's own topic, not the tool's to guess.
+TEMPLATES = {
+    "systematic-review": {
+        "description": "saved search -> screen -> full text -> PRISMA flow -> appraised review",
+        "next_steps": [
+            '/ref:search-pubmed "<question>" --slug <query-slug> --create',
+            "/ref:add <pmid...>",
+            "/ref:project add-paper <slug> <pmid>",
+            '/ref:screen --project <slug> --pmid <pmid> --decision included|excluded --reason "<text>"',
+            "/ref:fetch <pmid...>",
+            "/ref:review --prisma --project <slug> --query <query-slug>",
+            "/ref:review --project <slug> --screened included --batch <label>",
+        ],
+    },
+    "thesis-chapter": {
+        "description": "one research question, ~20 papers, extracted claims verified into a defensible paragraph",
+        "next_steps": [
+            '/ref:project add-question <slug> --id q1 --text "<your research question>"',
+            "/ref:add <pmid...>",
+            "/ref:project add-paper <slug> <pmid>",
+            "/ref:extract <pmid...>",
+            "/ref:verify claim <pmid> <claim_id> accept|edit|reject",
+            "/ref:compare --project <slug> --batch <label>",
+            '/ref:ask "<question>" --project <slug>',
+        ],
+    },
+}
+
 
 def _project_dir(library_root: Path, slug: str) -> Path:
     return library_root / "projects" / slug
@@ -37,11 +71,48 @@ def _load(path: Path, default):
     return json.loads(path.read_text()) if path.exists() else default
 
 
-def create(library_root: Path, slug: str, scope: str | None) -> dict:
+def _paper_source_badge(library_root: Path, pmid: str) -> str:
+    paper_dir = library_root / "papers" / pmid
+    meta_path = paper_dir / "meta.json"
+    if not meta_path.exists():
+        return "metadata-only"
+    meta = json.loads(meta_path.read_text())
+    raw_dir = paper_dir / "raw"
+    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
+    if has_pdf:
+        return "pdf-backed"
+    if meta.get("full_text"):
+        return "full-text"
+    if meta.get("oa_location"):
+        return "oa-pending"
+    if meta.get("abstract_available"):
+        return "abstract-only"
+    return "metadata-only"
+
+
+def _paper_source_counts(library_root: Path, papers: list[dict]) -> dict[str, int]:
+    counts = {
+        "metadata_only": 0,
+        "abstract_only": 0,
+        "full_text": 0,
+        "pdf_backed": 0,
+        "oa_pending": 0,
+    }
+    for paper in papers:
+        badge = _paper_source_badge(library_root, str(paper["pmid"]))
+        counts[badge.replace("-", "_")] += 1
+    return counts
+
+
+def create(library_root: Path, slug: str, scope: str | None, *, template: str | None = None) -> dict:
+    if template is not None and template not in TEMPLATES:
+        raise SchemaError(f"template must be one of {sorted(TEMPLATES)}, got {template!r}")
     allocate_slug(library_root, "project", slug)  # validates + refuses collision
     pdir = _project_dir(library_root, slug)
     pdir.mkdir(parents=True)
     project = {"slug": slug, "scope": scope, "questions": []}
+    if template is not None:
+        project["template"] = template
     validate_project(project)
     atomic_write_json(pdir / "project.yaml", project)
     atomic_write_json(pdir / "papers.yaml", {"papers": []})
@@ -96,9 +167,23 @@ def show(library_root: Path, slug: str) -> dict:
     project_path = pdir / "project.yaml"
     if not project_path.exists():
         raise SlugError(f"project {slug!r} does not exist")
+    papers_doc = _load(pdir / "papers.yaml", {"papers": []})
+    papers = papers_doc.get("papers", [])
+    reading = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
+    for paper in papers:
+        status = paper.get("reading_status")
+        if status in reading:
+            reading[status] += 1
+    source = _paper_source_counts(library_root, papers)
     return {
         "project": json.loads(project_path.read_text()),
-        "papers": _load(pdir / "papers.yaml", {"papers": []}),
+        "papers": papers_doc,
+        "summary": {
+            "paper_count": len(papers),
+            "reading": reading,
+            "source": source,
+            "question_count": len(json.loads(project_path.read_text()).get("questions", [])),
+        },
     }
 
 
@@ -110,16 +195,33 @@ def list_projects(library_root: Path) -> list[dict]:
             p = pdir / "project.yaml"
             if p.exists():
                 proj = json.loads(p.read_text())
-                out.append({"slug": proj["slug"], "scope": proj.get("scope"), "questions": len(proj["questions"])})
+                papers_path = pdir / "papers.yaml"
+                papers_doc = _load(papers_path, {"papers": []}) if papers_path.exists() else {"papers": []}
+                papers = papers_doc.get("papers", [])
+                reading = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
+                for paper in papers:
+                    status = paper.get("reading_status")
+                    if status in reading:
+                        reading[status] += 1
+                source = _paper_source_counts(library_root, papers)
+                out.append({
+                    "slug": proj["slug"],
+                    "scope": proj.get("scope"),
+                    "questions": len(proj["questions"]),
+                    "papers": len(papers),
+                    "reading": reading,
+                    "source": source,
+                })
     return out
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["create", "add-question", "add-paper", "show", "list"])
-    ap.add_argument("--repo", required=True)
+    ap.add_argument("action", choices=["create", "add-question", "add-paper", "show", "list", "templates"])
+    ap.add_argument("--repo")
     ap.add_argument("--slug")
     ap.add_argument("--scope")
+    ap.add_argument("--template", choices=sorted(TEMPLATES))
     ap.add_argument("--question-id")
     ap.add_argument("--text")
     ap.add_argument("--pmid")
@@ -128,6 +230,15 @@ def main() -> int:
     ap.add_argument("--reading-status")
     args = ap.parse_args()
 
+    if args.action == "templates":
+        print(json.dumps(
+            {name: t["description"] for name, t in TEMPLATES.items()}, indent=2,
+        ))
+        return 0
+
+    if not args.repo:
+        print("error: --repo is required", file=sys.stderr)
+        return 1
     library_root = Path(args.repo).expanduser().resolve()
     if not library_root.is_dir():
         print(f"error: no library at {library_root}", file=sys.stderr)
@@ -135,7 +246,14 @@ def main() -> int:
 
     try:
         if args.action == "create":
-            result = create(library_root, args.slug, args.scope)
+            result = create(library_root, args.slug, args.scope, template=args.template)
+            if args.template:
+                result = {
+                    **result,
+                    "next_steps": [
+                        step.replace("<slug>", args.slug) for step in TEMPLATES[args.template]["next_steps"]
+                    ],
+                }
         elif args.action == "add-question":
             result = add_question(library_root, args.slug, args.question_id, args.text)
         elif args.action == "add-paper":

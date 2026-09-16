@@ -64,6 +64,10 @@ def generate(library_root: Path, person_slug: str, since: str, until: str, label
             "pmid": pmid, "citekey": meta.get("citekey"), "doi": meta.get("doi") or "",
             "year": year, "journal": meta.get("journal") or "", "title": meta.get("title") or "",
             "author_role": role,
+            "extraction_tier": meta.get("extraction_tier") or "unknown",
+            "abstract_available": bool(meta.get("abstract_available")),
+            "full_text": bool(meta.get("full_text")),
+            "checked_at": meta.get("checked_at") or "",
         }
         if include_citations:
             # D25: "Citation counts are dated observations from a named
@@ -87,7 +91,10 @@ def generate(library_root: Path, person_slug: str, since: str, until: str, label
 
     rows.sort(key=lambda r: (r["year"], r["pmid"]))  # deterministic order (DEDUP_POLICY: unique_by_pmid)
 
-    fieldnames = ["pmid", "citekey", "doi", "year", "journal", "title", "author_role"]
+    fieldnames = [
+        "pmid", "citekey", "doi", "year", "journal", "title", "author_role",
+        "extraction_tier", "abstract_available", "full_text", "checked_at",
+    ]
     if include_citations:
         fieldnames += ["citation_count", "citation_source", "citation_retrieved_at",
                         "citation_coverage", "citation_stale"]
@@ -112,23 +119,25 @@ def generate(library_root: Path, person_slug: str, since: str, until: str, label
         )
         md_lines.append("")
         md_lines += [
-            "| PMID | Year | Role | Title | Citing articles (PMC) | Source | Retrieved | Stale |",
-            "|---|---|---|---|---|---|---|---|",
+            "| PMID | Year | Role | Title | Tier | Citing articles (PMC) | Source | Retrieved | Stale |",
+            "|---|---|---|---|---|---|---|---|---|",
         ]
         for r in rows:
             count = r["citation_count"] if r["citation_count"] is not None else "unknown"
             src = r["citation_source"] or "—"
             retrieved = (r["citation_retrieved_at"] or "—")[:10]
             stale = "yes" if r["citation_stale"] else ("no" if r["citation_stale"] is False else "—")
-            md_lines.append(f"| {r['pmid']} | {r['year']} | {r['author_role']} | {r['title']} | "
-                             f"{count} | {src} | {retrieved} | {stale} |")
+            md_lines.append(
+                f"| {r['pmid']} | {r['year']} | {r['author_role']} | {r['title']} | {r['extraction_tier']} |"
+                f" {count} | {src} | {retrieved} | {stale} |"
+            )
     else:
         md_lines += [
-            f"| PMID | Year | Role | Title |",
-            f"|---|---|---|---|",
+            f"| PMID | Year | Role | Title | Tier |",
+            f"|---|---|---|---|---|",
         ]
         for r in rows:
-            md_lines.append(f"| {r['pmid']} | {r['year']} | {r['author_role']} | {r['title']} |")
+            md_lines.append(f"| {r['pmid']} | {r['year']} | {r['author_role']} | {r['title']} | {r['extraction_tier']} |")
     md_lines.append("")
     md_lines.append(f"Total unique publications: {len(rows)}")
     md_text = "\n".join(md_lines) + "\n"

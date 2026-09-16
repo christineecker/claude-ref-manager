@@ -6,8 +6,7 @@
 
 Claude Code plugin for scientific reference management: acquire, extract, and
 retrieve PMID-keyed papers into a personal library, with an OKF knowledge graph
-over claims and concepts. Full design in [`PLAN.md`](PLAN.md); the planned
-knowledge layer (phases 12–18) is in [`PLAN-v2.md`](PLAN-v2.md).
+over claims and concepts.
 
 **Documentation:** <https://christineecker.github.io/claude-ref-manager/>
 (source in [`docs/`](docs/index.html); open `docs/index.html` locally for an offline copy)
@@ -67,10 +66,14 @@ claude --plugin-dir /path/to/claude-ref-manager
 /ref:init <path-to-library-root>
 /ref:status
 /ref:add <pmid> [<pmid> ...]
+/ref:import <item...>
 ```
 
 `/ref:init` records the library root in `~/.config/ref-manager/config.json` (D2);
 every other command resolves it from there rather than taking `--repo`.
+For mixed intake from URLs, PDFs, DOI strings, or bibliography files, use
+`/ref:import` or the source-specific `/ref:add-url`, `/ref:add-pdf`, and
+`/ref:add-fetch` commands.
 The [Get started](https://christineecker.github.io/claude-ref-manager/getting-started.html)
 tutorial walks through adding, fetching, extracting, searching and citing papers.
 
@@ -81,19 +84,19 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
-- 2026-09-16 · [`b004d0d`](https://github.com/christineecker/claude-ref-manager/commit/b004d0d) docs: fix D-number gap in decision tables
-- 2026-09-15 · [`1d587eb`](https://github.com/christineecker/claude-ref-manager/commit/1d587eb) docs: README with install instructions and auto-updating change log; add plugin marketplace manifest
-- 2026-09-15 · [`25fea0e`](https://github.com/christineecker/claude-ref-manager/commit/25fea0e) docs: replace app icon with teal reader mascot; add .nojekyll for GitHub Pages
-- 2026-09-15 · [`c35cdc5`](https://github.com/christineecker/claude-ref-manager/commit/c35cdc5) docs: add HTML documentation site and app icon for phases 0–11
-- 2026-09-15 · [`f51a462`](https://github.com/christineecker/claude-ref-manager/commit/f51a462) docs: add PLAN-v2 knowledge layer plan and overview figure
-- 2026-09-15 · [`3a2f0b0`](https://github.com/christineecker/claude-ref-manager/commit/3a2f0b0) fix: /ref:audit --citations rejects malformed input instead of silently recording check_failed
-- 2026-09-15 · [`4c5d8de`](https://github.com/christineecker/claude-ref-manager/commit/4c5d8de) Phase 11: /ref:audit, citation observations, cache invalidation, /ref:report --citations
-- 2026-09-15 · [`03aec9e`](https://github.com/christineecker/claude-ref-manager/commit/03aec9e) fix: /ref:summarize's candidate-building step is a real CLI path, not a fragile inline snippet
-- 2026-09-15 · [`41487c0`](https://github.com/christineecker/claude-ref-manager/commit/41487c0) Phase 10: /ref:summarize, advanced /ref:review (GRADE, RoB2/NOS/AMSTAR-2)
-- 2026-09-15 · [`69f757b`](https://github.com/christineecker/claude-ref-manager/commit/69f757b) fix: correct linkset parsing doc, add relation.py create-manual
-- 2026-09-15 · [`19cf7e2`](https://github.com/christineecker/claude-ref-manager/commit/19cf7e2) Phase 9 (gaps half): /ref:gaps, /ref:hypothesize
-- 2026-09-15 · [`f188b28`](https://github.com/christineecker/claude-ref-manager/commit/f188b28) Phase 9 (related half): /ref:related backward/forward snowballing
-- 2026-09-15 · [`58f724a`](https://github.com/christineecker/claude-ref-manager/commit/58f724a) fix: okf_emit.py concept entries carry tags even with no aliases yet
-- 2026-09-15 · [`f8796d3`](https://github.com/christineecker/claude-ref-manager/commit/f8796d3) Phase 8 (graph half): concept/relation graph, conflict review, stale-edge invalidation
-- 2026-09-15 · [`ad1639a`](https://github.com/christineecker/claude-ref-manager/commit/ad1639a) Phase 8 (OKF/people-graph half): okf_emit.py, graph_people.py, /ref:weave
+- 2026-09-16 · [`c0eb24f`](https://github.com/christineecker/claude-ref-manager/commit/c0eb24f) feat: /ref:read opens live PDF+notes viewer instead of md reconstruction
+- 2026-09-16 · [`e7fde72`](https://github.com/christineecker/claude-ref-manager/commit/e7fde72) docs: PhD-friendly command explanations + file-structure trees in tutorials
+- 2026-09-16 · [`02ae63d`](https://github.com/christineecker/claude-ref-manager/commit/02ae63d) Implement library viewer UX improvements (P0-P2)
+- 2026-09-16 · [`b0bac59`](https://github.com/christineecker/claude-ref-manager/commit/b0bac59) fix: SVG diagram text unreadable in dark mode (default black fill)
+- 2026-09-16 · [`afdd656`](https://github.com/christineecker/claude-ref-manager/commit/afdd656) docs: restore dropped adding-papers content, document library viewer
+- 2026-09-16 · [`f8b247b`](https://github.com/christineecker/claude-ref-manager/commit/f8b247b) Add library viewer: /ref:list, /ref:dashboard, lint --diff
+- 2026-09-16 · [`160dfe6`](https://github.com/christineecker/claude-ref-manager/commit/160dfe6) Add maintenance feature: ref-maintain, ref-lint, ref-repair-fulltext
+- 2026-09-16 · [`5c384f8`](https://github.com/christineecker/claude-ref-manager/commit/5c384f8) docs: simplify adding-papers tutorial around PICO auto-ingest
+- 2026-09-15 · [`0fe05cd`](https://github.com/christineecker/claude-ref-manager/commit/0fe05cd) docs: document /ref:help in commands reference
+- 2026-09-15 · [`a5e9202`](https://github.com/christineecker/claude-ref-manager/commit/a5e9202) Implement UX_BACKLOG.md: onboarding, status health check, error messages, unified intake, and deferred items
+- 2026-09-15 · [`5085f9f`](https://github.com/christineecker/claude-ref-manager/commit/5085f9f) Remove completed IMPLEMENTATION_PLAN.md and fix stale refs
+- 2026-09-15 · [`7eb9b16`](https://github.com/christineecker/claude-ref-manager/commit/7eb9b16) docs: update adding-papers tutorial for new intake commands
+- 2026-09-15 · [`eda8686`](https://github.com/christineecker/claude-ref-manager/commit/eda8686) docs: sync command reference with phase 5/6 changes
+- 2026-09-15 · [`eae23af`](https://github.com/christineecker/claude-ref-manager/commit/eae23af) Implement phases 5 and 6 provenance and identity updates
+- 2026-09-15 · [`4130e2f`](https://github.com/christineecker/claude-ref-manager/commit/4130e2f) Add /ref:add-url command with local URL identify helper
 <!-- changelog:end -->

@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from lib_atomic import atomic_write_json
-from project import READING_STATES, _project_dir, _load
+from project import READING_STATES, _paper_source_counts, _project_dir, _load
 from lib_schema import SchemaError
 
 
@@ -46,11 +46,21 @@ def set_state(
     raise SchemaError(f"pmid {pmid!r} is not a member of project {slug!r} (add it first via /ref:project)")
 
 
-def show(library_root: Path, slug: str, pmid: str | None) -> list[dict]:
+def show(library_root: Path, slug: str, pmid: str | None) -> dict:
     doc = _load(_project_dir(library_root, slug) / "papers.yaml", {"papers": []})
-    if pmid:
-        return [m for m in doc["papers"] if m["pmid"] == pmid]
-    return doc["papers"]
+    papers = [m for m in doc["papers"] if m["pmid"] == pmid] if pmid else doc["papers"]
+    summary = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
+    for m in doc["papers"]:
+        status = m.get("reading_status")
+        if status in summary:
+            summary[status] += 1
+    return {
+        "project": slug,
+        "pmid": pmid,
+        "summary": summary,
+        "source": _paper_source_counts(library_root, doc["papers"]),
+        "papers": papers,
+    }
 
 
 def main() -> int:

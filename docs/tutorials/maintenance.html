@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maintenance · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Maintenance loop</h1>
+  <p class="lede">Minimal text. Weekly loop: status, lint, index, audit, repair — inspect state with <code>/ref:list</code> and <code>/ref:dashboard</code>.</p>
+</header>
+
+<section>
+<h2>Where maintenance state lives</h2>
+<p>Every stage below reads or writes something under your library root (the path from <code>/ref:init</code>, resolved via <code>~/.config/ref-manager/config.json</code>). None of it lives outside the library, and <code>maintenance/</code> is the one folder that exists purely for this loop — nothing else reads it.</p>
+<pre class="tree">&lt;LIBRARY&gt;/
+  <span class="a">papers/</span>&lt;pmid&gt;/
+    meta.json                          <span class="c"># /ref:audit updates retraction_status here</span>
+    citations.json                     <span class="c"># /ref:audit --citations appends dated observations</span>
+  <span class="a">index/</span>
+    catalog.sqlite                     <span class="c"># /ref:index --rebuild; /ref:status and /ref:list read it</span>
+  <span class="a">maintenance/</span>
+    &lt;UTC-timestamp&gt;.json               <span class="c"># /ref:lint --snapshot — one file per snapshot, never overwritten</span>
+    repair-fulltext-state.json         <span class="c"># /ref:repair-fulltext resume bookkeeping</span></pre>
+</section>
+
+<section>
+<h2>Loop</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 960 340" role="img" aria-label="Maintenance loop across status, lint, index, audit, and repair commands.">
+  <defs>
+    <marker id="mlArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">
+    <rect x="36" y="44" width="150" height="64" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="48" y="70">1 /ref:status</text>
+    <text x="48" y="90" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".75">health snapshot</text>
+
+    <rect x="220" y="44" width="150" height="64" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="232" y="70">2 /ref:lint</text>
+    <text x="232" y="90" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".75">gap detector</text>
+
+    <rect x="404" y="44" width="150" height="64" rx="8" fill="none" stroke="currentColor"/>
+    <text x="416" y="70">3 /ref:index</text>
+    <text x="416" y="90" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".75">rebuild catalog</text>
+
+    <rect x="588" y="44" width="150" height="64" rx="8" fill="none" stroke="currentColor"/>
+    <text x="600" y="70">4 /ref:audit</text>
+    <text x="600" y="90" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".75">retraction check</text>
+
+    <rect x="772" y="44" width="150" height="64" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="784" y="70">5 repair</text>
+    <text x="784" y="90" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".75">fetch/extract</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".75">
+    <line x1="186" y1="76" x2="220" y2="76" marker-end="url(#mlArr)"/>
+    <line x1="370" y1="76" x2="404" y2="76" marker-end="url(#mlArr)"/>
+    <line x1="554" y1="76" x2="588" y2="76" marker-end="url(#mlArr)"/>
+    <line x1="738" y1="76" x2="772" y2="76" marker-end="url(#mlArr)"/>
+  </g>
+
+  <path d="M848 108 L848 284 L112 284 L112 112" fill="none" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#mlArr)"/>
+  <text x="414" y="306" font-family="IBM Plex Sans,sans-serif" font-size="12" fill="var(--accent)">repeat weekly or before synthesis/export</text>
+
+  <rect x="36" y="146" width="886" height="118" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="52" y="172" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="600">minimal command runbook</text>
+  <text x="52" y="196" font-family="IBM Plex Mono,monospace" font-size="11.5">/ref:maintain --stale-days 180</text>
+  <text x="52" y="216" font-family="IBM Plex Mono,monospace" font-size="11.5">or run stages manually:</text>
+  <text x="52" y="236" font-family="IBM Plex Mono,monospace" font-size="11.5">/ref:status -> /ref:lint -> /ref:index --rebuild -> /ref:audit</text>
+  <text x="420" y="196" font-family="IBM Plex Mono,monospace" font-size="11.5">repair: /ref:fetch or /ref:add-fetch</text>
+  <text x="420" y="216" font-family="IBM Plex Mono,monospace" font-size="11.5">/ref:fetch &lt;pmid...&gt;  or /ref:add-fetch &lt;pmid...&gt;</text>
+  <text x="420" y="236" font-family="IBM Plex Mono,monospace" font-size="11.5">/ref:extract &lt;pmid...&gt;</text>
+</svg>
+</div>
+<figcaption>Maintenance = detect, re-index, re-check, repair.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>What /ref:lint flags</h2>
+<p>Read-only unless you pass <code>--snapshot</code>. Three bucket groups, each with its own routing suggestion baked into the report — you don't have to memorize which repair command fixes which bucket.</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 960 300" role="img" aria-label="Lint dimensions for paper repository maintenance.">
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">
+    <rect x="40" y="30" width="270" height="104" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="54" y="56">metadata quality</text>
+    <text x="54" y="78" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_title</text>
+    <text x="54" y="96" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_year / missing_journal</text>
+    <text x="54" y="114" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_doi / malformed_meta</text>
+
+    <rect x="344" y="30" width="270" height="104" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="358" y="56">content completeness</text>
+    <text x="358" y="78" font-family="IBM Plex Sans,sans-serif" font-size="11.5">metadata_only</text>
+    <text x="358" y="96" font-family="IBM Plex Sans,sans-serif" font-size="11.5">abstract_only</text>
+    <text x="358" y="114" font-family="IBM Plex Sans,sans-serif" font-size="11.5">oa_pending / missing_abstract</text>
+
+    <rect x="648" y="30" width="270" height="104" rx="8" fill="none" stroke="currentColor"/>
+    <text x="662" y="56">repo integrity</text>
+    <text x="662" y="78" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_meta / missing_current</text>
+    <text x="662" y="96" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_claim_registry</text>
+    <text x="662" y="114" font-family="IBM Plex Sans,sans-serif" font-size="11.5">catalog_present false</text>
+
+    <rect x="230" y="170" width="500" height="112" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="248" y="198">routing suggestions</text>
+    <text x="248" y="220" font-family="IBM Plex Sans,sans-serif" font-size="11.5">stale_retraction_check  -&gt; /ref:audit</text>
+    <text x="248" y="238" font-family="IBM Plex Sans,sans-serif" font-size="11.5">metadata_only/abstract_only -&gt; /ref:fetch or /ref:add-fetch</text>
+    <text x="248" y="256" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_claim_registry -&gt; /ref:extract</text>
+    <text x="248" y="274" font-family="IBM Plex Sans,sans-serif" font-size="11.5">any bucket -&gt; /ref:lint --diff (new/resolved since last snapshot)</text>
+  </g>
+</svg>
+</div>
+</figure>
+</section>
+
+<section>
+<h2>Inspecting state: /ref:list and /ref:dashboard</h2>
+<p>Read-only, run anytime — not part of the repair loop itself, but how you find what to feed into it.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Tool</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td><code>/ref:list --issue &lt;bucket&gt; --format pmids</code></td><td>turn a lint bucket into a PMID list, piped straight into <code>/ref:fetch</code>/<code>/ref:extract</code>.</td></tr>
+    <tr><td><code>/ref:list --source abstract-only,oa-pending --stale-days 180</code></td><td>filter the same buckets by source state, tier, year, journal, or project without touching lint output.</td></tr>
+    <tr><td><code>/ref:list --matrix</code></td><td>paper x {meta, abstract, fulltext, pdf, figures, claims, indexed, retraction} coverage grid.</td></tr>
+    <tr><td><code>/ref:dashboard</code></td><td>local server (default) — Papers/Coverage/Projects/Maintenance tabs, per-paper panel with PDF viewer and notes, live off <code>lib_inventory</code>/<code>lint</code> so it reflects what <code>/ref:status</code> and <code>/ref:lint</code> would report right now.</td></tr>
+    <tr><td><code>/ref:dashboard --static</code></td><td>writes a static <code>reports/dashboard/</code> snapshot to share or open from <code>file://</code> — no server, no live notes.</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>Suggested cadence</h2>
+<p>One profile per row; run heavier stages less often than lighter ones.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Profile</th><th>Run</th><th>Why not more often</th></tr></thead>
+  <tbody>
+    <tr><td>ad hoc</td><td><code>/ref:list</code> · <code>/ref:dashboard</code></td><td>read-only, no cadence — open the dashboard while triaging, or run <code>/ref:list --issue …</code> right after a <code>/ref:maintain</code> pass.</td></tr>
+    <tr><td>weekly</td><td><code>/ref:maintain --stale-days 180</code></td><td>status + lint + index rebuild + retraction audit — all read-only or idempotent, cheap to repeat.</td></tr>
+    <tr><td>monthly</td><td><code>/ref:repair-fulltext --limit 20</code> (repeat until <code>remaining: 0</code>)</td><td>each call does real network fetches; <code>--limit</code> and its resume state exist so a month-old backlog does not turn into one giant run.</td></tr>
+    <tr><td>quarterly</td><td><code>/ref:audit --citations</code></td><td>citation counts move slowly; each call is a per-PMID WebFetch to NCBI, so scope it to a selector for a large library rather than the whole thing every quarter.</td></tr>
+  </tbody>
+</table>
+</div>
+<p>All three compose: a weekly <code>/ref:maintain</code> run's <code>next:</code> section names the PMIDs the monthly/quarterly passes should target.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="adding-papers.html"><small>Previous</small>Adding papers</a>
+  <a href="library-viewer.html" style="text-align:right"><small>Next</small>Library viewer</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0-11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code>.</footer>
+</body>
+</html>

@@ -27,7 +27,7 @@
 <main>
 
 <header class="page">
-  <p class="eyebrow">Reference · 40 slash commands</p>
+  <p class="eyebrow">Reference · 47 slash commands</p>
   <h1>Slash commands</h1>
   <p class="lede">Every command is typed inside Claude Code. It resolves the active library from <code>~/.config/ref-manager/config.json</code> and fails loudly, pointing at <code>/ref:init</code>, when none is configured. Commands that work on a set of papers share one selector grammar; see <a href="find.html#selectors">selectors</a>.</p>
 </header>
@@ -43,9 +43,15 @@
     <h3><a href="acquire.html">Bring papers in</a></h3>
     <dl class="cmd-list">
       <dt><a href="acquire.html#init">/ref:init &lt;path&gt;</a></dt><dd>create a library where you choose and record it in the config file</dd>
-      <dt><a href="acquire.html#add">/ref:add &lt;pmid…&gt;</a></dt><dd>the only way in: resolve metadata via PubMed, dedupe by PMID, allocate a stable citekey</dd>
+      <dt><a href="acquire.html#add">/ref:add &lt;pmid…&gt;</a></dt><dd>core ingest path: resolve metadata via PubMed, dedupe by PMID, allocate a stable citekey</dd>
+      <dt><a href="acquire.html#add-pdf">/ref:add-pdf &lt;path…&gt;</a></dt><dd>identify PDFs by DOI/PMID clues, add PubMed records, then attach the files</dd>
+      <dt><a href="acquire.html#add-fetch">/ref:add-fetch &lt;pmid…&gt;</a></dt><dd>convenience wrapper: add missing records, then fetch full text for records that exist</dd>
+      <dt><a href="acquire.html#add-url">/ref:add-url &lt;url…&gt;</a></dt><dd>identify articles by URL (DOI/PMID/PMCID clues or page metadata), add records, then fetch</dd>
+      <dt><a href="acquire.html#import">/ref:import &lt;item…&gt;</a></dt><dd>source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach</dd>
       <dt><a href="acquire.html#fetch">/ref:fetch &lt;pmid…&gt;</a></dt><dd>acquire full text in priority order and convert it to <code>source.md</code>, per-PMID results</dd>
+      <dt><a href="acquire.html#fetch-pdf">/ref:fetch-pdf &lt;pmid…&gt;</a></dt><dd>download free PMC OA PDFs and attach them through the PDF pipeline</dd>
       <dt><a href="acquire.html#attach">/ref:attach &lt;pmid&gt; &lt;path&gt; …</a></dt><dd>attach PDFs you already have, after an identity check</dd>
+      <dt><a href="acquire.html#read">/ref:read &lt;pmid…&gt;</a></dt><dd>render a local HTML reading copy from the current full-text version and figures</dd>
       <dt><a href="acquire.html#extract">/ref:extract &lt;pmid…&gt;</a></dt><dd>full claim extraction, one <code>ref-extractor</code> subagent per paper</dd>
       <dt><a href="acquire.html#describe-figure">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt;</a></dt><dd>on-demand, cached model description of one figure</dd>
     </dl>
@@ -56,7 +62,9 @@
     <dl class="cmd-list">
       <dt><a href="find.html#search">/ref:search</a></dt><dd>search the library's evidence, or your personal notes, with distinct labels</dd>
       <dt><a href="find.html#ask">/ref:ask &lt;question&gt;</a></dt><dd>retrieve evidence and write one grounded answer with <code>[^pmid]</code> citations</dd>
+      <dt><a href="find.html#pubmed-query">/ref:pubmed-query &lt;question&gt;</a></dt><dd>translate a prompt or PICO into a PubMed query without running it</dd>
       <dt><a href="find.html#search-pubmed">/ref:search-pubmed</a></dt><dd>turn a question into a PubMed query and save the run immutably</dd>
+      <dt><a href="find.html#search-add-fetch">/ref:search-add-fetch</a></dt><dd>search PubMed, save the run, add selected PMIDs, then fetch full text</dd>
       <dt><a href="find.html#update-queries">/ref:update-queries &lt;slug&gt;</a></dt><dd>manually re-run a saved query and append a new run</dd>
       <dt><a href="find.html#related">/ref:related &lt;pmid&gt;</a></dt><dd>snowball backward through references and forward via PubMed</dd>
     </dl>
@@ -65,7 +73,7 @@
   <div class="cmd-group">
     <h3><a href="organize.html">Organize &amp; review</a></h3>
     <dl class="cmd-list">
-      <dt><a href="organize.html#project">/ref:project</a></dt><dd>projects, questions, membership, and relevance</dd>
+      <dt><a href="organize.html#project">/ref:project</a></dt><dd>projects, questions, membership, and relevance; <code>--template</code> starts one from a proven workflow</dd>
       <dt><a href="organize.html#queue">/ref:queue</a></dt><dd>reading state, priority, and why-saved notes within a project</dd>
       <dt><a href="organize.html#screen">/ref:screen</a></dt><dd>record a project-specific include/exclude/pending decision with a reason</dd>
       <dt><a href="organize.html#note">/ref:note &lt;pmid&gt;</a></dt><dd>append your own dated notes to <code>notes.md</code></dd>
@@ -113,9 +121,15 @@
   <div class="cmd-group">
     <h3><a href="maintain.html">Maintain</a></h3>
     <dl class="cmd-list">
+      <dt><a href="maintain.html#help">/ref:help [command]</a></dt><dd>grouped command overview, or one command's full spec, without leaving the terminal</dd>
+      <dt><a href="maintain.html#maintain">/ref:maintain</a></dt><dd>one-pass maintenance loop: status, lint, index rebuild, and retraction audit</dd>
+      <dt><a href="maintain.html#lint">/ref:lint</a></dt><dd>read-only maintenance lint for incomplete metadata/full-text and stale checks</dd>
+      <dt><a href="maintain.html#repair-fulltext">/ref:repair-fulltext</a></dt><dd>batch-repair full-text gaps found by <code>/ref:lint</code>, bounded by <code>--limit</code>, resume-safe</dd>
+      <dt><a href="maintain.html#list">/ref:list</a></dt><dd>filterable browse/report over the library: source coverage, lint issues, project state, coverage matrix</dd>
+      <dt><a href="maintain.html#dashboard">/ref:dashboard</a></dt><dd>local dashboard with in-page PDF viewer and notes (<code>--static</code> for a shareable snapshot)</dd>
       <dt><a href="maintain.html#audit">/ref:audit</a></dt><dd>re-check retraction/errata status; <code>--citations</code> records dated PMC cited-by counts</dd>
       <dt><a href="maintain.html#index">/ref:index --rebuild</a></dt><dd>rebuild <code>catalog.sqlite</code> from committed records</dd>
-      <dt><a href="maintain.html#status">/ref:status</a></dt><dd>show the configured library and catalog counts</dd>
+      <dt><a href="maintain.html#status">/ref:status</a></dt><dd>one-line health state, what needs attention, and what to run next</dd>
       <dt><a href="maintain.html#open">/ref:open &lt;pmid&gt;</a></dt><dd>open the acquired PDF in Papers.app</dd>
       <dt><a href="maintain.html#pull-annotations">/ref:pull-annotations &lt;pmid&gt;</a></dt><dd>import your Papers highlights and margin notes, read-only</dd>
     </dl>

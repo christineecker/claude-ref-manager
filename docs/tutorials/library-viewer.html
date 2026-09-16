@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Library viewer · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Library viewer</h1>
+  <p class="lede"><code>/ref:list</code>, <code>/ref:dashboard</code>, and <code>/ref:lint --diff</code> — filter, browse, read PDFs, and track maintenance trend without leaving the library. All three are read-only except the dashboard's notes composer.</p>
+</header>
+
+<section>
+<h2>What these tools touch on disk</h2>
+<p>All three read the same rows out of your library root (set once by <code>/ref:init</code>, resolved through <code>~/.config/ref-manager/config.json</code>) — none of them hold a separate copy of your data that can drift. Only two write paths exist, and both are narrow:</p>
+<pre class="tree">&lt;LIBRARY&gt;/
+  <span class="a">papers/</span>&lt;pmid&gt;/notes.md         <span class="c"># dashboard serve mode's notes composer — via note.py, same path /ref:note uses</span>
+  <span class="a">reports/dashboard/</span>              <span class="c"># /ref:dashboard --static — self-contained snapshot, replaced whole on rebuild</span>
+  <span class="a">maintenance/</span>&lt;UTC-timestamp&gt;.json   <span class="c"># /ref:lint --snapshot — read back by --diff</span></pre>
+<p class="muted">Everything else — <code>/ref:list</code>, live <code>/ref:dashboard</code> browsing, plain <code>/ref:lint</code> — only reads: <code>papers/*/meta.json</code>, <code>index/catalog.sqlite</code>, and prior <code>maintenance/</code> snapshots. See <a href="maintenance.html">the maintenance loop</a> for what writes those in the first place.</p>
+</section>
+
+<section>
+<h2>Three tools, one inventory</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 980 260" role="img" aria-label="ref:list, ref:dashboard, and ref:lint diff all read the same lib_inventory rows, but surface them differently: list is a filterable table/csv/json/pmids report, dashboard is a live or static browsing UI with a PDF viewer, and lint diff tracks issue buckets over time.">
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">
+    <rect x="380" y="16" width="220" height="50" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <text x="396" y="46">lib_inventory.rows()</text>
+
+    <rect x="30" y="120" width="270" height="92" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="44" y="146">/ref:list</text>
+    <text x="44" y="168" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".75">filter -&gt; table/csv/json/pmids</text>
+    <text x="44" y="186" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".75">terminal, scriptable</text>
+
+    <rect x="355" y="120" width="270" height="92" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="369" y="146">/ref:dashboard</text>
+    <text x="369" y="168" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".75">browser UI, PDF viewer, notes</text>
+    <text x="369" y="186" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".75">serve (live) or --static (snapshot)</text>
+
+    <rect x="680" y="120" width="270" height="92" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="694" y="146">/ref:lint --diff</text>
+    <text x="694" y="168" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".75">issue buckets vs a prior snapshot</text>
+    <text x="694" y="186" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".75">trend, not a point-in-time view</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".7">
+    <line x1="450" y1="66" x2="165" y2="118"/>
+    <line x1="490" y1="66" x2="490" y2="118"/>
+    <line x1="530" y1="66" x2="815" y2="118"/>
+  </g>
+</svg>
+</div>
+<figcaption>All three read the same rows <code>/ref:status</code> and the maintenance loop use — none of them can drift from what a repair pass would actually find.</figcaption>
+</figure>
+</section>
+
+<section>
+<h2>/ref:list — filter, then pipe</h2>
+<p>No filters at all lists every paper. Combine filters freely; a combination matching nothing prints an explicit "no papers matched" line, never silence.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:list --source abstract-only,oa-pending --stale-days 180 --sort checked</span>
+<span class="o">pmid       title                                  year  source        checked</span>
+<span class="o">40665956   Sham tDCS and social cognition in...  2024  abstract-only  2026-02-11
+40691132   ...                                                          2026-01-30</span></pre>
+<p>The most useful move is <code>--format pmids</code>: no other output, just a bare space-separated PMID list, meant to be piped straight into the repair step.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:list --issue abstract_only --format pmids</span>
+<span class="o">40665956 40691132 40701004</span>
+<span class="p">›</span> <span class="cmd">/ref:fetch 40665956 40691132 40701004</span></pre>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Flag</th><th>Filters on</th></tr></thead>
+  <tbody>
+    <tr><td><code>--source &lt;badge,...&gt;</code></td><td><code>pdf-backed</code>, <code>full-text</code>, <code>oa-pending</code>, <code>abstract-only</code>, <code>metadata-only</code></td></tr>
+    <tr><td><code>--has</code> / <code>--missing &lt;key,...&gt;</code></td><td>ANDed presence check: <code>pdf</code>, <code>fulltext</code>, <code>claims</code>, <code>figures</code>, <code>notes</code></td></tr>
+    <tr><td><code>--tier &lt;abstract|full|unavailable&gt;</code></td><td><code>meta.json.extraction_tier</code></td></tr>
+    <tr><td><code>--year &lt;YYYY|YYYY..YYYY&gt;</code> · <code>--journal &lt;substr&gt;</code></td><td>publication year / journal name substring</td></tr>
+    <tr><td><code>--retracted</code></td><td><code>retraction_status</code> is <code>retracted</code> or <code>erratum</code></td></tr>
+    <tr><td><code>--issue &lt;lint-bucket&gt;</code></td><td>same buckets <code>/ref:lint</code> reports — the direct bridge between the two tools</td></tr>
+    <tr><td><code>--project</code> / <code>--reading-status</code> / <code>--query</code> / <code>--from-file</code></td><td>the shared selector grammar used by every other scoped command</td></tr>
+  </tbody>
+</table>
+</div>
+<p>For a shape overview rather than a filtered list, <code>--matrix</code> prints a paper × <code>{meta, abstract, fulltext, pdf, figures, claims, indexed, retraction}</code> coverage grid.</p>
+</section>
+
+<section>
+<h2>/ref:dashboard — browse and read</h2>
+<p>Default is <code>serve</code>: a local HTTP server on <code>127.0.0.1</code>, bound to a random per-run token checked against every request's <code>Host</code>/<code>Origin</code> — not reachable from another machine or another browser tab without that token in the URL. It blocks until you stop it with Ctrl-C.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --open</span>
+<span class="o">dashboard serving: http://127.0.0.1:53211/?token=9f2c...  (Ctrl-C to stop)</span></pre>
+<p>Tabs: Summary, Papers (searchable/sortable table plus the coverage matrix), Coverage, Projects (per-project reading progress), Maintenance (lint trend sparklines). Selecting rows in the Papers tab builds ready-to-copy <code>/ref:fetch</code> / <code>/ref:extract</code> commands for whatever still needs them — the same triage <code>/ref:list --issue</code> gives you, just clickable. The paper panel opens PDFs in-page through a vendored pdf.js (thumbnails, zoom, fit-width, find-in-PDF) and its notes composer saves straight to <code>notes.md</code> through the same path <code>/ref:note</code> uses.</p>
+<p>Pass <code>--static</code> (or the literal word <code>build</code>) for a self-contained snapshot instead — good for handing someone a library state without running a server:</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --static --open</span>
+<span class="o">dashboard built: /Users/you/refs/reports/dashboard/index.html</span></pre>
+<div class="note">In static mode the PDF opens in a new browser tab, not in-page, and the notes composer only writes a browser-local draft with a "Copy <code>/ref:note</code>" button — nothing is committed until you actually run <code>/ref:note</code>. A rebuild replaces the whole <code>reports/dashboard/</code> directory in one step; a failed build never touches the previous snapshot.</div>
+<p>Keyboard: <code>/</code> focuses search, <code>j</code>/<code>k</code> (or arrow keys) move the row selection, <code>Enter</code> opens the selected row, <code>n</code>/<code>p</code> step through papers inside the open drawer, <code>Esc</code> closes it. Focus is trapped in the drawer while it's open and returns to the triggering row on close. In serve mode, a manual refresh re-fetches rows, snapshots, lint, and the coverage matrix independently — one endpoint failing shows an error banner naming it but leaves the other tabs on their last good data. Filter/sort/project combinations can be saved as named views (browser-local only, never sent to the server). The Papers table and coverage matrix paginate for large libraries, and narrow screens get a card layout instead of horizontal table scroll.</p>
+</section>
+
+<section>
+<h2>/ref:lint --diff — track the trend, not just the snapshot</h2>
+<p>Plain <code>/ref:lint</code> is a point-in-time report. <code>--snapshot</code> also writes it to <code>maintenance/&lt;UTC-timestamp&gt;.json</code>; <code>--diff [snapshot]</code> compares the current run against a prior one (the most recent, if you don't name one) and reports per-bucket added/removed PMIDs — what got worse and what a repair pass actually fixed.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:lint --snapshot</span>
+<span class="c"># ... report ..., then writes maintenance/2026-08-01T09-00-00Z.json</span>
+<span class="p">›</span> <span class="cmd">/ref:repair-fulltext --limit 20</span>
+<span class="p">›</span> <span class="cmd">/ref:lint --diff</span>
+<span class="o">issues:
+- abstract_only: 15 (-3) [-40665956, -40691132, -40701004]
+- missing_claim_registry: 11 (unchanged)</span></pre>
+<div class="note warn">Errors loudly if no snapshot exists yet, or a named one isn't found — it never silently diffs against nothing.</div>
+</section>
+
+<section>
+<h2>Putting it together</h2>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:lint --snapshot</span>            <span class="c"># baseline before a repair pass</span>
+<span class="p">›</span> <span class="cmd">/ref:list --issue abstract_only --format pmids</span>
+<span class="p">›</span> <span class="cmd">/ref:repair-fulltext --limit 20</span>       <span class="c"># or /ref:fetch &lt;pmid...&gt; on that list</span>
+<span class="p">›</span> <span class="cmd">/ref:lint --diff</span>                <span class="c"># confirm the buckets actually shrank</span>
+<span class="p">›</span> <span class="cmd">/ref:dashboard --open</span>            <span class="c"># browse what's left, read PDFs, leave notes</span></pre>
+<p><code>/ref:list</code> and <code>/ref:dashboard</code> are read-only reporting layers over the same inventory the <a href="maintenance.html">maintenance loop</a> repairs — reach for this tutorial when you want to look before (or instead of) running <code>/ref:maintain</code>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="maintenance.html"><small>Previous</small>Maintenance loop</a>
+  <a href="thesis-chapter.html" style="text-align:right"><small>Next</small>Thesis chapter</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0-11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code>.</footer>
+</body>
+</html>

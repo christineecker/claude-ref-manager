@@ -167,23 +167,26 @@
 <article class="cmd" id="project">
   <div class="cmd-head"><h3>/ref:project</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>
   <p class="summary">Create research projects, give them questions, and add papers with project-specific relevance, priority, and reading state.</p>
-  <div class="synopsis">/ref:project create &lt;slug&gt; [--scope "&lt;text&gt;"]
+  <div class="synopsis">/ref:project create &lt;slug&gt; [--scope "&lt;text&gt;"] [--template &lt;name&gt;]
 /ref:project add-question &lt;slug&gt; --id &lt;qid&gt; --text "&lt;text&gt;"
 /ref:project add-paper &lt;slug&gt; &lt;pmid&gt; [--relevance "&lt;text&gt;"] [--priority N] [--reading-status &lt;state&gt;]
 /ref:project show &lt;slug&gt;
-/ref:project list</div>
+/ref:project list
+/ref:project templates</div>
   <h4>Arguments</h4>
   <dl class="args">
-    <dt>create &lt;slug&gt;</dt><dd>Creates <code>projects/&lt;slug&gt;/project.yaml</code> and an empty <code>papers.yaml</code>. The slug is validated, and a duplicate is refused with the existing project named.</dd>
+    <dt>create &lt;slug&gt;</dt><dd>Creates <code>projects/&lt;slug&gt;/project.yaml</code> and an empty <code>papers.yaml</code>. The slug is validated, and a duplicate is refused with the existing project named. <code>--template</code> stamps which proven command sequence this project follows (<code>systematic-review</code>, <code>thesis-chapter</code>) and prints that workflow's real next steps with <code>&lt;slug&gt;</code> already filled in — it never invents scope text or research questions, those stay whatever you passed.</dd>
     <dt>add-question &lt;slug&gt;</dt><dd><code>--id &lt;qid&gt;</code> (passed to the script as <code>--question-id</code>) and <code>--text</code>. Question IDs only need to be unique within their project.</dd>
     <dt>add-paper &lt;slug&gt; &lt;pmid&gt;</dt><dd>Adds a membership record. <code>--reading-status</code> is one of <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. If the paper is already a member, the existing record is returned unchanged.</dd>
-    <dt>show &lt;slug&gt;</dt><dd>Prints the project and its membership list.</dd>
-    <dt>list</dt><dd>Prints each project's slug, scope, and question count.</dd>
+    <dt>show &lt;slug&gt;</dt><dd>Prints the project and its membership list, plus a summary with paper count, question count, reading-state breakdown, and source/completeness counts.</dd>
+    <dt>list</dt><dd>Prints each project's slug, scope, question count, reading-state breakdown, and source/completeness counts, so it can double as a quick project dashboard.</dd>
+    <dt>templates</dt><dd>Lists the available <code>--template</code> names with a one-line description each. Needs no library — it works before <code>/ref:init</code> too.</dd>
   </dl>
   <h4>What happens</h4>
   <ol>
-    <li>Resolves the library root, then runs the matching <code>project.py</code> action.</li>
+    <li>Resolves the library root, then runs the matching <code>project.py</code> action (<code>templates</code> is the one exception — it needs no library).</li>
     <li>Prints the JSON result verbatim. On a slug collision, Claude asks you for another name instead of adding a suffix, so references never point at a surprise project.</li>
+    <li>When <code>--template</code> was passed, <code>create</code>'s result also carries <code>next_steps</code> — the real command sequence for that workflow, taken from its tutorial, with <code>&lt;slug&gt;</code> already filled in. Everything else (<code>&lt;pmid...&gt;</code>, <code>&lt;label&gt;</code>, your actual research question) is still yours to fill in.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
   <p class="writes">Writes <code>projects/&lt;slug&gt;/project.yaml</code> and <code>papers.yaml</code>. Both are JSON despite the extension, and both are written atomically. Membership is one record per PMID per project, so each project's relevance, priority, and reading state are independent.</p>
@@ -207,8 +210,25 @@
 }</span>
 <span class="p">›</span> <span class="cmd">/ref:project create thesis-ch3</span>
 <span class="w">error: project 'thesis-ch3' already exists at projects/thesis-ch3</span></pre>
+  <p class="term-label">starter template</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:project create tdcs-review --scope "tDCS and working memory" --template systematic-review</span>
+<span class="o">{
+  "slug": "tdcs-review",
+  "scope": "tDCS and working memory",
+  "questions": [],
+  "template": "systematic-review",
+  "next_steps": [
+    "/ref:search-pubmed \"&lt;question&gt;\" --slug &lt;query-slug&gt; --create",
+    "/ref:add &lt;pmid...&gt;",
+    "/ref:project add-paper tdcs-review &lt;pmid&gt;",
+    "/ref:screen --project tdcs-review --pmid &lt;pmid&gt; --decision included|excluded --reason \"&lt;text&gt;\"",
+    "/ref:fetch &lt;pmid...&gt;",
+    "/ref:review --prisma --project tdcs-review --query &lt;query-slug&gt;",
+    "/ref:review --project tdcs-review --screened included --batch &lt;label&gt;"
+  ]
+}</span></pre>
   <h4>Under the hood</h4>
-  <p class="writes"><code>project.py create|add-question|add-paper|show|list --repo … [--slug …] [--question-id …] [--text …] [--pmid …] [--relevance …] [--priority N] [--reading-status …]</code></p>
+  <p class="writes"><code>project.py create|add-question|add-paper|show|list|templates --repo … [--slug …] [--template …] [--question-id …] [--text …] [--pmid …] [--relevance …] [--priority N] [--reading-status …]</code> (<code>templates</code> takes no <code>--repo</code>)</p>
   <h4>See also</h4>
   <p class="writes"><a href="#queue"><code>/ref:queue</code></a> · <a href="#screen"><code>/ref:screen</code></a> · <a href="find.html#selectors">selector grammar</a> · <a href="../tutorials/thesis-chapter.html">Thesis chapter tutorial</a></p>
 </article>
@@ -221,7 +241,7 @@
   <h4>Arguments</h4>
   <dl class="args">
     <dt>set</dt><dd>Updates only the fields you pass. <code>--status</code> is one of <code>to_screen</code>, <code>to_read</code>, <code>reading</code>, <code>read</code>. <code>--why</code> sets <code>why_saved</code>.</dd>
-    <dt>show</dt><dd>With <code>--pmid</code>, prints that one membership. Without it, prints the whole project queue.</dd>
+    <dt>show</dt><dd>With <code>--pmid</code>, prints that one membership. Without it, prints the whole project queue, including reading-state and source/completeness summaries, so the queue doubles as a quick dashboard.</dd>
     <dt>--project &lt;slug&gt;</dt><dd>Required for both.</dd>
   </dl>
   <h4>What happens</h4>

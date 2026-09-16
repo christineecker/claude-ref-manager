@@ -31,15 +31,18 @@ Two independent behaviors, both load-bearing for the phase-11 gate:
     zero that could be mistaken for a real observation. A PMID with no
     PMCID gets an explicit no_pmcid marker, not silence.
 
-Citation-count source availability: checked every PubMed MCP tool in this
-environment (search_articles, get_article_metadata, get_full_text_article,
-find_related_articles, convert_article_ids, lookup_article_by_citation,
-get_copyright_status) -- NONE provide a real cited-by/citing-article COUNT.
-find_related_articles has no citation-graph link type at all (confirmed
-live in phase 9's /ref:related work: only pubmed_pubmed word-similarity).
-So --citations' machinery is built and tested fully, ready the moment a
-real PMC ELink cited-by count source is wired in, but commands/ref-audit.md
-says so plainly rather than pretending pubmed_pubmed counts are citations.
+Citation-count source: no PubMed MCP tool in this environment provides a
+real cited-by/citing-article COUNT (search_articles, get_article_metadata,
+get_full_text_article, find_related_articles -- only pubmed_pubmed word-
+similarity, no citation graph, confirmed live in phase 9's /ref:related
+work -- convert_article_ids, lookup_article_by_citation,
+get_copyright_status all checked). commands/ref-audit.md instead wires a
+direct NCBI E-utilities ELink call (pubmed_pmc_refs, "Cited in PMC") over
+WebFetch -- a real, public count, though PMC-only coverage (undercounts
+total literature citations). This script stays source-agnostic: it only
+persists whatever `"observation"` the caller hands it (see
+audit_citation_observation below), so a future MCP tool would slot in with
+no change here.
 """
 from __future__ import annotations
 

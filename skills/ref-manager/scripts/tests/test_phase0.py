@@ -21,6 +21,7 @@ import catalog  # noqa: E402
 import init_repo  # noqa: E402
 import lib_atomic  # noqa: E402
 import lib_ids  # noqa: E402
+import lib_selector  # noqa: E402
 
 
 class TempLibrary(unittest.TestCase):
@@ -183,6 +184,47 @@ class TestInitAndCatalog(unittest.TestCase):
             init_repo.init_library(self.tmp / "lib2")
         # --force allows it
         init_repo.init_library(self.tmp / "lib2", force=True)
+
+
+class TestBrowseFirstSelector(TempLibrary):
+    def _paper(self, pmid, checked_at, abstract_available=False, full_text=False, oa_location=None):
+        paper_dir = self.library_root / "papers" / pmid
+        paper_dir.mkdir(parents=True, exist_ok=True)
+        meta = {
+            "pmid": pmid,
+            "citekey": f"k{pmid}",
+            "title": f"Paper {pmid}",
+            "year": "2026",
+            "status": "active",
+            "checked_at": checked_at,
+            "extraction_tier": "abstract" if abstract_available else "unavailable",
+            "abstract_available": abstract_available,
+            "full_text": full_text,
+        }
+        if oa_location is not None:
+            meta["oa_location"] = oa_location
+        lib_atomic.atomic_write_json(paper_dir / "meta.json", meta)
+
+    def test_recent_unresolved_only_returns_follow_up_papers(self):
+        self._paper("111", "2026-01-03T00:00:00+00:00")
+        self._paper("112", "2026-01-02T00:00:00+00:00", abstract_available=True)
+        self._paper(
+            "113", "2026-01-04T00:00:00+00:00",
+            oa_location={"source": "unpaywall", "url": "https://example.test/oa.pdf"},
+        )
+
+        unresolved = lib_selector.recent(self.library_root, kind="unresolved")
+        pmids = [row["pmid"] for row in unresolved]
+        self.assertIn("111", pmids)
+        self.assertIn("113", pmids)
+        self.assertNotIn("112", pmids)
+        self.assertIn(unresolved[0]["source_badge"], ("metadata-only", "oa-pending"))
+
+    def test_recent_imports_alias_matches_recent(self):
+        self._paper("121", "2026-01-05T00:00:00+00:00")
+        recent_rows = lib_selector.recent(self.library_root, kind="recent")
+        import_rows = lib_selector.recent(self.library_root, kind="imports")
+        self.assertEqual([r["pmid"] for r in import_rows], [r["pmid"] for r in recent_rows])
 
 
 if __name__ == "__main__":

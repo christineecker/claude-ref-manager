@@ -36,3 +36,7 @@ Steps:
    (`added` / `already_present` / `failed`), each independent of the others (one paper's
    failure never blocks the rest). A paper with no abstract is still `added`, flagged as
    metadata-only — this is expected, not an error.
+
+If the new record conflicts with an existing paper's DOI/title identity, the
+script also emits warnings. Relay those warnings verbatim so the user can see
+the mismatch before treating the record as settled.

@@ -69,10 +69,13 @@ class TempLibrary(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.lib = self.tmp / "lib"
+        self._orig_config = init_repo.CONFIG_PATH
+        init_repo.CONFIG_PATH = self.tmp / "home" / ".config" / "ref-manager" / "config.json"
         init_repo.init_library(self.lib, force=True)
         self.db = self.tmp / "scratch-papers.db"
 
     def tearDown(self):
+        init_repo.CONFIG_PATH = self._orig_config
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _add(self, pmid, doi=None):
@@ -249,6 +252,14 @@ class TestVisionCache(TempLibrary):
         self._paper_with_figure("2006")
         r = vision.request(self.lib, "2006", "current", "nope", "modelA", "describe this")
         self.assertEqual(r["status"], "figure_not_found")
+
+    def test_list_figures_exposes_browseable_inventory(self):
+        self._paper_with_figure("2007")
+        result = vision.list_figures(self.lib, "2007")
+        self.assertEqual(result["pmid"], "2007")
+        self.assertEqual(result["figures"][0]["id"], "fig1")
+        self.assertEqual(result["figures"][0]["caption"], "A bar chart")
+        self.assertTrue(result["figures"][0]["asset_available"])
 
 
 if __name__ == "__main__":

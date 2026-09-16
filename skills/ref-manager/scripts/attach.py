@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""`/ref:attach <pmid> <path> [<pmid> <path> ...]` -- local PDF attachment
+"""`/ref:attach <pmid> <path> [<pmid> <path> ...]` -- PDF attachment
 (PLAN.md §6 opening paragraph).
 
 Identity check: no PDF-parsing python library is available on this machine
@@ -18,17 +18,22 @@ under a different pmid, or accept it with an explicit override arg).
 Duplicate content (identical sha256 already stored) is a no-op. Each
 pmid/path pair is processed independently under its own per-PMID lock; one
 conflict or failure never blocks the rest of the batch (§6, same per-PMID-
-batch contract as add.py/fetch.py).
+batch contract as add.py/fetch.py). `attach_pdf_bytes` is the same commit path
+for trusted downloaders such as PMC OA PDF fetches; it keeps provenance in
+attachment.json rather than pretending a downloaded file was local input.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from lib_atomic import atomic_write_bytes, atomic_write_json, commit_version, pmid_lock
@@ -88,24 +93,29 @@ def _check_identity(meta: dict, pdf_text: str | None) -> tuple[bool, str]:
     )
 
 
-def attach_one(library_root: Path, pmid: str, pdf_path: Path, force: bool) -> dict:
+def attach_pdf_bytes(library_root: Path, pmid: str, data: bytes, attached_from: str, force: bool) -> dict:
     paper_dir = library_root / "papers" / pmid
     meta_path = paper_dir / "meta.json"
     if not meta_path.exists():
         raise ValueError(f"pmid {pmid} has no meta.json -- run /ref:add first")
-    if not pdf_path.is_file():
-        raise ValueError(f"no such file: {pdf_path}")
 
     with pmid_lock(library_root, pmid):
         meta = json.loads(meta_path.read_text())
-        data = pdf_path.read_bytes()
         file_hash = hashlib.sha256(data).hexdigest()
 
         existing_raw = paper_dir / "raw" / file_hash / "source.pdf"
         if existing_raw.exists():
             return {"pmid": pmid, "result": "duplicate_noop", "sha256": file_hash}
 
-        pdf_text = _pdf_head_text(pdf_path)
+        fd, temp_name = tempfile.mkstemp(prefix=f"ref-manager-{pmid}-", suffix=".pdf")
+        temp_pdf = Path(temp_name)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+            pdf_text = _pdf_head_text(temp_pdf)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                temp_pdf.unlink()
         verified, method = _check_identity(meta, pdf_text)
         if not verified and not force:
             return {"pmid": pmid, "result": "refused", "reason": method, "sha256": file_hash}
@@ -114,7 +124,7 @@ def attach_one(library_root: Path, pmid: str, pdf_path: Path, force: bool) -> di
         raw_dir.mkdir(parents=True, exist_ok=True)
         atomic_write_bytes(raw_dir / "source.pdf", data)
         atomic_write_json(raw_dir / "attachment.json", {
-            "attached_from": str(pdf_path), "sha256": file_hash,
+            "attached_from": attached_from, "sha256": file_hash,
             "identity_check": method, "identity_verified": verified, "forced": force and not verified,
         })
 
@@ -141,8 +151,15 @@ def attach_one(library_root: Path, pmid: str, pdf_path: Path, force: bool) -> di
 
         return {
             "pmid": pmid, "result": "attached", "sha256": file_hash, "version": version_id,
-            "identity_check": method, "conversion_status": conv["status"], "diagnostics": conv["diagnostics"],
+            "identity_check": method, "identity_verified": verified, "forced": force and not verified,
+            "conversion_status": conv["status"], "diagnostics": conv["diagnostics"],
         }
+
+
+def attach_one(library_root: Path, pmid: str, pdf_path: Path, force: bool) -> dict:
+    if not pdf_path.is_file():
+        raise ValueError(f"no such file: {pdf_path}")
+    return attach_pdf_bytes(library_root, pmid, pdf_path.read_bytes(), str(pdf_path), force)
 
 
 def main() -> int:
@@ -173,6 +190,11 @@ def main() -> int:
 
     for r in results:
         line = f"{r['pmid']}: {r['result']}"
+        if r.get("result") == "attached":
+            if r.get("identity_verified"):
+                line += f" -- {r.get('identity_check')}"
+            elif r.get("forced"):
+                line += " -- attached with --force after failed identity check"
         if r.get("reason"):
             line += f" -- {r['reason']}"
         if r.get("error"):

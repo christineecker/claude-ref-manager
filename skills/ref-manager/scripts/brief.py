@@ -144,6 +144,11 @@ def save_brief(
         "resolved_at": datetime.now(timezone.utc).isoformat(),
         "unresolved_questions": unresolved_questions or [],
         "evidence_hash": evidence_hash,
+        "provenance": {
+            "pmids": sorted({c["pmid"] for c in candidates}),
+            "project": project,
+            "question": question,
+        },
     }
     atomic_write_json(sdir / "manifest.json", manifest)
     atomic_write_json(_key_dir(library_root, project, key) / "latest.json", {"snapshot_id": snapshot_id})

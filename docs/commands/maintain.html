@@ -28,6 +28,10 @@
   <h4>Maintain</h4>
   <ol>
     <li><a href="#overview">How they fit</a></li>
+    <li><a href="#help"><code>/ref:help</code></a></li>
+    <li><a href="#maintain"><code>/ref:maintain</code></a></li>
+    <li><a href="#lint"><code>/ref:lint</code></a></li>
+    <li><a href="#repair-fulltext"><code>/ref:repair-fulltext</code></a></li>
     <li><a href="#audit"><code>/ref:audit</code></a></li>
     <li><a href="#index"><code>/ref:index</code></a></li>
     <li><a href="#status"><code>/ref:status</code></a></li>
@@ -50,7 +54,7 @@
 <header class="page">
   <p class="eyebrow">Commands · Keep the library healthy</p>
   <h1>Maintain</h1>
-  <p class="lede">Re-check papers for retractions, rebuild the search index from the files on disk, see what's configured, and move papers into Papers.app and your annotations back out. Files are the authority; these commands refresh projections and flag what changed without rewriting history.</p>
+  <p class="lede">Look up any command's spec, re-check papers for retractions, rebuild the search index from the files on disk, see what's configured, and move papers into Papers.app and your annotations back out. Files are the authority; these commands refresh projections and flag what changed without rewriting history.</p>
 </header>
 
 <section id="overview">
@@ -79,7 +83,7 @@
 
     <rect x="14" y="292" width="170" height="64" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
     <text x="28" y="316" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">/ref:status</text>
-    <text x="28" y="336" fill-opacity=".7">read-only counts</text>
+    <text x="28" y="336" fill-opacity=".7">read-only health check</text>
   </g>
 
   <!-- middle: library -->
@@ -169,6 +173,213 @@
 <h2>Commands</h2>
 <div class="cmd-groups">
 
+<!-- ================= maintain ================= -->
+<article class="cmd" id="maintain">
+  <div class="cmd-head"><h3>/ref:maintain</h3><div class="chips"><span class="tag phase">phase 11+</span><span class="tag ro">mostly read-only</span></div></div>
+  <p class="summary">Run a compact maintenance cycle: status, lint, optional index rebuild, and optional retraction audit.</p>
+  <div class="synopsis">/ref:maintain [--stale-days &lt;N&gt;] [--no-index] [--no-audit] [--verbosity quick|normal|verbose]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--stale-days &lt;N&gt;</dt><dd>Lint stale threshold in days. Default <code>180</code>.</dd>
+    <dt>--no-index</dt><dd>Skip catalog rebuild.</dd>
+    <dt>--no-audit</dt><dd>Skip retraction-status sweep.</dd>
+    <dt>--verbosity</dt><dd>Passed to <a href="#status"><code>/ref:status</code></a>. Default <code>quick</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs <a href="#status"><code>/ref:status</code></a> first, to print a fast health snapshot.</li>
+    <li>Runs <a href="#lint"><code>/ref:lint</code></a> with <code>--snapshot</code> to bucket PMIDs by maintenance issue class and record a timestamped report under <code>maintenance/</code>.</li>
+    <li>Unless skipped, runs <a href="#index"><code>/ref:index --rebuild</code></a> (and relation refresh when graph relations exist).</li>
+    <li>Unless skipped, runs <a href="#audit"><code>/ref:audit</code></a> in default retraction mode.</li>
+    <li>Prints compact next actions based on what those stages found.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads everything status/lint/audit read. Writes a lint snapshot under <code>maintenance/</code>, plus whatever index/audit write when those stages are enabled.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:maintain --stale-days 180</span>
+<span class="o">status:</span>
+<span class="o">status: needs full text</span>
+
+<span class="o">lint:</span>
+<span class="o">- abstract_only: 18 [...]</span>
+
+<span class="o">index:</span>
+<span class="o">catalog rebuilt: ...</span>
+
+<span class="o">audit:</span>
+<span class="o">changed_pmids: []</span>
+
+<span class="o">next:</span>
+<span class="o">- /ref:fetch &lt;pmid...&gt;</span>
+<span class="o">- /ref:extract &lt;pmid...&gt;</span></pre>
+  <h4>See also</h4>
+  <p class="writes"><a href="#status"><code>/ref:status</code></a> · <a href="#lint"><code>/ref:lint</code></a> · <a href="#index"><code>/ref:index</code></a> · <a href="#audit"><code>/ref:audit</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
+</article>
+
+<!-- ================= help ================= -->
+<article class="cmd" id="help">
+  <div class="cmd-head"><h3>/ref:help</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Quick-start tour: list every <code>/ref:*</code> command grouped by what it's for, or show one command's full spec without leaving the terminal. No library required.</p>
+  <div class="synopsis">/ref:help
+/ref:help &lt;command&gt;</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;command&gt;</dt><dd>Optional. The bare command name with or without its <code>ref-</code>/<code>/ref:</code> prefix — <code>status</code>, <code>ref-status</code>, and <code>/ref:status</code> all resolve the same way.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>With no argument: checks whether a library is configured. If not, leads with a pointer to <a href="acquire.html#init"><code>/ref:init &lt;path&gt;</code></a>. Then prints the grouped overview verbatim — every line a real command and description, not a summary written fresh each time. If a library is configured, closes with a pointer to <a href="#status"><code>/ref:status</code></a>.</li>
+    <li>With a command name: resolves it to its command file (stripping a leading <code>/ref:</code> or <code>ref-</code>), then prints that file's own spec unparaphrased. If no such command exists, says so and suggests the closest matches, or points at the grouped overview.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code> to decide which closing pointer to print, and the target command's own file when one is named. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">looking up one command</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:help status</span>
+<span class="o">Quick-start tour: list every `/ref:*` command grouped by what it's for, or show
+one command's full spec without leaving the terminal. Read-only, no library
+required.
+…</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">No script — Claude reads <code>commands/ref-help.md</code> directly and, for a named command, the matching <code>commands/ref-&lt;name&gt;.md</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#init"><code>/ref:init</code></a> · <a href="#status"><code>/ref:status</code></a> · <a href="find.html#selectors">selector grammar</a></p>
+</article>
+
+<!-- ================= lint ================= -->
+<article class="cmd" id="lint">
+  <div class="cmd-head"><h3>/ref:lint</h3><div class="chips"><span class="tag phase">phase 11+</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Read-only maintenance lint: list incomplete metadata/full-text state, repo integrity gaps, and stale checks with direct next-action commands.</p>
+  <div class="synopsis">/ref:lint [--stale-days &lt;N&gt;] [--json] [--snapshot]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--stale-days &lt;N&gt;</dt><dd>Optional age threshold in days for stale checks. Default <code>180</code>.</dd>
+    <dt>--json</dt><dd>Optional machine-readable report.</dd>
+    <dt>--snapshot</dt><dd>Optional. Also write the report to <code>maintenance/&lt;UTC-timestamp&gt;.json</code> in the library root.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Scans every paper folder and buckets PMIDs by maintenance issue class.</li>
+    <li>Flags metadata gaps (<code>missing_title</code>, <code>missing_year</code>, <code>missing_journal</code>, <code>missing_doi</code>), completeness gaps (<code>metadata_only</code>, <code>abstract_only</code>, <code>oa_pending</code>), and integrity gaps (<code>missing_meta</code>, <code>missing_current</code>, <code>missing_claim_registry</code>).</li>
+    <li>Flags stale checks when <code>checked_at</code> is older than the threshold.</li>
+    <li>Reports compact recommended follow-ups, e.g. <code>/ref:index --rebuild</code>, <code>/ref:audit</code>, <code>/ref:fetch</code>, <code>/ref:extract</code>.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads paper records and index presence. Writes nothing unless <code>--snapshot</code> is passed, in which case it writes one timestamped JSON report under <code>maintenance/</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:lint --stale-days 180</span>
+<span class="o">papers_total: 124</span>
+<span class="o">issues_total: 39</span>
+<span class="o">catalog_present: true</span>
+
+<span class="o">issues:</span>
+<span class="o">- abstract_only: 18 [40665956, 40691132, ...]</span>
+<span class="o">- missing_claim_registry: 11 [40510001, 40510002, ...]</span>
+
+<span class="o">recommended next actions:</span>
+<span class="o">- run /ref:audit</span>
+<span class="o">- run /ref:fetch &lt;pmid...&gt; or /ref:add-fetch &lt;pmid...&gt;</span>
+<span class="o">- run /ref:extract &lt;pmid...&gt;</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>lint.py run --repo &lt;library_root&gt; [--stale-days N] [--json] [--snapshot]</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#status"><code>/ref:status</code></a> · <a href="#audit"><code>/ref:audit</code></a> · <a href="#index"><code>/ref:index</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
+</article>
+
+<!-- ================= repair-fulltext ================= -->
+<article class="cmd" id="repair-fulltext">
+  <div class="cmd-head"><h3>/ref:repair-fulltext</h3><div class="chips"><span class="tag phase">phase 11+</span><span class="tag net">PubMed MCP</span><span class="tag net">Unpaywall</span></div></div>
+  <p class="summary">Batch-repair full-text gaps found by <code>/ref:lint</code>: work through <code>metadata_only</code>, <code>abstract_only</code>, and <code>oa_pending</code> PMIDs with the same per-PMID acquisition workflow as <code>/ref:fetch</code>, bounded by <code>--limit</code> and resume-safe across runs.</p>
+  <div class="synopsis">/ref:repair-fulltext [--limit &lt;N&gt;] [--stale-days &lt;N&gt;] [--retry-failed] [selector]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--limit &lt;N&gt;</dt><dd>Optional. Max PMIDs attempted this run. Default <code>20</code>.</dd>
+    <dt>--stale-days &lt;N&gt;</dt><dd>Optional. Passed to the underlying <code>/ref:lint</code> bucket selection. Default <code>180</code>.</dd>
+    <dt>--retry-failed</dt><dd>Optional. Without it, PMIDs marked <code>failed</code>/<code>abstract_only</code> in the resume state within the last 24h are skipped.</dd>
+    <dt>selector</dt><dd>Optional. Restrict candidates to a <code>/ref:search</code>-style selector match before batching.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs <a href="#lint"><code>/ref:lint --json</code></a> and unions the <code>metadata_only</code>, <code>abstract_only</code>, and <code>oa_pending</code> buckets into a candidate list.</li>
+    <li>Loads per-PMID resume state from <code>maintenance/repair-fulltext-state.json</code> and skips recently-attempted candidates unless <code>--retry-failed</code> is set.</li>
+    <li>Takes the first <code>--limit</code> remaining candidates and runs <code>/ref:fetch</code>'s acquisition workflow on each, independently.</li>
+    <li>Writes each attempted PMID's result and timestamp back to the resume state file.</li>
+    <li>Prints a summary with counts and, when candidates remain, a suggested re-run.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads lint output and paper records. Writes full-text/version data the same way <code>/ref:fetch</code> does, plus <code>maintenance/repair-fulltext-state.json</code> bookkeeping (never <code>papers/&lt;pmid&gt;/</code> directly).</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#lint"><code>/ref:lint</code></a> · <a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
+</article>
+
+<!-- ================= list ================= -->
+<article class="cmd" id="list">
+  <div class="cmd-head"><h3>/ref:list</h3><div class="chips"><span class="tag phase">library viewer</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Filterable browse/report over the paper library: metadata, source coverage, lint issues, project/reading state, and a coverage matrix. Built on the same <code>lib_inventory.rows()</code> every other view uses. No filters lists every paper; a filter combination matching nothing prints an explicit message rather than nothing.</p>
+  <div class="synopsis">/ref:list [--source &lt;badge,...&gt;] [--has/--missing &lt;key,...&gt;] [--tier &lt;t&gt;] [--year &lt;YYYY|YYYY..YYYY&gt;] [--journal &lt;substr&gt;] [--retracted] [--stale-days &lt;N&gt;] [--issue &lt;bucket&gt;] [selector] [--sort &lt;field&gt;] [--columns &lt;col,...&gt;] [--format table|csv|json|pmids] [--matrix]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--source &lt;badge,...&gt;</dt><dd>Subset of <code>pdf-backed,full-text,oa-pending,abstract-only,metadata-only</code>.</dd>
+    <dt>--has / --missing &lt;key,...&gt;</dt><dd>Presence filters (ANDed), subset of <code>pdf,fulltext,claims,figures,notes</code>.</dd>
+    <dt>--tier &lt;abstract|full|unavailable&gt;</dt><dd><code>meta.json.extraction_tier</code>.</dd>
+    <dt>--year &lt;YYYY|YYYY..YYYY&gt;</dt><dd>Single year or inclusive range.</dd>
+    <dt>--journal &lt;substring&gt;</dt><dd>Case-insensitive.</dd>
+    <dt>--retracted</dt><dd><code>retraction_status</code> is <code>retracted</code> or <code>erratum</code>.</dd>
+    <dt>--stale-days &lt;N&gt;</dt><dd>Only papers whose <code>checked_at</code> is older than <code>N</code> days.</dd>
+    <dt>--issue &lt;lint-bucket&gt;</dt><dd>One of the buckets <a href="#lint"><code>/ref:lint</code></a> reports.</dd>
+    <dt>selector</dt><dd><code>--project</code>, <code>--reading-status</code>, <code>--query</code>, <code>--from-file</code> — the shared selector grammar; <code>--reading-status</code> requires <code>--project</code>.</dd>
+    <dt>--sort &lt;year|added|title|checked|claims&gt;</dt><dd>Sort order.</dd>
+    <dt>--columns &lt;col,...&gt;</dt><dd>Projection for <code>table</code>/<code>csv</code>/<code>json</code>; omit for the default column set.</dd>
+    <dt>--format &lt;table|csv|json|pmids&gt;</dt><dd>Default <code>table</code>. <code>pmids</code> prints a bare space-separated PMID list — pipe it straight into <code>/ref:fetch</code> / <code>/ref:extract</code>.</dd>
+    <dt>--matrix</dt><dd>Paper × <code>{meta, abstract, fulltext, pdf, figures, claims, indexed, retraction}</code> coverage grid instead of <code>--columns</code>.</dd>
+  </dl>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads paper records and index presence. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:list --issue abstract_only --format pmids</span>
+<span class="o">40665956 40691132 40701004</span>
+<span class="p">›</span> <span class="cmd">/ref:list --source abstract-only,oa-pending --stale-days 180 --sort checked</span>
+<span class="o">pmid       title                                  year  source        checked</span>
+<span class="o">40665956   Sham tDCS and social cognition in...  2024  abstract-only  2026-02-11</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>list.py --repo &lt;library_root&gt; [flags above]</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#lint"><code>/ref:lint</code></a> · <a href="#dashboard"><code>/ref:dashboard</code></a> · <a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="../tutorials/library-viewer.html">Library viewer tutorial</a></p>
+</article>
+
+<!-- ================= dashboard ================= -->
+<article class="cmd" id="dashboard">
+  <div class="cmd-head"><h3>/ref:dashboard</h3><div class="chips"><span class="tag phase">library viewer</span><span class="tag ro">read-only except notes</span></div></div>
+  <p class="summary">Dashboard over the paper library: health state, source coverage, pipeline funnel, papers-by-year, lint trend, a searchable/sortable paper table, a coverage matrix, per-project reading progress, maintenance sparklines, a paper panel, and a PDF viewer. Built on the same <code>lib_inventory.rows()</code>/<code>detail()</code> every other view uses.</p>
+  <div class="synopsis">/ref:dashboard [--port &lt;n&gt;] [--open]
+/ref:dashboard --static [--open]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--static</dt><dd>Build the static self-contained HTML dashboard instead of serving (also triggered by the literal word <code>build</code>).</dd>
+    <dt>--port &lt;n&gt;</dt><dd>Serve mode only. Fixed port instead of an OS-assigned one.</dd>
+    <dt>--open</dt><dd>Open the dashboard in the default browser once ready.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <p><strong>Default (serve):</strong> a local HTTP server on <code>127.0.0.1</code> with a live API, an in-page pdf.js viewer (thumbnails, zoom, fit-width, page jump, find-in-PDF), and notes that save immediately through <code>note.py append</code> — the same file/format as <a href="organize.html#note"><code>/ref:note</code></a>. Binds <code>127.0.0.1</code> only, with a random per-run token required on every request and checked against <code>Host</code>/<code>Origin</code> — not reachable from other machines or other browser tabs without the token in the URL. Blocks until interrupted (Ctrl-C).</p>
+  <p><strong><code>--static</code>:</strong> writes atomically to <code>reports/dashboard/</code> (template + inline rows/lint JSON, one <code>details/&lt;pmid&gt;.js</code> per paper loaded on demand). No server; the PDF tab opens in a new browser tab instead of in-page. The notes composer only writes a browser-local draft with a "Copy <code>/ref:note</code>" button — committed notes still come from <code>/ref:note</code>.</p>
+  <p>Both modes: selecting rows in the Papers tab builds ready-to-copy <code>/ref:fetch</code> / <code>/ref:extract</code> commands for papers that still need them.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads the same inventory/lint data as <code>/ref:list</code> and <code>/ref:lint</code>. Serve mode's notes composer is the only thing that writes to the library, via <code>note.py append</code>. Static mode writes only <code>reports/dashboard/</code>; a failed build never touches the previous snapshot.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --open</span>
+<span class="o">dashboard serving: http://127.0.0.1:53211/?token=9f2c...  (Ctrl-C to stop)</span>
+<span class="p">›</span> <span class="cmd">/ref:dashboard --static --open</span>
+<span class="o">dashboard built: /Users/you/refs/reports/dashboard/index.html</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>dashboard.py serve --repo &lt;library_root&gt; [--port N] [--open]</code>, or <code>dashboard.py build --repo &lt;library_root&gt; [--open]</code> for <code>--static</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#list"><code>/ref:list</code></a> · <a href="#lint"><code>/ref:lint</code></a> · <a href="organize.html#note"><code>/ref:note</code></a> · <a href="../tutorials/library-viewer.html">Library viewer tutorial</a></p>
+</article>
+
 <!-- ================= audit ================= -->
 <article class="cmd" id="audit">
   <div class="cmd-head"><h3>/ref:audit</h3><div class="chips"><span class="tag phase">phase 11</span><span class="tag net">PubMed MCP</span></div></div>
@@ -190,8 +401,8 @@
     <li>A successful check updates <code>retraction_status</code> in <code>meta.json</code> and reports whether it changed. A failed check leaves the prior status untouched and prints a diagnostic. It never guesses <code>"none"</code> or downgrades an earlier <code>"retracted"</code>.</li>
     <li>If any status changed, <code>propagate</code> lists saved <code>/ref:brief</code>, <code>/ref:compare</code> and <code>/ref:summarize</code> artifacts that used those papers. They are not refreshed automatically; you run <code>--refresh</code> on them, and their earlier frozen versions are kept.</li>
   </ol>
-  <p><strong><code>--citations</code> mode:</strong> for each PMID, a paper with no PMCID gets a <code>no_pmcid</code> marker, a failed lookup gets a <code>check_failed</code> marker, and a real count is stored with its source, query, coverage note and retrieval date. Every call appends to <code>citations.json</code>; earlier entries are never overwritten, and a failure never becomes a zero.</p>
-  <div class="note warn"><strong>No citation-count source is wired in yet.</strong> None of the PubMed MCP tools available return a PMC cited-by count, and related-article similarity is not citation. The storage and display machinery is built and tested, but until a real source exists, <code>--citations</code> has nothing to record and the command says so instead of inventing counts.</div>
+  <p><strong><code>--citations</code> mode:</strong> for each PMID, a paper with no PMCID gets a <code>no_pmcid</code> marker; otherwise Claude fetches NCBI's <code>pubmed_pmc_refs</code> ELink ("Cited in PMC") for that PMID directly over WebFetch, one PMID at a time. A failed/unparseable response gets a <code>check_failed</code> marker; a real count is stored with source <code>pmc_elink</code>, the exact query URL, a coverage note, and the retrieval date. Every call appends to <code>citations.json</code>; earlier entries are never overwritten, and a failure never becomes a zero.</p>
+  <div class="note warn"><strong>Coverage is PMC-only.</strong> <code>pmc_elink</code> counts only citing articles that are themselves indexed in PMC — it undercounts total literature citations. No PubMed MCP tool provides a citation-graph count (related-article similarity is not citation), so this direct NCBI E-utilities call is the real source, not a fabricated one.</div>
   <p><strong><code>show-citations</code>:</strong> skips <code>check_failed</code> and <code>no_pmcid</code> markers and shows the most recent real observation. A PMID with none shows <code>null</code>, which means "no observation available", not zero.</p>
   <h4>Reads &amp; writes</h4>
   <p class="writes">Retraction mode updates <code>papers/&lt;pmid&gt;/meta.json</code> (<code>retraction_status</code>). <code>--citations</code> appends to <code>papers/&lt;pmid&gt;/citations.json</code>. <code>propagate</code> and <code>show-citations</code> only read: saved artifact manifests under <code>tables/</code>, <code>summaries/</code>, <code>briefs/</code> (library-wide and per project), and <code>citations.json</code>.</p>
@@ -260,30 +471,52 @@
 <!-- ================= status ================= -->
 <article class="cmd" id="status">
   <div class="cmd-head"><h3>/ref:status</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
-  <p class="summary">Show which library is configured and how many papers and projects it holds.</p>
+  <p class="summary">One-line health state, what needs attention, and what to run next — then catalog counts, extraction-tier breakdown, source completeness, project summaries, and a few recent papers. Read-only.</p>
   <div class="synopsis">/ref:status</div>
   <h4>Arguments</h4>
   <p class="writes">None.</p>
   <h4>What happens</h4>
   <ol>
     <li>Reads the config file. If none exists, it errors and points you at <a href="acquire.html#init"><code>/ref:init</code></a>; it never guesses a path.</li>
-    <li>Prints the library root, and errors if that directory no longer exists.</li>
-    <li>Prints the number of papers in the catalog, or a hint to run <code>/ref:index --rebuild</code> if the catalog hasn't been built.</li>
-    <li>Prints the number of projects.</li>
+    <li>Prints the library root, and errors — naming the exact fix command — if that directory no longer exists.</li>
+    <li>Leads with <code>status: &lt;state&gt;</code> — <code>healthy</code>, <code>empty</code>, <code>not indexed</code>, <code>needs metadata</code>, <code>needs full text</code>, or <code>no active project</code> — derived from the same counts printed below it, not a separate check.</li>
+    <li>Prints a <code>needs attention</code> list and up to three <code>suggested next actions</code> (real commands, e.g. <code>/ref:index --rebuild</code>, <code>/ref:fetch</code>, <code>/ref:project create &lt;slug&gt;</code>) whenever the library isn't fully healthy.</li>
+    <li>Prints papers-by-extraction-tier, source/completeness counts, per-project summaries, and a short list of recent papers.</li>
+    <li>Each recent paper carries a concise source badge — <code>full-text</code>, <code>pdf-backed</code>, <code>oa-pending</code>, <code>abstract-only</code>, or <code>metadata-only</code> — so you can see acquisition state at a glance without opening records. Claude keeps this compact; the goal is quick orientation, not a substitute for full search.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code>, <code>index/catalog.sqlite</code>, <code>projects/</code>. Writes nothing.</p>
+  <p class="writes">Reads <code>~/.config/ref-manager/config.json</code>, <code>index/catalog.sqlite</code>, <code>projects/</code>, and papers' <code>meta.json</code> for source/completeness state. Writes nothing.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library (paths shortened)</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:status</span>
-<span class="o">library: /private/tmp/…/scratch/lib</span>
-<span class="o">catalog: not built yet (run /ref:index --rebuild)</span>
-<span class="o">projects: 0</span>
-<span class="p">›</span> <span class="cmd">/ref:index --rebuild</span>
-<span class="p">›</span> <span class="cmd">/ref:status</span>
-<span class="o">library: /private/tmp/…/scratch/lib</span>
-<span class="o">papers indexed: 2</span>
-<span class="o">projects: 0</span></pre>
+<span class="o">status: not indexed
+library: /private/tmp/…/scratch/lib
+papers: 2 (0 indexed)  projects: 0
+
+needs attention:
+  - catalog not fully indexed (0/2 papers)
+  - 1 paper(s) without full text (abstract-only or metadata-only)
+  - no active project
+
+suggested next actions:
+  - /ref:index --rebuild
+  - /ref:fetch to acquire full text for open-access papers
+  - /ref:project create &lt;slug&gt; to start organizing papers
+
+papers by extraction tier:
+  full: 1
+  abstract: 1
+  unavailable: 0
+papers by source/completeness:
+  full_text: 1
+  pdf_backed: 0
+  oa_pending: 0
+  abstract_only: 1
+  metadata_only: 0
+projects with questions: 0
+recent papers: 2
+  - 10000001: [full-text] … (rivera2019cortical, 2019) […]
+  - 10000002: [abstract-only] … (chen2019editorial, 2019) […]</span></pre>
   <h4>Under the hood</h4>
   <p class="writes"><code>status.py</code> (no arguments).</p>
   <h4>See also</h4>

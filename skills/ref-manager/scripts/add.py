@@ -53,11 +53,16 @@ def _first_author_lastname(authors: list) -> str:
     return a.get("last") or (a.get("raw") or "anon").split()[0]
 
 
+def _normalize_title(title: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).strip()
+
+
 def _flag_doi_title_conflicts(library_root: Path, pmid: str, doi: str | None, title: str) -> list[str]:
     warnings = []
     papers_dir = library_root / "papers"
-    if not doi or not papers_dir.is_dir():
+    if not papers_dir.is_dir():
         return warnings
+    title_norm = _normalize_title(title)
     for pdir in papers_dir.iterdir():
         if pdir.name == pmid:
             continue
@@ -65,10 +70,23 @@ def _flag_doi_title_conflicts(library_root: Path, pmid: str, doi: str | None, ti
         if not meta_path.exists():
             continue
         other = json.loads(meta_path.read_text())
-        if other.get("doi") and other["doi"] == doi:
+        other_doi = other.get("doi")
+        other_title_norm = _normalize_title(other.get("title"))
+        other_pmid = other.get("pmid") or pdir.name
+        if doi and other_doi and other_doi == doi:
             warnings.append(
                 f"inconsistency: pmid {pmid} shares doi {doi!r} with existing pmid "
-                f"{other.get('pmid')} — NOT merged, both records kept (D11/§3a)"
+                f"{other_pmid} — NOT merged, both records kept (D11/§3a)"
+            )
+            if title_norm and other_title_norm and title_norm != other_title_norm:
+                warnings.append(
+                    f"metadata mismatch: pmid {pmid} has title {title!r} but existing pmid "
+                    f"{other_pmid} with the same doi has title {other.get('title')!r}"
+                )
+        elif title_norm and other_title_norm and title_norm == other_title_norm and doi and other_doi and other_doi != doi:
+            warnings.append(
+                f"metadata mismatch: pmid {pmid} shares title {title!r} with existing pmid "
+                f"{other_pmid} but the DOIs differ ({doi!r} vs {other_doi!r})"
             )
     return warnings
 
@@ -165,10 +183,21 @@ def main() -> int:
 
     library_root = Path(args.repo).expanduser().resolve()
     if not library_root.is_dir():
-        print(f"error: no library at {library_root}", file=sys.stderr)
+        print(
+            f"error: no library at {library_root}. Run /ref:init {library_root} first.",
+            file=sys.stderr,
+        )
         return 1
 
-    records = json.loads(Path(args.metadata_file).read_text())
+    metadata_path = Path(args.metadata_file)
+    if not metadata_path.is_file():
+        print(f"error: metadata file not found: {metadata_path}", file=sys.stderr)
+        return 1
+    try:
+        records = json.loads(metadata_path.read_text())
+    except json.JSONDecodeError as e:
+        print(f"error: metadata file is not valid JSON ({metadata_path}): {e}", file=sys.stderr)
+        return 1
     if not isinstance(records, list):
         records = [records]
 

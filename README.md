@@ -84,6 +84,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-16 · [`f8b247b`](https://github.com/christineecker/claude-ref-manager/commit/f8b247b) Add library viewer: /ref:list, /ref:dashboard, lint --diff
 - 2026-09-16 · [`160dfe6`](https://github.com/christineecker/claude-ref-manager/commit/160dfe6) Add maintenance feature: ref-maintain, ref-lint, ref-repair-fulltext
 - 2026-09-16 · [`5c384f8`](https://github.com/christineecker/claude-ref-manager/commit/5c384f8) docs: simplify adding-papers tutorial around PICO auto-ingest
 - 2026-09-15 · [`0fe05cd`](https://github.com/christineecker/claude-ref-manager/commit/0fe05cd) docs: document /ref:help in commands reference
@@ -98,5 +99,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`7e65c5f`](https://github.com/christineecker/claude-ref-manager/commit/7e65c5f) Add reader rendering and PMC PDF fetch
 - 2026-09-15 · [`5ac4b9d`](https://github.com/christineecker/claude-ref-manager/commit/5ac4b9d) Add add-fetch wrapper and improve fetch assets
 - 2026-09-15 · [`62964e0`](https://github.com/christineecker/claude-ref-manager/commit/62964e0) release: v0.2.0
-- 2026-09-15 · [`a317423`](https://github.com/christineecker/claude-ref-manager/commit/a317423) feat: create only core library dirs at init, rest lazily on first write
 <!-- changelog:end -->

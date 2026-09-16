@@ -37,6 +37,7 @@ import re
 import secrets
 import shutil
 import sys
+import threading
 import urllib.parse
 import webbrowser
 from datetime import datetime, timezone
@@ -48,6 +49,8 @@ import lib_inventory
 import lint as lint_module
 import list as list_cli  # noqa: A004 -- reuse the /ref:list coverage-matrix cell semantics (§6.1)
 import note as note_module
+import triage as triage_module
+from lib_ids import SlugError, validate_slug
 
 ASSETS_DIR = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -77,6 +80,13 @@ MAX_HIGHLIGHT_TEXT_BYTES = 4 * 1024
 MAX_HIGHLIGHT_NOTE_BYTES = 4 * 1024
 MAX_HIGHLIGHT_RECTS = 60  # a multi-paragraph selection wraps many lines, one rect each
 HIGHLIGHT_COLORS = ("yellow", "green", "red")
+
+# PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §6.4
+MAX_TRIAGE_BODY_BYTES = 64 * 1024
+MAX_TRIAGE_PMIDS = 500
+MAX_TRIAGE_REASON_BYTES = 500
+MAX_TRIAGE_JOBS = 2
+TRIAGE_JOB_KINDS = ("pdf", "full_text")
 
 
 def _valid_pmid(pmid: str) -> bool:
@@ -188,6 +198,15 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path.startswith("/files/"):
             if self._check_token():
                 self._serve_file(path[len("/files/"):])
+        elif path == "/api/triages":
+            if self._check_token():
+                self._send_json(triage_module.list_triages(self.library_root))
+        elif path.startswith("/api/triage/"):
+            if self._check_token():
+                self._serve_triage(path[len("/api/triage/"):].rstrip("/"))
+        elif path.startswith("/api/jobs/"):
+            if self._check_token():
+                self._serve_job(path[len("/api/jobs/"):].rstrip("/"))
         else:
             self._reject(404, "not found")
 
@@ -315,6 +334,9 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path.startswith("/api/paper/") and path.endswith("/highlights"):
             if self._check_token():
                 self._post_highlight(path[len("/api/paper/"):-len("/highlights")].rstrip("/"))
+        elif path.startswith("/api/triage/"):
+            if self._check_token():
+                self._post_triage(path[len("/api/triage/"):].rstrip("/"))
         else:
             self._reject(404, "not found")
 
@@ -453,6 +475,190 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         else:
             self._reject(404, "highlight not found")
 
+    # --------------------------------------------------------------- triage
+
+    def _triage_slug(self, raw: str) -> str | None:
+        """Validates the slug and that its triage exists; sends the error
+        response itself and returns None otherwise."""
+        slug = urllib.parse.unquote(raw)
+        try:
+            validate_slug(slug)
+        except SlugError:
+            self._reject(400, "invalid triage slug")
+            return None
+        if not triage_module.exists(self.library_root, slug):
+            self._reject(404, "triage not found")
+            return None
+        return slug
+
+    def _serve_triage(self, rest: str) -> None:
+        if "/" in rest or not rest:
+            self._reject(404, "not found")
+            return
+        slug = self._triage_slug(rest)
+        if slug is None:
+            return
+        try:
+            payload = triage_module.view(self.library_root, slug)
+        except triage_module.TriageError as e:
+            self._reject(409, str(e))
+            return
+        projects_dir = self.library_root / "projects"
+        payload["projects"] = sorted(
+            d.name for d in projects_dir.iterdir() if (d / "project.yaml").is_file()
+        ) if projects_dir.is_dir() else []
+        self._send_json(payload)
+
+    def _serve_job(self, job_id: str) -> None:
+        if not re.fullmatch(r"[0-9a-f]{16}", job_id):
+            self._reject(400, "invalid job id")
+            return
+        registry = self.server.triage_jobs  # type: ignore[attr-defined]
+        with registry["lock"]:
+            job = registry["jobs"].get(job_id)
+            snapshot = json.loads(json.dumps(job)) if job else None
+        if snapshot is None:
+            self._reject(404, "job not found")
+            return
+        self._send_json(snapshot)
+
+    def _payload_pmids(self, payload: dict) -> list[str] | None:
+        pmids = payload.get("pmids")
+        if not isinstance(pmids, list) or not pmids or len(pmids) > MAX_TRIAGE_PMIDS:
+            self._reject(400, f"pmids must be a non-empty list of at most {MAX_TRIAGE_PMIDS}")
+            return None
+        if not all(isinstance(p, str) and _valid_pmid(p) for p in pmids):
+            self._reject(400, "invalid pmid in pmids")
+            return None
+        return list(dict.fromkeys(pmids))
+
+    def _post_triage(self, rest: str) -> None:
+        parts = rest.split("/")
+        if len(parts) != 2 or parts[1] not in ("decisions", "project", "batch", "jobs"):
+            self._reject(404, "not found")
+            return
+        slug = self._triage_slug(parts[0])
+        if slug is None:
+            return
+        payload = self._read_json_body(MAX_TRIAGE_BODY_BYTES)
+        if payload is None:
+            return
+        if not isinstance(payload, dict):
+            self._reject(400, "body must be an object")
+            return
+        action = parts[1]
+        try:
+            if action == "decisions":
+                self._post_triage_decisions(slug, payload)
+            elif action == "project":
+                self._post_triage_project(slug, payload)
+            elif action == "batch":
+                self._post_triage_batch(slug, payload)
+            else:
+                self._post_triage_job(slug, payload)
+        except (triage_module.TriageError, SlugError) as e:
+            self._reject(409, str(e))
+
+    def _post_triage_decisions(self, slug: str, payload: dict) -> None:
+        pmids = self._payload_pmids(payload)
+        if pmids is None:
+            return
+        decision = payload.get("decision")
+        if decision not in triage_module.DECISIONS:
+            self._reject(400, f"decision must be one of {triage_module.DECISIONS}")
+            return
+        reason = payload.get("reason")
+        if reason is not None and (not isinstance(reason, str) or len(reason.encode("utf-8")) > MAX_TRIAGE_REASON_BYTES):
+            self._reject(400, f"reason must be a string of at most {MAX_TRIAGE_REASON_BYTES} bytes")
+            return
+        results = triage_module.decide(self.library_root, slug, pmids, decision, reason, origin="dashboard")
+        self._send_json({"results": results})
+
+    def _post_triage_project(self, slug: str, payload: dict) -> None:
+        project = payload.get("project")
+        if project is not None and not isinstance(project, str):
+            self._reject(400, "project must be a slug or null")
+            return
+        if project:
+            try:
+                validate_slug(project)
+            except SlugError:
+                self._reject(400, "invalid project slug")
+                return
+        self._send_json(triage_module.link(self.library_root, slug, project or None))
+
+    def _start_job(self, slug: str, kind: str, total: int, work) -> None:
+        registry = self.server.triage_jobs  # type: ignore[attr-defined]
+        with registry["lock"]:
+            running = [j for j in registry["jobs"].values() if j["state"] == "running"]
+            if any(j["slug"] == slug and j["kind"] == kind for j in running):
+                self._reject(409, f"a {kind} job for this triage is already running")
+                return
+            if len(running) >= MAX_TRIAGE_JOBS:
+                self._reject(429, "too many jobs running -- try again when one finishes")
+                return
+            job_id = secrets.token_hex(8)
+            job = {"id": job_id, "slug": slug, "kind": kind, "state": "running",
+                   "total": total, "done": 0, "results": [], "error": None,
+                   "started_at": datetime.now(timezone.utc).isoformat()}
+            registry["jobs"][job_id] = job
+
+        def progress(result: dict) -> None:
+            with registry["lock"]:
+                job["results"].append(result)
+                job["done"] = len(job["results"])
+
+        def run() -> None:
+            try:
+                outcome = work(progress)
+                with registry["lock"]:
+                    if isinstance(outcome, dict):
+                        job["outcome"] = outcome
+                    job["state"] = "done"
+            except Exception as e:  # noqa: BLE001 -- surfaced to the page, never kills the server
+                with registry["lock"]:
+                    job["state"] = "failed"
+                    job["error"] = str(e)
+
+        threading.Thread(target=run, daemon=True, name=f"triage-{kind}-{job_id}").start()
+        self._send_json({"job_id": job_id}, status=202)
+
+    def _post_triage_batch(self, slug: str, payload: dict) -> None:
+        if payload.get("confirm") is not True:
+            self._reject(400, "loading a batch needs {confirm: true}")
+            return
+        size = payload.get("size", triage_module.BATCH_SIZE)
+        if isinstance(size, bool) or not isinstance(size, int) or not 1 <= size <= triage_module.BATCH_SIZE:
+            self._reject(400, f"size must be an integer between 1 and {triage_module.BATCH_SIZE}")
+            return
+        root = self.library_root
+        fetcher = self.server.triage_fetcher  # type: ignore[attr-defined]
+
+        def work(progress):
+            return triage_module.load_batch(root, slug, size, fetcher=fetcher)
+
+        self._start_job(slug, "batch", size, work)
+
+    def _post_triage_job(self, slug: str, payload: dict) -> None:
+        kind = payload.get("kind")
+        if kind not in TRIAGE_JOB_KINDS:
+            self._reject(400, f"kind must be one of {TRIAGE_JOB_KINDS}")
+            return
+        pmids = self._payload_pmids(payload)
+        if pmids is None:
+            return
+        root = self.library_root
+        if kind == "full_text":
+            # Only queues work for Claude -- nothing slow, so no job.
+            self._send_json({"results": triage_module.queue_full_text(root, slug, pmids)})
+            return
+        pdf_fetcher = self.server.triage_pdf_fetcher  # type: ignore[attr-defined]
+
+        def work(progress):
+            triage_module.acquire_pdfs(root, slug, pmids, pdf_fetcher=pdf_fetcher, progress=progress)
+
+        self._start_job(slug, "pdf", len(pmids), work)
+
     def log_message(self, format: str, *args) -> None:  # noqa: A002 -- stdlib signature
         pass  # keep the terminal clean; the one line serve() prints is the launch URL
 
@@ -471,13 +677,21 @@ def build_server(library_root: Path, *, port: int = 0, token: str | None = None)
 
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), _BoundHandler)
     httpd.ref_token = token  # type: ignore[attr-defined]
+    # Triage jobs live in memory only -- the files on disk are the truth,
+    # a restart just forgets progress bars (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §6.4).
+    httpd.triage_jobs = {"lock": threading.Lock(), "jobs": {}}  # type: ignore[attr-defined]
+    # None = the real NCBI efetch / PMC OA downloaders; tests swap in fakes.
+    httpd.triage_fetcher = None  # type: ignore[attr-defined]
+    httpd.triage_pdf_fetcher = None  # type: ignore[attr-defined]
     return httpd
 
 
-def serve(library_root: Path, *, port: int = 0, open_browser: bool = False) -> None:
+def serve(library_root: Path, *, port: int = 0, open_browser: bool = False, triage: str | None = None) -> None:
     httpd = build_server(library_root, port=port)
     actual_port = httpd.server_address[1]
     url = f"http://127.0.0.1:{actual_port}/?token={httpd.ref_token}"  # type: ignore[attr-defined]
+    if triage:
+        url += f"#triage/{triage}"
     print(f"dashboard serving at {url}", flush=True)
     if open_browser:
         webbrowser.open(url)
@@ -641,6 +855,7 @@ def main() -> int:
     serve_ap.add_argument("--repo", required=True)
     serve_ap.add_argument("--port", type=int, default=0, help="0 = OS-assigned ephemeral port")
     serve_ap.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
+    serve_ap.add_argument("--triage", help="open straight on this saved search's Triage tab")
 
     args = ap.parse_args()
     library_root = Path(args.repo).expanduser().resolve()
@@ -653,7 +868,16 @@ def main() -> int:
         print(f"dashboard written: {index_path}")
         return 0
     if args.cmd == "serve":
-        serve(library_root, port=args.port, open_browser=args.open)
+        if args.triage:
+            try:
+                validate_slug(args.triage)
+            except SlugError as e:
+                print(f"error: {e}", file=sys.stderr)
+                return 1
+            if not triage_module.exists(library_root, args.triage):
+                print(f"error: no triage for {args.triage!r} -- run /ref:triage {args.triage}", file=sys.stderr)
+                return 1
+        serve(library_root, port=args.port, open_browser=args.open, triage=args.triage)
         return 0
     return 1
 

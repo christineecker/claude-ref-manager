@@ -72,6 +72,19 @@ def pmid_lock(library_root: Path, pmid: str):
     return _flock(library_root / "index" / ".locks" / f"{pmid}.lock")
 
 
+def project_lock(library_root: Path, slug: str):
+    """Per-project lock: serializes read-modify-write of a project's
+    papers.yaml (screen.decide) now that the threaded dashboard server can
+    record decisions concurrently."""
+    return _flock(library_root / "index" / ".locks" / f"project-{slug}.lock")
+
+
+def triage_lock(library_root: Path, slug: str):
+    """Per-triage lock: every write under triage/<slug>/. Lock order is
+    always pmid -> project -> triage."""
+    return _flock(library_root / "index" / ".locks" / f"triage-{slug}.lock")
+
+
 def commit_version(paper_dir: Path, version_id: str, write_fn) -> Path:
     """Write a new version into a staging dir, call write_fn(staging_dir) to
     populate it, then atomically point current.json at it. write_fn must

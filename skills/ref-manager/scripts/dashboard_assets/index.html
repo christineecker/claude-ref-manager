@@ -56,6 +56,7 @@
     <button role="tab" id="tab-coverage" data-tab="coverage" aria-selected="false">Coverage matrix</button>
     <button role="tab" id="tab-projects" data-tab="projects" aria-selected="false">Projects<span class="count" id="c-projects"></span></button>
     <button role="tab" id="tab-maint" data-tab="maint" aria-selected="false">Maintenance</button>
+    <button role="tab" id="tab-triage" data-tab="triage" aria-selected="false" hidden>Triage<span class="count" id="c-triage"></span></button>
   </nav>
 
   <section id="p-papers" class="grid" style="gap:10px">
@@ -106,6 +107,87 @@
   </section>
 
   <section id="p-projects" class="projgrid" hidden></section>
+
+  <section id="p-triage" class="grid tri" hidden>
+    <div class="panel tri-head">
+      <div class="tri-headrow">
+        <select id="t-pick" aria-label="Saved search"></select>
+        <span class="tri-runmeta" id="t-runmeta"></span>
+      </div>
+      <div class="tri-query" id="t-query"></div>
+      <div class="tri-link">
+        <label for="t-project">Project</label>
+        <select id="t-project"></select>
+        <span class="tri-hint" id="t-projhint"></span>
+      </div>
+    </div>
+    <div class="grid g3">
+      <section class="panel"><h2>Screening <span id="t-dec-total"></span></h2><div class="tri-bar" id="t-decbar"></div><div class="tri-legend" id="t-declegend"></div></section>
+      <section class="panel"><h2>Library <span id="t-lib-total"></span></h2><div class="tri-bar" id="t-libbar"></div><div class="tri-legend" id="t-liblegend"></div></section>
+      <section class="panel"><h2>Open access <span id="t-oa-total"></span></h2><div class="tri-bar" id="t-oabar"></div><div class="tri-legend" id="t-oalegend"></div></section>
+    </div>
+    <div class="panel tri-filters">
+      <div class="toolbar" id="t-chips" role="group" aria-label="Filter by status"></div>
+      <div class="tri-frow">
+        <input type="search" id="t-q" placeholder="Words to match; -word to leave out (e.g. cortical -rat)" aria-label="Filter triage rows by words">
+        <select id="t-qscope" aria-label="Where to match words">
+          <option value="all">in title, abstract, MeSH, authors, journal</option>
+          <option value="title">in title</option>
+          <option value="abstract">in abstract</option>
+          <option value="mesh">in MeSH terms</option>
+          <option value="authors">in authors</option>
+        </select>
+      </div>
+      <div class="tri-frow">
+        <label>Year <input type="number" id="t-yfrom" placeholder="from" min="1800" max="2100" aria-label="Year from"></label>
+        <label>– <input type="number" id="t-yto" placeholder="to" min="1800" max="2100" aria-label="Year to"></label>
+        <select id="t-type" aria-label="Article type"><option value="">Any article type</option></select>
+        <select id="t-journal" aria-label="Journal"><option value="">Any journal</option></select>
+        <select id="t-libstate" aria-label="Library state">
+          <option value="">Any library state</option>
+          <option value="none">Not added</option>
+          <option value="in">In library</option>
+          <option value="nopdf">In library, no PDF</option>
+          <option value="pdf">Has PDF</option>
+          <option value="noabstract">No abstract in PubMed</option>
+        </select>
+        <button type="button" class="cmdbtn" id="t-fclear">Clear filters</button>
+      </div>
+      <div class="tri-bulk" id="t-bulk" aria-live="polite"></div>
+    </div>
+    <div class="toolbar">
+      <span class="result" id="t-result" role="status" aria-live="polite"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th style="width:32px"><input type="checkbox" id="t-selall" aria-label="Select all visible"></th>
+          <th>PMID</th>
+          <th>Paper</th>
+          <th class="num">Year</th>
+          <th>Access</th>
+          <th>Library</th>
+          <th>Decision</th>
+        </tr></thead>
+        <tbody id="t-rows"></tbody>
+      </table>
+    </div>
+    <div class="pager" id="t-pager"></div>
+    <div class="tri-strip" id="t-batch" aria-live="polite"></div>
+    <div class="tri-strip tri-pending" id="t-pending" hidden></div>
+    <div class="actionbar" id="t-actionbar" hidden>
+      <span><span class="n" id="t-seln"></span> selected</span>
+      <button type="button" data-tdec="included">Include + add <kbd>i</kbd></button>
+      <button type="button" data-tdec="pending">Maybe <kbd>m</kbd></button>
+      <button type="button" data-tdec="excluded">Exclude <kbd>x</kbd></button>
+      <button type="button" data-tdec="cleared">Clear decision</button>
+      <span class="tri-spacer"></span>
+      <button type="button" data-tjob="pdf">Get PDFs</button>
+      <button type="button" data-tjob="full_text">Fetch full text</button>
+      <button type="button" id="t-clearsel">Deselect</button>
+      <span class="tri-status" id="t-status" role="status" aria-live="polite"></span>
+    </div>
+  </section>
 
   <section id="p-maint" class="grid g2" hidden>
     <div class="panel">

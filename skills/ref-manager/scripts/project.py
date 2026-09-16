@@ -162,6 +162,23 @@ def add_paper(
     return membership
 
 
+def _linked_triages(library_root: Path, slug: str) -> list[str]:
+    """Saved-search triages linked to this project. Derived from
+    triage/*/triage.json -- project.yaml has no triage field
+    (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §4.1)."""
+    base = library_root / "triage"
+    if not base.is_dir():
+        return []
+    out = []
+    for p in sorted(base.glob("*/triage.json")):
+        try:
+            if json.loads(p.read_text()).get("project") == slug:
+                out.append(p.parent.name)
+        except ValueError:
+            continue
+    return out
+
+
 def show(library_root: Path, slug: str) -> dict:
     pdir = _project_dir(library_root, slug)
     project_path = pdir / "project.yaml"
@@ -178,6 +195,7 @@ def show(library_root: Path, slug: str) -> dict:
     return {
         "project": json.loads(project_path.read_text()),
         "papers": papers_doc,
+        "triages": _linked_triages(library_root, slug),
         "summary": {
             "paper_count": len(papers),
             "reading": reading,

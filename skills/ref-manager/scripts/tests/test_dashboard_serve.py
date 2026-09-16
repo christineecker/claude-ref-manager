@@ -386,5 +386,106 @@ class TestIndexAndAssetsServedWithoutToken(ServeFixture):
         self.assertGreater(len(body), 1000)
 
 
+
+class TestTriageRoutes(ServeFixture):
+    """PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §6.4 / §8 item 11."""
+
+    PMIDS = ["30000001", "30000002", "30000003"]
+
+    def setUp(self):
+        super().setUp()
+        import project
+        import pubmed_query
+        import triage
+
+        self.triage = triage
+        pubmed_query.new_run(self.library_root, "asd-ct", "autism", "pubmed", self.PMIDS, True)
+        project.create(self.library_root, "proj-a", None)
+        triage.init(self.library_root, "asd-ct")
+
+        def fetcher(pmids):
+            return [{"pmid": p, "title": f"T{p}", "abstract": "A.", "authors": [{"last": "Doe", "first": "J", "raw": "Doe J"}],
+                     "journal": "J", "year": "2024", "doi": None, "pmcid": "PMC1" if p == "30000001" else None,
+                     "grants": [], "publication_types": [], "mesh_terms": []} for p in pmids], []
+
+        self.httpd.triage_fetcher = fetcher
+        self.httpd.triage_pdf_fetcher = lambda root, pmid: {"pmid": pmid, "result": "attached" if pmid == "30000001" else "no_pmcid"}
+        triage.load_batch(self.library_root, "asd-ct", 2, fetcher=fetcher)
+
+    def _post(self, path, payload, *, origin=None, token=True):
+        headers = {"Content-Type": "application/json", "Origin": origin or f"http://127.0.0.1:{self.port}"}
+        if token:
+            headers["X-Ref-Token"] = self.token
+        return self._request("POST", path, headers=headers, body=json.dumps(payload).encode("utf-8"))
+
+    def _get_json(self, path):
+        status, body, _h = self._request("GET", path, headers=self._auth_headers())
+        self.assertEqual(status, 200, body)
+        return json.loads(body)
+
+    def _wait_job(self, job_id):
+        import time
+
+        for _ in range(100):
+            job = self._get_json(f"/api/jobs/{job_id}")
+            if job["state"] != "running":
+                return job
+            time.sleep(0.05)
+        self.fail("job did not finish")
+
+    def test_list_and_view(self):
+        self.assertEqual([t["slug"] for t in self._get_json("/api/triages")], ["asd-ct"])
+        v = self._get_json("/api/triage/asd-ct")
+        self.assertEqual((v["counts"]["found"], v["counts"]["loaded"], v["remaining"]), (3, 2, 1))
+        self.assertEqual(v["projects"], ["proj-a"])
+
+    def test_token_origin_and_validation(self):
+        self.assertEqual(self._request("GET", "/api/triage/asd-ct")[0], 403)
+        self.assertEqual(self._post("/api/triage/asd-ct/decisions", {"pmids": ["30000001"], "decision": "included"}, token=False)[0], 403)
+        self.assertEqual(self._post("/api/triage/asd-ct/decisions", {"pmids": ["30000001"], "decision": "included"}, origin="http://evil.example")[0], 403)
+        self.assertEqual(self._request("GET", "/api/triage/Bad_Slug", headers=self._auth_headers())[0], 400)
+        self.assertEqual(self._request("GET", "/api/triage/nope", headers=self._auth_headers())[0], 404)
+        self.assertEqual(self._post("/api/triage/asd-ct/decisions", {"pmids": ["abc"], "decision": "included"})[0], 400)
+        self.assertEqual(self._post("/api/triage/asd-ct/decisions", {"pmids": ["30000001"], "decision": "maybe"})[0], 400)
+        self.assertEqual(self._post("/api/triage/asd-ct/decisions", {"pmids": ["1"] * 501, "decision": "pending"})[0], 400)
+        self.assertEqual(self._post("/api/triage/asd-ct/batch", {})[0], 400)
+        self.assertEqual(self._post("/api/triage/asd-ct/jobs", {"kind": "delete", "pmids": ["30000001"]})[0], 400)
+        self.assertEqual(self._post("/api/triage/asd-ct/project", {"project": "missing-project"})[0], 409)
+        self.assertEqual(self._request("GET", "/api/jobs/zzz", headers=self._auth_headers())[0], 400)
+
+    def test_decision_include_adds_paper(self):
+        status, body, _h = self._post("/api/triage/asd-ct/decisions", {"pmids": ["30000001", "30000003"], "decision": "included"})
+        self.assertEqual(status, 200)
+        results = json.loads(body)["results"]
+        self.assertEqual([r["result"] for r in results], ["recorded", "failed"])  # 30000003's metadata isn't loaded
+        self.assertTrue((self.library_root / "papers" / "30000001" / "meta.json").exists())
+
+    def test_project_link_replays(self):
+        self._post("/api/triage/asd-ct/decisions", {"pmids": ["30000002"], "decision": "excluded"})
+        status, body, _h = self._post("/api/triage/asd-ct/project", {"project": "proj-a"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["replayed"], 1)
+        self.assertEqual(self._get_json("/api/triage/asd-ct")["triage"]["project"], "proj-a")
+
+    def test_batch_job_loads_remaining(self):
+        status, body, _h = self._post("/api/triage/asd-ct/batch", {"confirm": True})
+        self.assertEqual(status, 202)
+        job = self._wait_job(json.loads(body)["job_id"])
+        self.assertEqual(job["state"], "done")
+        self.assertEqual(job["outcome"]["loaded"], 1)
+        self.assertEqual(self._get_json("/api/triage/asd-ct")["remaining"], 0)
+
+    def test_pdf_job_and_full_text_queue(self):
+        status, body, _h = self._post("/api/triage/asd-ct/jobs", {"kind": "pdf", "pmids": ["30000001", "30000002"]})
+        self.assertEqual(status, 202)
+        job = self._wait_job(json.loads(body)["job_id"])
+        self.assertEqual([r["result"] for r in job["results"]], ["attached", "no_pmcid"])
+        self.assertEqual(list(self.triage.pending(self.library_root, "asd-ct")), ["30000002"])
+
+        status, body, _h = self._post("/api/triage/asd-ct/jobs", {"kind": "full_text", "pmids": ["30000001"]})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["results"][0]["result"], "queued")
+        self.assertEqual(self._get_json("/api/triage/asd-ct")["counts"]["pending"], 2)
+
 if __name__ == "__main__":
     unittest.main()

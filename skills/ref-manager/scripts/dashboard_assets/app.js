@@ -447,7 +447,7 @@
 
   // -------------------------------------------------------------- tabs
 
-  var TABS = ["papers", "coverage", "projects", "maint"];
+  var TABS = ["papers", "coverage", "projects", "maint", "triage"];
   var activeTab = "papers";
   function selectTab(name) {
     activeTab = name;
@@ -460,6 +460,7 @@
     if (name === "coverage") renderCoverageMatrix();
     if (name === "projects") renderProjects();
     if (name === "maint") renderMaintenance();
+    if (name === "triage") renderTriageTab();
   }
   // P0.1: whichever tab is on screen when a manual refresh lands must be
   // redrawn from the fresh data immediately -- not just next time it's
@@ -678,6 +679,11 @@
     var tag = (target && target.tagName) || "";
     var typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (target && target.isContentEditable);
     var drawerOpen = !document.getElementById("drawer").hidden;
+
+    if (activeTab === "triage") {
+      if (!typing && !drawerOpen && !e.metaKey && !e.ctrlKey && !e.altKey) triKeydown(e);
+      return;
+    }
 
     if (e.key === "/" && !typing) {
       e.preventDefault();
@@ -933,6 +939,12 @@
     var wrap = document.getElementById("p-projects");
     clear(wrap);
     var projects = projectSummaries();
+    TRIAGES.forEach(function (t) {
+      if (t.project && !projects.some(function (p) { return p.slug === t.project; })) {
+        projects.push({ slug: t.project, papers: [] });
+      }
+    });
+    projects.sort(function (a, b) { return a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0; });
     if (!projects.length) {
       wrap.appendChild(el("div", { className: "empty", text: "no projects yet -- see /ref:project" }));
       return;
@@ -992,9 +1004,21 @@
           },
         },
       }));
+      var triList = null;
+      var linked = TRIAGES.filter(function (t) { return t.project === p.slug; });
+      if (linked.length) {
+        triList = el("dl", { className: "kv" });
+        linked.forEach(function (t) {
+          triList.appendChild(el("span", {}, [el("button", {
+            className: "cmdbtn", text: "Triage: " + t.slug, attrs: { type: "button" },
+            on: { click: function () { selectTab("triage"); selectTriage(t.slug); } },
+          })]));
+          triList.appendChild(el("span", { text: t.found + " found · " + t.loaded + " loaded · " + t.decided + " decided" }));
+        });
+      }
       wrap.appendChild(el("article", { className: "panel" }, [
         el("h2", { text: p.slug }),
-        pbar, plegend, kv, cmds,
+        pbar, plegend, kv, triList, cmds,
       ]));
     });
   }
@@ -1953,6 +1977,771 @@
     });
   }
 
+  // ------------------------------------------------------------- triage
+  // PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §6.5 -- live mode only. One table
+  // per saved search: decisions (Include adds the paper), an optional
+  // project link, batch loading after a confirm, PDF jobs, and the
+  // "needs Claude" pending strip. Every write goes through /api/triage/*;
+  // the page re-reads the view after each one instead of guessing state.
+
+  var TRIAGES = [];
+  var tri = {
+    slug: null, view: null, filter: "all", query: "", page: 0,
+    selected: new Set(), open: new Set(), active: -1, pageRows: [], visible: [],
+    busy: false, confirmBatch: false, job: null, pollTimer: null, pendingTimer: null, lastStatus: "",
+    scope: "all", yfrom: null, yto: null, type: "", journal: "", lib: "",
+    bulkConfirm: null, bulkSkipDecided: true,
+  };
+  var TRI_PAGE_SIZE = 100;
+  var TRI_DEC_LABEL = { included: "Include", pending: "Maybe", excluded: "Exclude" };
+  var TRI_DEC_COLOR = { included: "var(--good)", pending: "var(--warn)", excluded: "var(--crit)" };
+
+  function postJSON(path, body) {
+    return apiFetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        if (!r.ok) {
+          var err = new Error((data && data.error) || ("http " + r.status + " on " + path));
+          err.endpoint = path;
+          err.status = r.status;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+
+  function triStatus(msg) {
+    tri.lastStatus = msg || "";
+    document.getElementById("t-status").textContent = tri.lastStatus;
+    renderTriResult();
+  }
+
+  function renderTriResult() {
+    var text = tri.visible.length + " of " + triPapers().length + " loaded";
+    if (tri.lastStatus && document.getElementById("t-actionbar").hidden) text += " · " + tri.lastStatus;
+    document.getElementById("t-result").textContent = text;
+  }
+
+  // Include / Get PDFs add papers to the library -- keep the other tabs'
+  // rows (Papers, Projects, health) in step without a manual refresh.
+  function syncLibraryRows() {
+    fetchJSON("/api/rows").then(function (rows) {
+      setRows(rows);
+      renderAll();
+    }).catch(function () { /* the next manual refresh reports it */ });
+  }
+
+  function triageFromHash() {
+    var m = /^#triage\/([a-z0-9-]+)$/.exec(location.hash || "");
+    return m ? m[1] : null;
+  }
+
+  function loadTriages(openSlug) {
+    if (!LIVE) return Promise.resolve();
+    return fetchJSON("/api/triages").then(function (list) {
+      TRIAGES = list || [];
+      var tab = document.getElementById("tab-triage");
+      tab.hidden = !TRIAGES.length;
+      document.getElementById("c-triage").textContent = TRIAGES.length ? String(TRIAGES.length) : "";
+      var pick = document.getElementById("t-pick");
+      clear(pick);
+      TRIAGES.forEach(function (t) {
+        pick.appendChild(el("option", { text: t.slug + " (" + t.loaded + "/" + t.found + ")", attrs: { value: t.slug } }));
+      });
+      var want = openSlug || tri.slug || (TRIAGES[0] && TRIAGES[0].slug);
+      if (want && TRIAGES.some(function (t) { return t.slug === want; })) {
+        pick.value = want;
+        tri.slug = want;
+      }
+      if (activeTab === "projects") renderProjects();
+    }).catch(function (err) {
+      showError("could not load triages: " + describeFetchError(err));
+    });
+  }
+
+  function loadTriageView(onlyIfChanged) {
+    if (!tri.slug) return Promise.resolve();
+    return fetchJSON("/api/triage/" + encodeURIComponent(tri.slug)).then(function (v) {
+      // The pending poll must not rebuild the table (and drop focus or an
+      // open confirm) when nothing changed on disk.
+      if (onlyIfChanged && tri.view && JSON.stringify(v) === JSON.stringify(tri.view)) {
+        schedulePendingPoll();
+        return;
+      }
+      tri.view = v;
+      renderTriage();
+      schedulePendingPoll();
+    }).catch(function (err) {
+      showError("could not load triage " + tri.slug + ": " + describeFetchError(err));
+    });
+  }
+
+  function triPapers() {
+    return tri.view ? tri.view.papers.filter(function (p) { return p.loaded; }) : [];
+  }
+
+  function isReview(p) {
+    return (p.metadata.publication_types || []).some(function (t) { return /review/i.test(t); });
+  }
+
+  var TRI_FILTERS = [
+    { id: "all", label: "All", pred: function () { return true; } },
+    { id: "new", label: "New since last run", pred: function (p) { return !!p.new_since; } },
+    { id: "undecided", label: "Undecided", pred: function (p) { return !p.decision; } },
+    { id: "included", label: "Included", pred: function (p) { return p.decision && p.decision.decision === "included"; } },
+    { id: "pending", label: "Maybe", pred: function (p) { return p.decision && p.decision.decision === "pending"; } },
+    { id: "excluded", label: "Excluded", pred: function (p) { return p.decision && p.decision.decision === "excluded"; } },
+    { id: "nopdf", label: "Included, no PDF", pred: function (p) { return p.decision && p.decision.decision === "included" && !(p.library && p.library.has_pdf); } },
+    { id: "waiting", label: "Waiting for Claude", pred: function (p) { return !!p.pending; } },
+    { id: "pmc", label: "In PMC", pred: function (p) { return !!p.metadata.pmcid; } },
+    { id: "reviews", label: "Reviews", pred: isReview },
+    { id: "dropped", label: "Not in latest run", pred: function (p) { return !p.in_latest_run; } },
+  ];
+
+  // "cortical thickness" -rat -mouse  ->  must contain each plain word or
+  // quoted phrase, must not contain any -word.
+  function parseTriQuery(q) {
+    var terms = { want: [], not: [] };
+    var re = /(-?)"([^"]+)"|(-?)(\S+)/g, m;
+    while ((m = re.exec(q.toLowerCase()))) {
+      var neg = m[1] || m[3];
+      var word = m[2] || m[4];
+      if (!word || word === "-") continue;
+      (neg ? terms.not : terms.want).push(word);
+    }
+    return terms;
+  }
+
+  function triHaystack(p) {
+    var m = p.metadata;
+    var parts = {
+      title: m.title || "",
+      abstract: m.abstract || "",
+      mesh: (m.mesh_terms || []).join(" | "),
+      authors: (m.authors || []).join(" "),
+    };
+    if (tri.scope !== "all") return parts[tri.scope] || "";
+    return [p.pmid, parts.title, parts.abstract, parts.mesh, parts.authors, m.journal || "", (m.publication_types || []).join(" ")].join(" \n ");
+  }
+
+  function libState(p) {
+    var lib = p.library;
+    if (tri.lib === "none") return !lib;
+    if (tri.lib === "in") return !!lib;
+    if (tri.lib === "nopdf") return !!lib && !lib.has_pdf;
+    if (tri.lib === "pdf") return !!lib && lib.has_pdf;
+    if (tri.lib === "noabstract") return !p.metadata.abstract;
+    return true;
+  }
+
+  function triVisible() {
+    var f = TRI_FILTERS.filter(function (x) { return x.id === tri.filter; })[0] || TRI_FILTERS[0];
+    var terms = parseTriQuery(tri.query);
+    return triPapers().filter(function (p) {
+      if (!f.pred(p)) return false;
+      var m = p.metadata;
+      var year = parseInt(m.year, 10);
+      if (tri.yfrom && !(year >= tri.yfrom)) return false;
+      if (tri.yto && !(year <= tri.yto)) return false;
+      if (tri.type && (m.publication_types || []).indexOf(tri.type) === -1) return false;
+      if (tri.journal && m.journal !== tri.journal) return false;
+      if (tri.lib && !libState(p)) return false;
+      if (terms.want.length || terms.not.length) {
+        var hay = triHaystack(p).toLowerCase();
+        if (!terms.want.every(function (w) { return hay.indexOf(w) !== -1; })) return false;
+        if (terms.not.some(function (w) { return hay.indexOf(w) !== -1; })) return false;
+      }
+      return true;
+    });
+  }
+
+  function fillSelect(id, values, anyLabel, current) {
+    var sel = document.getElementById(id);
+    clear(sel);
+    sel.appendChild(el("option", { text: anyLabel, attrs: { value: "" } }));
+    values.forEach(function (v) {
+      sel.appendChild(el("option", { text: v[0] + " (" + v[1] + ")", attrs: { value: v[0] } }));
+    });
+    sel.value = values.some(function (v) { return v[0] === current; }) ? current : "";
+  }
+
+  function countValues(list) {
+    var counts = {};
+    list.forEach(function (v) { if (v) counts[v] = (counts[v] || 0) + 1; });
+    return Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || (a < b ? -1 : 1); })
+      .map(function (k) { return [k, counts[k]]; });
+  }
+
+  function renderTriFilterOptions() {
+    var papers = triPapers();
+    var types = [];
+    papers.forEach(function (p) { types = types.concat(p.metadata.publication_types || []); });
+    fillSelect("t-type", countValues(types), "Any article type", tri.type);
+    fillSelect("t-journal", countValues(papers.map(function (p) { return p.metadata.journal; })), "Any journal", tri.journal);
+    tri.type = document.getElementById("t-type").value;
+    tri.journal = document.getElementById("t-journal").value;
+  }
+
+  function renderTriBulk() {
+    var wrap = document.getElementById("t-bulk");
+    clear(wrap);
+    var shown = tri.visible;
+    var filtered = shown.length !== triPapers().length;
+    var c = tri.bulkConfirm;
+    if (c) {
+      var n = c.pmids.length;
+      var verb = { included: "Include", pending: "Mark as maybe", excluded: "Exclude" }[c.decision];
+      var question = c.decision === "included"
+        ? "Include " + n + " paper" + (n === 1 ? "" : "s") + " and add them to the library?"
+        : verb + " " + n + " paper" + (n === 1 ? "" : "s") + "?";
+      wrap.appendChild(el("span", { className: "confirm", text: question }));
+      wrap.appendChild(el("button", {
+        className: "cmdbtn primary", text: "Yes, " + verb.toLowerCase() + " " + n, attrs: { type: "button" },
+        on: { click: function () { tri.bulkConfirm = null; triDecide(c.pmids, c.decision); renderTriBulk(); } },
+      }));
+      wrap.appendChild(el("button", {
+        className: "cmdbtn", text: "Cancel", attrs: { type: "button" },
+        on: { click: function () { tri.bulkConfirm = null; renderTriBulk(); } },
+      }));
+      return;
+    }
+    var undecided = shown.filter(function (p) { return !p.decision; });
+    var targets = tri.bulkSkipDecided ? undecided : shown;
+    wrap.appendChild(el("span", { className: "lbl" }, [
+      document.createTextNode(filtered ? "All papers matching these filters: " : "All loaded papers: "),
+      el("b", { text: String(targets.length) }),
+      document.createTextNode(tri.bulkSkipDecided ? " undecided of " + shown.length : ""),
+    ]));
+    [["included", "Include all", "inc"], ["pending", "Maybe all", "may"], ["excluded", "Exclude all", "exc"]].forEach(function (b) {
+      wrap.appendChild(el("button", {
+        className: "cmdbtn " + b[2], text: b[1] + " (" + targets.length + ")",
+        attrs: { type: "button", disabled: (tri.busy || !targets.length) ? "disabled" : null },
+        on: { click: function () {
+          tri.bulkConfirm = { decision: b[0], pmids: targets.map(function (p) { return p.pmid; }) };
+          renderTriBulk();
+        } },
+      }));
+    });
+    wrap.appendChild(el("button", {
+      className: "cmdbtn", text: "Select all (" + shown.length + ")",
+      attrs: { type: "button", disabled: shown.length ? null : "disabled" },
+      on: { click: function () {
+        shown.forEach(function (p) { tri.selected.add(p.pmid); });
+        renderTriRows();
+        renderTriActionBar();
+      } },
+    }));
+    var skip = el("input", { attrs: { type: "checkbox", id: "t-skipdecided" } });
+    skip.checked = tri.bulkSkipDecided;
+    skip.addEventListener("change", function () { tri.bulkSkipDecided = skip.checked; renderTriBulk(); });
+    wrap.appendChild(el("label", { className: "lbl", attrs: { for: "t-skipdecided" } }, [
+      skip, document.createTextNode(" leave papers that already have a decision alone"),
+    ]));
+  }
+
+  function renderTriage() {
+    var v = tri.view;
+    if (!v) return;
+    var c = v.counts;
+
+    var meta = document.getElementById("t-runmeta");
+    clear(meta);
+    var last = v.runs[v.runs.length - 1];
+    [
+      ["runs", String(v.runs.length)],
+      ["latest", last ? last.retrieved_at.slice(0, 16).replace("T", " ") : "-"],
+      ["found", String(c.found)],
+      ["metadata loaded", String(c.loaded)],
+    ].forEach(function (kv) {
+      meta.appendChild(el("span", {}, [document.createTextNode(kv[0] + " "), el("b", { text: kv[1] })]));
+    });
+    document.getElementById("t-query").textContent = v.query || "";
+
+    var projSel = document.getElementById("t-project");
+    clear(projSel);
+    projSel.appendChild(el("option", { text: "None: topic search only", attrs: { value: "" } }));
+    (v.projects || []).forEach(function (slug) {
+      projSel.appendChild(el("option", { text: slug, attrs: { value: slug } }));
+    });
+    projSel.value = v.triage.project || "";
+    document.getElementById("t-projhint").textContent = v.triage.project
+      ? "Included papers join " + v.triage.project + "; every decision goes to its screening log."
+      : "Decisions stay with this search. Pick a project to copy them into its screening log.";
+
+    triBar("t-decbar", "t-declegend", [
+      ["included", c.decisions.included, TRI_DEC_COLOR.included],
+      ["maybe", c.decisions.pending, TRI_DEC_COLOR.pending],
+      ["excluded", c.decisions.excluded, TRI_DEC_COLOR.excluded],
+      ["undecided", c.decisions.undecided, "var(--line)"],
+    ]);
+    document.getElementById("t-dec-total").textContent = c.loaded + " loaded";
+    triBar("t-libbar", "t-liblegend", [
+      ["PDF", c.library.pdf, "var(--s-pdf)"],
+      ["full text", c.library.fulltext, "var(--s-full)"],
+      ["abstract", c.library.abstract, "var(--s-abs)"],
+      ["not added", c.library.none, "var(--line)"],
+    ]);
+    document.getElementById("t-lib-total").textContent = c.found + " found";
+    triBar("t-oabar", "t-oalegend", [
+      ["in PMC", c.pmc, "var(--accent)"],
+      ["not in PMC", c.loaded - c.pmc, "var(--line)"],
+    ]);
+    document.getElementById("t-oa-total").textContent = c.loaded + " loaded";
+
+    renderTriFilterOptions();
+    renderTriChips();
+    renderTriRows();
+    renderTriBatch();
+    renderTriPending();
+    renderTriActionBar();
+  }
+
+  function triBar(barId, legendId, parts) {
+    var total = parts.reduce(function (a, p) { return a + p[1]; }, 0) || 1;
+    var bar = document.getElementById(barId);
+    var legend = document.getElementById(legendId);
+    clear(bar);
+    clear(legend);
+    parts.forEach(function (p) {
+      if (p[1]) bar.appendChild(el("i", { attrs: { style: "width:" + (p[1] / total * 100) + "%;background:" + p[2] } }));
+      legend.appendChild(el("span", {}, [
+        el("i", { attrs: { style: "background:" + p[2] } }),
+        document.createTextNode(p[0]), el("b", { text: p[1] }),
+      ]));
+    });
+  }
+
+  function renderTriChips() {
+    var wrap = document.getElementById("t-chips");
+    clear(wrap);
+    var papers = triPapers();
+    TRI_FILTERS.forEach(function (f) {
+      var n = papers.filter(f.pred).length;
+      if (!n && f.id !== "all" && f.id !== tri.filter && (f.id === "new" || f.id === "dropped" || f.id === "waiting")) return;
+      wrap.appendChild(el("button", {
+        className: "fchip", attrs: { type: "button", "aria-pressed": String(tri.filter === f.id) },
+        on: { click: function () { tri.filter = f.id; tri.page = 0; tri.bulkConfirm = null; renderTriChips(); renderTriRows(); } },
+      }, [document.createTextNode(f.label), el("span", { className: "x", text: String(n) })]));
+    });
+  }
+
+  function libraryCell(p) {
+    var lib = p.library;
+    var dot, label;
+    if (tri.job && tri.job.kind === "pdf" && tri.job.state === "running" && tri.job.pmids.indexOf(p.pmid) !== -1 &&
+        !tri.job.results.some(function (r) { return r.pmid === p.pmid; })) {
+      dot = "var(--accent)"; label = "getting PDF…";
+    } else if (!lib) { dot = "var(--faint)"; label = "not added"; }
+    else if (lib.has_pdf) { dot = "var(--s-pdf)"; label = "PDF"; }
+    else if (lib.has_fulltext) { dot = "var(--s-full)"; label = "full text"; }
+    else { dot = "var(--s-abs)"; label = lib.extraction_tier === "unavailable" ? "metadata only" : "abstract only"; }
+    var kids = [el("i", { attrs: { style: "background:" + dot } }), document.createTextNode(label)];
+    var sub = null;
+    if (p.pending) sub = "waiting for Claude (" + p.pending.why + ")";
+    else if (lib && p.decision && p.decision.decision === "excluded") sub = "stays in library";
+    else if (lib && tri.view.triage.project && lib.projects.indexOf(tri.view.triage.project) !== -1) sub = "in " + tri.view.triage.project;
+    if (sub) kids.push(el("small", { text: sub }));
+    return el("td", { className: "tri-lib" }, kids);
+  }
+
+  function renderTriRows() {
+    var rows = triVisible();
+    tri.visible = rows;
+    var pages = Math.max(1, Math.ceil(rows.length / TRI_PAGE_SIZE));
+    if (tri.page >= pages) tri.page = 0;
+    var start = tri.page * TRI_PAGE_SIZE;
+    tri.pageRows = rows.slice(start, start + TRI_PAGE_SIZE);
+    if (tri.active >= tri.pageRows.length) tri.active = tri.pageRows.length - 1;
+
+    renderTriResult();
+    var tbody = document.getElementById("t-rows");
+    clear(tbody);
+    if (!tri.pageRows.length) {
+      tbody.appendChild(el("tr", {}, [el("td", { attrs: { colspan: "7" } }, [
+        el("div", { className: "empty", text: triPapers().length ? "No papers match this filter." : "No metadata loaded yet -- use Load next below." }),
+      ])]));
+    }
+    tri.pageRows.forEach(function (p, i) {
+      var m = p.metadata;
+      var dec = p.decision ? p.decision.decision : null;
+      var tr = el("tr", { attrs: { "data-pmid": p.pmid } });
+      tr.className = [tri.selected.has(p.pmid) ? "sel" : "", dec ? "d-" + dec : "", i === tri.active ? "kbd-active" : ""].join(" ").trim();
+
+      var cb = el("input", { attrs: { type: "checkbox", "aria-label": "Select PMID " + p.pmid } });
+      cb.checked = tri.selected.has(p.pmid);
+      cb.addEventListener("change", function () {
+        if (cb.checked) tri.selected.add(p.pmid); else tri.selected.delete(p.pmid);
+        tr.classList.toggle("sel", cb.checked);
+        renderTriActionBar();
+      });
+      tr.appendChild(el("td", {}, [cb]));
+
+      var pmidKids = [el("div", { className: "tri-pmid", text: p.pmid })];
+      if (p.new_since) pmidKids.push(el("span", { className: "tri-tag", text: "new", attrs: { title: "first returned after the run of " + p.new_since.slice(0, 10) } }));
+      if (!p.in_latest_run) pmidKids.push(el("span", { className: "tri-tag muted", text: "not in latest run" }));
+      tr.appendChild(el("td", {}, pmidKids));
+
+      var authors = (m.authors || []).join(", ") + (m.authors_count > (m.authors || []).length ? " et al." : "");
+      var byline = el("div", { className: "tri-byline" }, [
+        document.createTextNode(authors + (authors && m.journal ? " · " : "")),
+        el("i", { text: m.journal || "" }),
+      ]);
+      if (isReview(p)) byline.appendChild(el("span", { className: "tri-type", text: "Review" }));
+      tr.appendChild(el("td", {}, [
+        el("button", {
+          className: "tri-title", text: m.title || "(untitled)",
+          attrs: { type: "button", "aria-expanded": String(tri.open.has(p.pmid)) },
+          on: { click: function () { toggleAbstract(p.pmid); } },
+        }),
+        byline,
+      ]));
+      tr.appendChild(el("td", { className: "num", text: m.year || "" }));
+      tr.appendChild(el("td", {}, [
+        el("span", { className: "step-mini " + (m.pmcid ? "ok" : "bad"), text: "PMC" }),
+        document.createTextNode(" "),
+        el("span", { className: "step-mini " + (m.doi ? "ok" : "bad"), text: "DOI" }),
+      ]));
+      tr.appendChild(libraryCell(p));
+
+      var decWrap = el("div", { className: "tri-dec", attrs: { role: "group", "aria-label": "Decision for " + p.pmid } });
+      ["included", "pending", "excluded"].forEach(function (d) {
+        decWrap.appendChild(el("button", {
+          className: d, text: TRI_DEC_LABEL[d],
+          attrs: { type: "button", "aria-pressed": String(dec === d), disabled: tri.busy ? "disabled" : null },
+          on: { click: function () { triDecide([p.pmid], dec === d ? "cleared" : d); } },
+        }));
+      });
+      tr.appendChild(el("td", {}, [decWrap]));
+      tbody.appendChild(tr);
+
+      if (tri.open.has(p.pmid)) {
+        var extras = el("div", { className: "tri-mesh" });
+        if (m.pmcid) extras.appendChild(el("span", { text: m.pmcid }));
+        if (m.doi) extras.appendChild(el("span", { text: "doi:" + m.doi }));
+        (m.mesh_terms || []).forEach(function (t) { extras.appendChild(el("span", { text: t })); });
+        if (p.library) {
+          extras.appendChild(el("button", {
+            text: "Open paper panel", attrs: { type: "button" },
+            on: { click: function () { openInLibrary(p.pmid); } },
+          }));
+        }
+        tbody.appendChild(el("tr", { className: "tri-abs" }, [
+          el("td"), el("td"),
+          el("td", { attrs: { colspan: "5" } }, [
+            el("div", { className: "tri-abstext", text: m.abstract || "No abstract in PubMed." }),
+            extras,
+          ]),
+        ]));
+      }
+    });
+    document.getElementById("t-selall").checked = rows.length > 0 && rows.every(function (p) { return tri.selected.has(p.pmid); });
+    renderTriPager(pages);
+    renderTriBulk();
+  }
+
+  function renderTriPager(pages) {
+    var wrap = document.getElementById("t-pager");
+    clear(wrap);
+    if (pages <= 1) return;
+    wrap.appendChild(el("button", {
+      text: "‹ Prev", attrs: { type: "button", disabled: tri.page <= 0 ? "disabled" : null },
+      on: { click: function () { tri.page--; tri.active = -1; renderTriRows(); } },
+    }));
+    wrap.appendChild(el("span", { className: "pageinfo", text: "page " + (tri.page + 1) + " of " + pages }));
+    wrap.appendChild(el("button", {
+      text: "Next ›", attrs: { type: "button", disabled: tri.page >= pages - 1 ? "disabled" : null },
+      on: { click: function () { tri.page++; tri.active = -1; renderTriRows(); } },
+    }));
+  }
+
+  function toggleAbstract(pmid) {
+    if (tri.open.has(pmid)) tri.open.delete(pmid); else tri.open.add(pmid);
+    renderTriRows();
+  }
+
+  function openInLibrary(pmid) {
+    fetchJSON("/api/rows").then(function (rows) {
+      setRows(rows);
+      if (BY_PMID[pmid]) openDrawer(pmid);
+    }).catch(function (err) { showError("could not open paper: " + describeFetchError(err)); });
+  }
+
+  function renderTriBatch() {
+    var v = tri.view;
+    var wrap = document.getElementById("t-batch");
+    clear(wrap);
+    var c = v.counts;
+    var next = Math.min(v.triage.batch_size || 100, v.remaining);
+    var info = "Metadata loaded for " + c.loaded + " of " + c.found + " PMIDs";
+    if (c.missing) info += " · " + c.missing + " not returned by PubMed";
+    wrap.appendChild(el("span", { className: "grow", text: info + "." }));
+    var batchRunning = tri.job && tri.job.kind === "batch" && tri.job.state === "running";
+    if (batchRunning) {
+      wrap.appendChild(el("span", { text: "Loading " + next + " records from NCBI…" }));
+    } else if (!v.remaining) {
+      wrap.appendChild(el("span", { text: "All loaded." }));
+    } else if (!tri.confirmBatch) {
+      wrap.appendChild(el("button", {
+        className: "cmdbtn", text: "Load next " + next + "…", attrs: { type: "button" },
+        on: { click: function () { tri.confirmBatch = true; renderTriBatch(); } },
+      }));
+    } else {
+      wrap.appendChild(el("span", { text: "Load metadata for PMIDs " + (c.loaded + c.missing + 1) + "–" + (c.loaded + c.missing + next) + " from NCBI?" }));
+      wrap.appendChild(el("button", {
+        className: "cmdbtn primary", text: "Load " + next, attrs: { type: "button" },
+        on: { click: triLoadBatch },
+      }));
+      wrap.appendChild(el("button", {
+        className: "cmdbtn", text: "Not now", attrs: { type: "button" },
+        on: { click: function () { tri.confirmBatch = false; renderTriBatch(); } },
+      }));
+    }
+  }
+
+  function renderTriPending() {
+    var wrap = document.getElementById("t-pending");
+    clear(wrap);
+    var n = tri.view.counts.pending;
+    wrap.hidden = !n;
+    if (!n) return;
+    var cmd = "/ref:triage apply " + tri.slug;
+    wrap.appendChild(el("span", { className: "grow" }, [
+      el("b", { text: String(n) }),
+      document.createTextNode(" paper" + (n === 1 ? "" : "s") + " need Claude for full text (PMC XML, PubMed text or publisher page). This tab updates when Claude is done."),
+    ]));
+    wrap.appendChild(el("code", { text: cmd }));
+    wrap.appendChild(el("button", {
+      className: "cmdbtn", text: "Copy command", attrs: { type: "button" },
+      on: { click: function () { copyText(cmd); } },
+    }));
+  }
+
+  function renderTriActionBar() {
+    var bar = document.getElementById("t-actionbar");
+    var n = tri.selected.size;
+    bar.hidden = n === 0 && !(tri.job && tri.job.state === "running");
+    document.getElementById("t-seln").textContent = String(n);
+    bar.querySelectorAll("button[data-tdec],button[data-tjob]").forEach(function (b) {
+      b.disabled = tri.busy || n === 0;
+    });
+  }
+
+  function triDecide(pmids, decision) {
+    if (!pmids.length || tri.busy) return;
+    tri.busy = true;
+    triStatus((decision === "included" ? "Including and adding " : "Saving ") + pmids.length + "…");
+    renderTriRows();
+    renderTriActionBar();
+    var url = "/api/triage/" + encodeURIComponent(tri.slug) + "/decisions";
+    var chunks = [];
+    for (var i = 0; i < pmids.length; i += 500) chunks.push(pmids.slice(i, i + 500));
+    var all = [];
+    chunks.reduce(function (prev, chunk, idx) {
+      return prev.then(function () {
+        if (chunks.length > 1) triStatus("Saving " + (idx * 500 + chunk.length) + " / " + pmids.length + "…");
+        return postJSON(url, { pmids: chunk, decision: decision }).then(function (res) { all = all.concat(res.results || []); });
+      });
+    }, Promise.resolve())
+      .then(function () {
+        var res = { results: all };
+        var failed = (res.results || []).filter(function (r) { return r.result !== "recorded"; });
+        var added = (res.results || []).filter(function (r) { return r.add === "added"; }).length;
+        var msg = decision === "cleared" ? "Cleared " : "Marked ";
+        msg += (pmids.length - failed.length) + (decision === "cleared" ? "" : " as " + (TRI_DEC_LABEL[decision] || decision).toLowerCase());
+        if (added) msg += " · added " + added + " to library";
+        if (failed.length) msg += " · " + failed.length + " failed: " + failed[0].pmid + " " + (failed[0].error || "");
+        triStatus(msg);
+      })
+      .catch(function (err) { triStatus("Not saved: " + err.message); })
+      .then(function () {
+        tri.busy = false;
+        if (decision === "included") syncLibraryRows();
+        return loadTriageView();
+      });
+  }
+
+  function triLoadBatch() {
+    tri.confirmBatch = false;
+    postJSON("/api/triage/" + encodeURIComponent(tri.slug) + "/batch", { confirm: true })
+      .then(function (res) {
+        tri.job = { id: res.job_id, kind: "batch", state: "running", pmids: [], results: [] };
+        renderTriBatch();
+        pollJob();
+      })
+      .catch(function (err) { triStatus("Could not load: " + err.message); renderTriBatch(); });
+  }
+
+  function triStartJob(kind) {
+    var pmids = Array.from(tri.selected);
+    if (!pmids.length) return;
+    var url = "/api/triage/" + encodeURIComponent(tri.slug) + "/jobs";
+    if (kind === "full_text") {
+      tri.busy = true;
+      renderTriActionBar();
+      postJSON(url, { kind: kind, pmids: pmids }).then(function (res) {
+        var r = res.results || [];
+        var queued = r.filter(function (x) { return x.result === "queued"; }).length;
+        var have = r.filter(function (x) { return x.result === "already_full_text"; }).length;
+        var failed = r.filter(function (x) { return x.result === "failed"; }).length;
+        triStatus(queued + " queued for Claude" + (have ? " · " + have + " already have full text" : "") + (failed ? " · " + failed + " failed" : ""));
+      }).catch(function (err) { triStatus("Not queued: " + err.message); })
+        .then(function () { tri.busy = false; syncLibraryRows(); return loadTriageView(); });
+      return;
+    }
+    postJSON(url, { kind: kind, pmids: pmids }).then(function (res) {
+      tri.job = { id: res.job_id, kind: kind, state: "running", pmids: pmids, results: [] };
+      triStatus("Getting PDFs for " + pmids.length + "…");
+      renderTriRows();
+      renderTriActionBar();
+      pollJob();
+    }).catch(function (err) { triStatus("Could not start: " + err.message); });
+  }
+
+  function pollJob() {
+    clearTimeout(tri.pollTimer);
+    if (!tri.job) return;
+    fetchJSON("/api/jobs/" + tri.job.id).then(function (job) {
+      tri.job.state = job.state;
+      tri.job.results = job.results || [];
+      if (job.state === "running") {
+        if (tri.job.kind === "pdf") {
+          triStatus("Getting PDFs… " + job.done + " / " + job.total);
+          renderTriRows();
+        }
+        tri.pollTimer = setTimeout(pollJob, 1000);
+        return;
+      }
+      if (job.state === "failed") {
+        triStatus((tri.job.kind === "batch" ? "Loading failed: " : "PDF job failed: ") + (job.error || "unknown error"));
+      } else if (tri.job.kind === "batch") {
+        var o = job.outcome || {};
+        triStatus("Loaded " + (o.loaded || 0) + " records" + ((o.missing || []).length ? " · " + o.missing.length + " not returned" : ""));
+      } else {
+        var attached = tri.job.results.filter(function (r) { return r.result === "attached" || r.result === "duplicate_noop"; }).length;
+        var toClaude = tri.job.results.filter(function (r) { return r.pending; }).length;
+        triStatus(attached + " PDFs attached · " + toClaude + " sent to Claude");
+      }
+      tri.job = null;
+      loadTriageView();
+      loadTriages();
+      syncLibraryRows();
+    }).catch(function (err) {
+      triStatus("Lost track of the job: " + describeFetchError(err));
+      tri.job = null;
+    });
+  }
+
+  function schedulePendingPoll() {
+    clearTimeout(tri.pendingTimer);
+    if (!tri.view || !tri.view.counts.pending) return;
+    tri.pendingTimer = setTimeout(function () {
+      if (activeTab === "triage" && !tri.busy && !tri.job) loadTriageView(true); else schedulePendingPoll();
+    }, 5000);
+  }
+
+  function triMoveActive(delta) {
+    if (!tri.pageRows.length) return;
+    tri.active = Math.max(0, Math.min(tri.pageRows.length - 1, tri.active + delta));
+    renderTriRows();
+    var row = document.querySelector('#t-rows tr[data-pmid="' + tri.pageRows[tri.active].pmid + '"]');
+    if (row) row.scrollIntoView({ block: "nearest" });
+  }
+
+  function triKeydown(e) {
+    var current = tri.pageRows[tri.active];
+    var targets = tri.selected.size ? Array.from(tri.selected) : (current ? [current.pmid] : []);
+    if (e.key === "/") { e.preventDefault(); document.getElementById("t-q").focus(); }
+    else if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); triMoveActive(1); }
+    else if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); triMoveActive(-1); }
+    else if (e.key === "i") { e.preventDefault(); triDecide(targets, "included"); }
+    else if (e.key === "m") { e.preventDefault(); triDecide(targets, "pending"); }
+    else if (e.key === "x") { e.preventDefault(); triDecide(targets, "excluded"); }
+    else if (e.key === " " && current) {
+      e.preventDefault();
+      if (tri.selected.has(current.pmid)) tri.selected.delete(current.pmid); else tri.selected.add(current.pmid);
+      renderTriRows();
+      renderTriActionBar();
+    } else if (e.key === "Enter" && current) { e.preventDefault(); toggleAbstract(current.pmid); }
+  }
+
+  function selectTriage(slug) {
+    if (!slug) return;
+    tri.slug = slug;
+    tri.selected = new Set();
+    tri.open = new Set();
+    tri.page = 0;
+    tri.active = -1;
+    tri.filter = "all";
+    tri.confirmBatch = false;
+    tri.bulkConfirm = null;
+    try { history.replaceState(null, "", location.search + "#triage/" + slug); } catch (e) { /* best effort */ }
+    loadTriageView();
+  }
+
+  document.getElementById("t-pick").addEventListener("change", function (e) { selectTriage(e.target.value); });
+  function onTriFilterChange() {
+    tri.query = document.getElementById("t-q").value;
+    tri.scope = document.getElementById("t-qscope").value;
+    tri.yfrom = parseInt(document.getElementById("t-yfrom").value, 10) || null;
+    tri.yto = parseInt(document.getElementById("t-yto").value, 10) || null;
+    tri.type = document.getElementById("t-type").value;
+    tri.journal = document.getElementById("t-journal").value;
+    tri.lib = document.getElementById("t-libstate").value;
+    tri.page = 0;
+    tri.active = -1;
+    tri.bulkConfirm = null;
+    renderTriRows();
+  }
+  ["t-q", "t-yfrom", "t-yto"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", onTriFilterChange);
+  });
+  ["t-qscope", "t-type", "t-journal", "t-libstate"].forEach(function (id) {
+    document.getElementById(id).addEventListener("change", onTriFilterChange);
+  });
+  document.getElementById("t-fclear").addEventListener("click", function () {
+    ["t-q", "t-yfrom", "t-yto"].forEach(function (id) { document.getElementById(id).value = ""; });
+    ["t-type", "t-journal", "t-libstate"].forEach(function (id) { document.getElementById(id).value = ""; });
+    document.getElementById("t-qscope").value = "all";
+    tri.filter = "all";
+    renderTriChips();
+    onTriFilterChange();
+  });
+  document.getElementById("t-selall").addEventListener("change", function (e) {
+    tri.visible.forEach(function (p) {
+      if (e.target.checked) tri.selected.add(p.pmid); else tri.selected.delete(p.pmid);
+    });
+    renderTriRows();
+    renderTriActionBar();
+  });
+  document.getElementById("t-project").addEventListener("change", function (e) {
+    var project = e.target.value || null;
+    postJSON("/api/triage/" + encodeURIComponent(tri.slug) + "/project", { project: project })
+      .then(function (res) {
+        triStatus(project ? "Linked to " + project + (res.replayed ? " · copied " + res.replayed + " decisions" : "") : "Unlinked from project");
+      })
+      .catch(function (err) { triStatus("Not linked: " + err.message); })
+      .then(function () { loadTriageView(); loadTriages(); });
+  });
+  document.getElementById("t-actionbar").addEventListener("click", function (e) {
+    var dec = e.target.closest("button[data-tdec]");
+    if (dec) { triDecide(Array.from(tri.selected), dec.dataset.tdec); return; }
+    var job = e.target.closest("button[data-tjob]");
+    if (job) triStartJob(job.dataset.tjob);
+  });
+  document.getElementById("t-clearsel").addEventListener("click", function () {
+    tri.selected = new Set();
+    renderTriRows();
+    renderTriActionBar();
+  });
+
+  function renderTriageTab() {
+    if (!tri.view || tri.view.triage.slug !== tri.slug) loadTriageView(); else renderTriage();
+  }
+
   // --------------------------------------------------------------- init
 
   function renderAll() {
@@ -2002,6 +2791,7 @@
         coverageRendered = false;
         maintRendered = false;
         renderAll();
+        loadTriages().then(function () { if (activeTab === "triage") loadTriageView(); });
         rerenderActiveTab();
         if (failed.length) {
           showError("refresh partly failed (" + failed.join(", ") + ") -- showing last loaded data for those");
@@ -2037,6 +2827,13 @@
       }
       clearError();
       renderAll();
+      var wantTriage = triageFromHash();
+      loadTriages(wantTriage).then(function () {
+        if (wantTriage && tri.slug === wantTriage) {
+          selectTab("triage");
+          renderTriageTab();
+        }
+      });
       if (DEEPLINK && BY_PMID[DEEPLINK.pmid]) {
         openDrawer(DEEPLINK.pmid);
         setDrawerMode(DEEPLINK.tab);

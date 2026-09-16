@@ -22,7 +22,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
+from lib_atomic import atomic_write_json, project_lock
 from lib_schema import validate_screening_record, SchemaError
 from project import _project_dir, _load
 
@@ -42,21 +42,24 @@ def decide(library_root: Path, slug: str, pmid: str, decision: str, reason: str,
         record["search_run"] = run_ref
     validate_screening_record(record)
 
-    log_path = pdir / "screening.jsonl"
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, sort_keys=True) + "\n")
+    # project_lock: the dashboard's triage routes call this from several
+    # server threads at once; papers.yaml is read-modify-write.
+    with project_lock(library_root, slug):
+        log_path = pdir / "screening.jsonl"
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, sort_keys=True) + "\n")
 
-    papers_path = pdir / "papers.yaml"
-    doc = _load(papers_path, {"papers": []})
-    membership = next((m for m in doc["papers"] if m["pmid"] == pmid), None)
-    if membership is None:
-        membership = {
-            "pmid": pmid, "relevance": None, "priority": None, "reading_status": None,
-            "why_saved": None, "screening": None, "added_at": now,
-        }
-        doc["papers"].append(membership)
-    membership["screening"] = {"decision": decision, "reason": reason, "timestamp": now}
-    atomic_write_json(papers_path, doc)
+        papers_path = pdir / "papers.yaml"
+        doc = _load(papers_path, {"papers": []})
+        membership = next((m for m in doc["papers"] if m["pmid"] == pmid), None)
+        if membership is None:
+            membership = {
+                "pmid": pmid, "relevance": None, "priority": None, "reading_status": None,
+                "why_saved": None, "screening": None, "added_at": now,
+            }
+            doc["papers"].append(membership)
+        membership["screening"] = {"decision": decision, "reason": reason, "timestamp": now}
+        atomic_write_json(papers_path, doc)
     return record
 
 

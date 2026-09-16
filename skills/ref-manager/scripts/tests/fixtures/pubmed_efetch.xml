@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2025//EN" "https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_250101.dtd">
+<PubmedArticleSet>
+<PubmedArticle>
+  <MedlineCitation Status="MEDLINE" Owner="NLM">
+    <PMID Version="1">10000001</PMID>
+    <Article PubModel="Print">
+      <Journal>
+        <JournalIssue CitedMedium="Internet"><PubDate><MedlineDate>2019 Winter</MedlineDate></PubDate></JournalIssue>
+        <Title>Journal of Test Neuroscience</Title>
+        <ISOAbbreviation>J Test Neurosci</ISOAbbreviation>
+      </Journal>
+      <ArticleTitle>Cortical thickness in [autism]: a review.</ArticleTitle>
+      <Abstract>
+        <AbstractText Label="BACKGROUND">Cortical thickness differs.</AbstractText>
+        <AbstractText Label="METHODS">We pooled <i>n</i> = 12 studies.</AbstractText>
+      </Abstract>
+      <AuthorList CompleteYN="Y">
+        <Author ValidYN="Y"><LastName>Smith</LastName><ForeName>Jane A</ForeName><Initials>JA</Initials></Author>
+        <Author ValidYN="Y"><CollectiveName>ENIGMA ASD Working Group</CollectiveName></Author>
+      </AuthorList>
+      <GrantList CompleteYN="Y">
+        <Grant><GrantID>R01 MH000001</GrantID><Agency>NIMH NIH HHS</Agency><Country>United States</Country></Grant>
+      </GrantList>
+      <PublicationTypeList>
+        <PublicationType UI="D016428">Journal Article</PublicationType>
+        <PublicationType UI="D016454">Review</PublicationType>
+      </PublicationTypeList>
+    </Article>
+    <MeshHeadingList>
+      <MeshHeading><DescriptorName UI="D000067877" MajorTopicYN="Y">Autism Spectrum Disorder</DescriptorName></MeshHeading>
+      <MeshHeading><DescriptorName UI="D002540" MajorTopicYN="N">Cerebral Cortex</DescriptorName></MeshHeading>
+    </MeshHeadingList>
+  </MedlineCitation>
+  <PubmedData>
+    <ArticleIdList>
+      <ArticleId IdType="pubmed">10000001</ArticleId>
+      <ArticleId IdType="doi">10.1000/test.1</ArticleId>
+      <ArticleId IdType="pmc">PMC9000001</ArticleId>
+    </ArticleIdList>
+  </PubmedData>
+</PubmedArticle>
+<PubmedArticle>
+  <MedlineCitation Status="PubMed-not-MEDLINE" Owner="NLM">
+    <PMID Version="1">10000002</PMID>
+    <Article PubModel="Electronic">
+      <Journal>
+        <JournalIssue CitedMedium="Internet"><PubDate><Year>2021</Year><Month>Mar</Month></PubDate></JournalIssue>
+        <Title>Test Reports</Title>
+      </Journal>
+      <ArticleTitle>Surface area and <i>SHANK3</i>.</ArticleTitle>
+      <AuthorList CompleteYN="Y">
+        <Author ValidYN="Y"><LastName>Lee</LastName><Initials>K</Initials></Author>
+      </AuthorList>
+      <PublicationTypeList><PublicationType UI="D016428">Journal Article</PublicationType></PublicationTypeList>
+    </Article>
+  </MedlineCitation>
+  <PubmedData>
+    <ArticleIdList><ArticleId IdType="pubmed">10000002</ArticleId></ArticleIdList>
+  </PubmedData>
+</PubmedArticle>
+</PubmedArticleSet>

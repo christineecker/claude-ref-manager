@@ -42,6 +42,7 @@ Steps:
    to fill in.
 
 `show` includes a summary with paper count, question count, reading-state
-breakdown, and source/completeness counts. `list` includes each project's paper
+breakdown, and source/completeness counts, plus the project's linked triages
+(saved PubMed searches screened with `/ref:triage`). `list` includes each project's paper
 count, reading-state breakdown, and source/completeness counts so it can double
 as a quick project dashboard.

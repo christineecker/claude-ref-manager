@@ -35,6 +35,7 @@
     <li><a href="#search-pubmed"><code>/ref:search-pubmed</code></a></li>
     <li><a href="#search-add-fetch"><code>/ref:search-add-fetch</code></a></li>
     <li><a href="#update-queries"><code>/ref:update-queries</code></a></li>
+    <li><a href="#triage"><code>/ref:triage</code></a></li>
     <li><a href="#related"><code>/ref:related</code></a></li>
   </ol>
   <h4>Other groups</h4>
@@ -317,20 +318,23 @@
 
 <article class="cmd" id="search-pubmed">
   <div class="cmd-head"><h3>/ref:search-pubmed</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
-  <p class="summary">Turn a question into a PubMed query, run it, and save the exact expression and its results as an immutable run.</p>
-  <div class="synopsis">/ref:search-pubmed &lt;question or query&gt; --slug &lt;slug&gt; [--create]</div>
+  <p class="summary">Turn a question into a PubMed query, run it, save the exact expression and its results as an immutable run, and open the results in the dashboard's Triage tab.</p>
+  <div class="synopsis">/ref:search-pubmed &lt;question or query&gt; --slug &lt;slug&gt; [--create] [--project &lt;slug&gt;] [--no-triage]</div>
   <h4>Arguments</h4>
   <dl class="args">
     <dt>&lt;question or query&gt;</dt><dd>Natural language, which Claude turns into a PICO-framed boolean query with MeSH and free-text terms. An explicit PubMed expression is used verbatim.</dd>
     <dt>--slug &lt;slug&gt;</dt><dd>Required. Names <code>queries/&lt;slug&gt;.yaml</code>.</dd>
     <dt>--create</dt><dd>Required for a slug's first run. Without it, a new slug is refused.</dd>
+    <dt>--project &lt;slug&gt;</dt><dd>Optional. Links the triage to an existing project, so decisions also go into that project's screening log.</dd>
+    <dt>--no-triage</dt><dd>Save the run only: no metadata loading, no dashboard.</dd>
   </dl>
   <h4>What happens</h4>
   <ol>
     <li>Claude builds the query. The script neither parses PICO nor calls PubMed.</li>
-    <li>Claude runs the query through the PubMed MCP <code>search_articles</code> tool and writes the PMIDs to a temp JSON array.</li>
+    <li>Claude runs the query through the PubMed MCP <code>search_articles</code> tool, paging 200 at a time until every PMID is collected (it asks first above 1,000), and writes the PMIDs to a temp JSON array.</li>
     <li><code>pubmed_query.py new-run</code> appends a run containing the <code>run_id</code>, exact <code>query</code>, <code>source</code>, <code>retrieved_at</code>, and <code>pmids</code>.</li>
-    <li>No paper is added. Screen the results or <a href="acquire.html#add"><code>/ref:add</code></a> the ones you want.</li>
+    <li><code>triage.py init</code> creates the search's triage, and <code>triage.py load-batch</code> loads metadata for the first 100 PMIDs from NCBI E-utilities.</li>
+    <li>The dashboard opens on the <a href="#triage">Triage tab</a>. No paper is added until you mark it <em>Include</em> there.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
   <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, which is JSON despite the extension. Runs only ever append, so any artifact frozen on <code>--query &lt;slug&gt; --run &lt;id&gt;</code> still resolves to the same set later.</p>
@@ -404,6 +408,7 @@ fetch:
     <li><code>pubmed_query.py show</code> reads the saved query.</li>
     <li>Claude calls the PubMed MCP search with the exact <code>query</code> from the most recent run, unaltered.</li>
     <li><code>pubmed_query.py rerun</code> appends a new run that reuses the stored <code>query</code> and <code>source</code>, then reports <code>added</code> and <code>removed</code> PMIDs against the previous run.</li>
+    <li>If the search has a triage, <code>triage.py sync</code> merges the run into it. Up to 100 new PMIDs load straight away; above that Claude asks first. They show under <em>New since last run</em>.</li>
   </ol>
   <p class="writes">Re-runs only happen when you ask. Nothing is scheduled, and earlier runs are never edited.</p>
   <h4>Reads &amp; writes</h4>
@@ -427,6 +432,32 @@ fetch:
   <h4>See also</h4>
   <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a></p>
 </article>
+<article class="cmd" id="triage">
+  <div class="cmd-head"><h3>/ref:triage</h3><div class="chips"><span class="tag net">NCBI E-utilities</span></div></div>
+  <p class="summary">Screen a saved PubMed search in the dashboard: include, maybe or exclude each PMID, get PDFs for a selection, and hand the rest of the full-text work to Claude.</p>
+  <div class="synopsis">/ref:triage &lt;slug&gt; [--project &lt;slug&gt; | --no-project] [--more]
+/ref:triage apply &lt;slug&gt;
+/ref:triage list</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;slug&gt;</dt><dd>A saved query. There is one triage per saved search; re-runs merge into it.</dd>
+    <dt>--project &lt;slug&gt;</dt><dd>Link the triage to a project. Every current decision is copied into the project's screening log. A triage without a project is fine for plain topic searches.</dd>
+    <dt>--no-project</dt><dd>Unlink. The project's screening history is kept.</dd>
+    <dt>--more</dt><dd>Load metadata for the next 100 PMIDs, after asking.</dd>
+    <dt>apply &lt;slug&gt;</dt><dd>Fetch full text for the papers waiting for Claude, using the <a href="acquire.html#fetch"><code>/ref:fetch</code></a> source order.</dd>
+  </dl>
+  <h4>In the Triage tab</h4>
+  <ul>
+    <li><strong>Include</strong> adds the paper to the library straight away, using the saved metadata. <strong>Maybe</strong> is stored as <code>pending</code>. <strong>Exclude</strong> never removes anything from the library.</li>
+    <li>With a linked project, each decision is also recorded through <a href="organize.html#screen"><code>/ref:screen</code></a> with the search run, so <code>/ref:review --prisma --project &lt;p&gt; --query &lt;slug&gt;</code> counts it.</li>
+    <li><strong>Load next 100…</strong> asks for confirmation, then fetches the records from NCBI E-utilities <code>efetch</code> (at most 3 requests/s, or 10/s with <code>ncbi_api_key</code>). It needs <code>ncbi_email</code> (or <code>unpaywall_email</code>) in <code>~/.config/ref-manager/config.json</code>.</li>
+    <li><strong>Get PDFs</strong> downloads PMC Open Access PDFs in the server. Papers without one, and anything sent with <strong>Fetch full text</strong>, wait for <code>/ref:triage apply</code>. The tab updates when Claude is done.</li>
+    <li>Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>i</kbd>/<kbd>m</kbd>/<kbd>x</kbd> decide (the selection, or the current row), <kbd>Space</kbd> selects, <kbd>Enter</kbd> shows the abstract, <kbd>/</kbd> filters.</li>
+  </ul>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>triage/&lt;slug&gt;/triage.json</code> (linked project), <code>metadata/batch-NNNN.json</code> (one file per loaded batch), <code>decisions.jsonl</code> (append-only; the newest line per PMID wins) and <code>pending.json</code>. Include writes <code>papers/&lt;pmid&gt;/</code> through <code>add.py</code>; a linked project gets <code>screening.jsonl</code> and <code>papers.yaml</code> updates. <code>queries/&lt;slug&gt;.yaml</code> is never modified.</p>
+</article>
+
 
 <article class="cmd" id="related">
   <div class="cmd-head"><h3>/ref:related</h3><div class="chips"><span class="tag phase">phase 9</span><span class="tag net">PubMed MCP</span></div></div>

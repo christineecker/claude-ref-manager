@@ -214,6 +214,28 @@ class TestFundingExtraction(unittest.TestCase):
         self.assertEqual(state, "possible_match")
         self.assertEqual(obs[0]["kind"], "possible_match")
 
+    def test_fundref_id_kept_separate_from_funder_name(self):
+        # §9.1: <institution-id> (the FundRef DOI) must not be concatenated
+        # onto <institution> (the funder name) -- they're separate fields.
+        xml = (
+            "<article><front><article-meta><funding-group>"
+            "<award-group>"
+            "<funding-source>"
+            "<institution-wrap>"
+            "<institution>EU-Project STIPED (Horizon2020)</institution>"
+            "<institution-id institution-id-type=\"FundRef\">10.13039/501100000780</institution-id>"
+            "</institution-wrap>"
+            "</funding-source>"
+            "<award-id>H2020-123456</award-id>"
+            "</award-group>"
+            "</funding-group></article-meta></front><body/></article>"
+        )
+        obs, state = funding_extract.extract_funding_observations(xml)
+        self.assertEqual(state, "explicit_acknowledgement_verified")
+        self.assertEqual(obs[0]["funder"], "EU-Project STIPED (Horizon2020)")
+        self.assertEqual(obs[0]["fundref_id"], "10.13039/501100000780")
+        self.assertEqual(obs[0]["award_number"], "H2020-123456")
+
 
 # ---- fetch.py ----
 

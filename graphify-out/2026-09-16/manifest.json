@@ -878,5 +878,10 @@
     "mtime": 1789542974.892771,
     "ast_hash": "4bcd35a1e3e350dfb29c989c49b47636",
     "semantic_hash": ""
+  },
+  "skills/ref-manager/scripts/tests/test_repair_state.py": {
+    "mtime": 1789543047.4968867,
+    "ast_hash": "5af0b5aea5aec8572936b873697493ea",
+    "semantic_hash": ""
   }
 }

@@ -29,7 +29,7 @@
 <header class="page">
   <p class="eyebrow">Tutorial</p>
   <h1>Maintenance loop</h1>
-  <p class="lede">Minimal text. Weekly loop: status, lint, index, audit, repair.</p>
+  <p class="lede">Minimal text. Weekly loop: status, lint, index, audit, repair — inspect state with <code>/ref:list</code> and <code>/ref:dashboard</code>.</p>
 </header>
 
 <section>
@@ -111,15 +111,33 @@
     <text x="662" y="96" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_claim_registry</text>
     <text x="662" y="114" font-family="IBM Plex Sans,sans-serif" font-size="11.5">catalog_present false</text>
 
-    <rect x="230" y="170" width="500" height="94" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+    <rect x="230" y="170" width="500" height="112" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
     <text x="248" y="198">routing suggestions</text>
     <text x="248" y="220" font-family="IBM Plex Sans,sans-serif" font-size="11.5">stale_retraction_check  -&gt; /ref:audit</text>
     <text x="248" y="238" font-family="IBM Plex Sans,sans-serif" font-size="11.5">metadata_only/abstract_only -&gt; /ref:fetch or /ref:add-fetch</text>
     <text x="248" y="256" font-family="IBM Plex Sans,sans-serif" font-size="11.5">missing_claim_registry -&gt; /ref:extract</text>
+    <text x="248" y="274" font-family="IBM Plex Sans,sans-serif" font-size="11.5">any bucket -&gt; /ref:lint --diff (new/resolved since last snapshot)</text>
   </g>
 </svg>
 </div>
 </figure>
+</section>
+
+<section>
+<h2>Inspecting state: /ref:list and /ref:dashboard</h2>
+<p>Read-only, run anytime — not part of the repair loop itself, but how you find what to feed into it.</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Tool</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td><code>/ref:list --issue &lt;bucket&gt; --format pmids</code></td><td>turn a lint bucket into a PMID list, piped straight into <code>/ref:fetch</code>/<code>/ref:extract</code>.</td></tr>
+    <tr><td><code>/ref:list --source abstract-only,oa-pending --stale-days 180</code></td><td>filter the same buckets by source state, tier, year, journal, or project without touching lint output.</td></tr>
+    <tr><td><code>/ref:list --matrix</code></td><td>paper x {meta, abstract, fulltext, pdf, figures, claims, indexed, retraction} coverage grid.</td></tr>
+    <tr><td><code>/ref:dashboard</code></td><td>local server (default) — Papers/Coverage/Projects/Maintenance tabs, per-paper panel with PDF viewer and notes, live off <code>lib_inventory</code>/<code>lint</code> so it reflects what <code>/ref:status</code> and <code>/ref:lint</code> would report right now.</td></tr>
+    <tr><td><code>/ref:dashboard --static</code></td><td>writes a static <code>reports/dashboard/</code> snapshot to share or open from <code>file://</code> — no server, no live notes.</td></tr>
+  </tbody>
+</table>
+</div>
 </section>
 
 <section>
@@ -129,6 +147,7 @@
 <table class="sel">
   <thead><tr><th>Profile</th><th>Run</th><th>Why not more often</th></tr></thead>
   <tbody>
+    <tr><td>ad hoc</td><td><code>/ref:list</code> · <code>/ref:dashboard</code></td><td>read-only, no cadence — open the dashboard while triaging, or run <code>/ref:list --issue …</code> right after a <code>/ref:maintain</code> pass.</td></tr>
     <tr><td>weekly</td><td><code>/ref:maintain --stale-days 180</code></td><td>status + lint + index rebuild + retraction audit — all read-only or idempotent, cheap to repeat.</td></tr>
     <tr><td>monthly</td><td><code>/ref:repair-fulltext --limit 20</code> (repeat until <code>remaining: 0</code>)</td><td>each call does real network fetches; <code>--limit</code> and its resume state exist so a month-old backlog does not turn into one giant run.</td></tr>
     <tr><td>quarterly</td><td><code>/ref:audit --citations</code></td><td>citation counts move slowly; each call is a per-PMID WebFetch to NCBI, so scope it to a selector for a large library rather than the whole thing every quarter.</td></tr>

@@ -13,114 +13,33 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
-
-def _load_json(path: Path) -> dict | list | None:
-    try:
-        return json.loads(path.read_text())
-    except (OSError, ValueError):
-        return None
-
-
-def _paper_dirs(library_root: Path) -> list[Path]:
-    papers_dir = library_root / "papers"
-    if not papers_dir.is_dir():
-        return []
-    return sorted([p for p in papers_dir.iterdir() if p.is_dir()], key=lambda p: p.name)
-
-
-def _is_true(value: object) -> bool:
-    return bool(value)
-
-
-def _parse_iso(ts: str | None) -> datetime | None:
-    if not ts:
-        return None
-    try:
-        return datetime.fromisoformat(ts)
-    except ValueError:
-        return None
+import catalog
+from lib_inventory import LINT_BUCKETS, rows as inventory_rows
 
 
 def lint(library_root: Path, stale_days: int = 180) -> dict:
-    issues: dict[str, list[str]] = {
-        "missing_meta": [],
-        "missing_title": [],
-        "missing_year": [],
-        "missing_journal": [],
-        "missing_abstract": [],
-        "metadata_only": [],
-        "abstract_only": [],
-        "oa_pending": [],
-        "missing_doi": [],
-        "missing_current": [],
-        "missing_claim_registry": [],
-        "stale_retraction_check": [],
-        "malformed_meta": [],
-    }
+    issues: dict[str, list[str]] = {bucket: [] for bucket in LINT_BUCKETS}
 
-    now = datetime.now(timezone.utc)
-    stale_cutoff = now - timedelta(days=stale_days)
+    paper_rows = inventory_rows(library_root, stale_days=stale_days)
+    for row in paper_rows:
+        for flag in row["lint_flags"]:
+            issues[flag].append(row["pmid"])
 
-    for pdir in _paper_dirs(library_root):
-        pmid = pdir.name
-        meta_path = pdir / "meta.json"
-        if not meta_path.exists():
-            issues["missing_meta"].append(pmid)
-            continue
-
-        meta_obj = _load_json(meta_path)
-        if not isinstance(meta_obj, dict):
-            issues["malformed_meta"].append(pmid)
-            continue
-        meta = meta_obj
-
-        if not (meta.get("title") or "").strip():
-            issues["missing_title"].append(pmid)
-        if not (meta.get("year") or "").strip():
-            issues["missing_year"].append(pmid)
-        if not (meta.get("journal") or "").strip():
-            issues["missing_journal"].append(pmid)
-        if not (meta.get("doi") or "").strip():
-            issues["missing_doi"].append(pmid)
-
-        full_text = _is_true(meta.get("full_text"))
-        abstract_available = _is_true(meta.get("abstract_available"))
-        oa_pending = bool(meta.get("oa_location"))
-
-        if not abstract_available:
-            issues["missing_abstract"].append(pmid)
-        if not full_text and not abstract_available:
-            issues["metadata_only"].append(pmid)
-        if not full_text and abstract_available and not oa_pending:
-            issues["abstract_only"].append(pmid)
-        if oa_pending and not full_text:
-            issues["oa_pending"].append(pmid)
-
-        if not (pdir / "current.json").exists():
-            issues["missing_current"].append(pmid)
-        if not (pdir / "claim_registry.json").exists():
-            issues["missing_claim_registry"].append(pmid)
-
-        checked_at = _parse_iso(meta.get("checked_at"))
-        if checked_at is not None and checked_at.tzinfo is None:
-            checked_at = checked_at.replace(tzinfo=timezone.utc)
-        if checked_at is not None and checked_at < stale_cutoff:
-            issues["stale_retraction_check"].append(pmid)
-
-    index_db = library_root / "index" / "catalog.sqlite"
-    catalog_present = index_db.exists()
+    catalog_present = catalog.catalog_info(library_root) is not None
+    catalog_stale = catalog.is_stale(library_root)
 
     summaries = {
-        "papers_total": len(_paper_dirs(library_root)),
+        "papers_total": len(paper_rows),
         "issues_total": sum(len(v) for v in issues.values()),
         "catalog_present": catalog_present,
+        "catalog_stale": catalog_stale,
     }
 
     recommendations: list[str] = []
-    if not catalog_present:
+    if catalog_stale:
         recommendations.append("run /ref:index --rebuild")
     if issues["metadata_only"] or issues["abstract_only"] or issues["oa_pending"]:
         recommendations.append("run /ref:fetch <pmid...> or /ref:add-fetch <pmid...>")
@@ -141,6 +60,7 @@ def _print_human(report: dict) -> None:
     print(f"papers_total: {summary['papers_total']}")
     print(f"issues_total: {summary['issues_total']}")
     print(f"catalog_present: {summary['catalog_present']}")
+    print(f"catalog_stale: {summary['catalog_stale']}")
 
     print("\nissues:")
     for key, pmids in report["issues"].items():
@@ -163,6 +83,71 @@ def _write_snapshot(library_root: Path, report: dict) -> Path:
     return snapshot_path
 
 
+def _list_snapshots(library_root: Path) -> list[Path]:
+    """`maintenance/*.json` sorted by filename -- `_write_snapshot()` names
+    them `<UTC-timestamp>.json`, so filename order is timestamp order."""
+    snapshot_dir = library_root / "maintenance"
+    if not snapshot_dir.is_dir():
+        return []
+    return sorted(snapshot_dir.glob("*.json"))
+
+
+def _resolve_diff_snapshot(library_root: Path, snapshot_arg: str | None) -> Path:
+    """Resolve `--diff [snapshot]`'s snapshot argument: an explicit filename
+    or stem under `maintenance/`, or (when omitted) the most recent existing
+    snapshot -- i.e. the previous one relative to the report being computed
+    now (§8: "vs a snapshot (default: previous)")."""
+    snapshots = _list_snapshots(library_root)
+    if snapshot_arg is None:
+        if not snapshots:
+            raise ValueError("no snapshots found under maintenance/ to diff against "
+                              "(run /ref:lint --snapshot first)")
+        return snapshots[-1]
+
+    candidate = Path(snapshot_arg)
+    candidates = [candidate] if candidate.is_absolute() else [
+        library_root / "maintenance" / snapshot_arg,
+        library_root / "maintenance" / f"{snapshot_arg}.json",
+        candidate,
+    ]
+    for c in candidates:
+        if c.is_file():
+            return c
+    raise ValueError(f"snapshot not found: {snapshot_arg!r} (looked under {library_root / 'maintenance'})")
+
+
+def diff_report(library_root: Path, report: dict, snapshot_arg: str | None) -> dict:
+    """Per-bucket added/removed PMIDs between `report` (the just-computed
+    live report) and a prior snapshot (§8: `lint.py run --diff [snapshot]`).
+    Returns `{"against": <snapshot stem>, "buckets": {bucket: {"added": [...], "removed": [...]}}}`,
+    only including buckets with an actual change."""
+    snapshot_path = _resolve_diff_snapshot(library_root, snapshot_arg)
+    old_report = json.loads(snapshot_path.read_text())
+    old_issues = old_report.get("issues", {}) if isinstance(old_report, dict) else {}
+    new_issues = report.get("issues", {})
+
+    buckets: dict[str, dict[str, list[str]]] = {}
+    for bucket in sorted(set(old_issues) | set(new_issues)):
+        before = set(old_issues.get(bucket) or [])
+        after = set(new_issues.get(bucket) or [])
+        added = sorted(after - before)
+        removed = sorted(before - after)
+        if added or removed:
+            buckets[bucket] = {"added": added, "removed": removed}
+
+    return {"against": snapshot_path.stem, "buckets": buckets}
+
+
+def _print_human_diff(diff: dict) -> None:
+    print(f"\ndiff vs snapshot {diff['against']}:")
+    if not diff["buckets"]:
+        print("- no changes")
+        return
+    for bucket, changes in diff["buckets"].items():
+        parts = [f"+{p}" for p in changes["added"]] + [f"-{p}" for p in changes["removed"]]
+        print(f"- {bucket}: {', '.join(parts)}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("action", choices=["run"])
@@ -171,6 +156,9 @@ def main() -> int:
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--snapshot", action="store_true",
                      help="Write the report to maintenance/<timestamp>.json in the library root.")
+    ap.add_argument("--diff", nargs="?", const="", default=None, metavar="SNAPSHOT",
+                     help="Also report per-bucket added/removed PMIDs vs a snapshot under "
+                          "maintenance/ (filename or stem). Defaults to the most recent snapshot.")
     args = ap.parse_args()
 
     library_root = Path(args.repo).expanduser().resolve()
@@ -180,14 +168,26 @@ def main() -> int:
 
     report = lint(library_root, stale_days=args.stale_days)
 
+    diff = None
+    if args.diff is not None:
+        snapshot_arg = args.diff or None  # bare --diff (no value) -> default to the previous snapshot
+        try:
+            diff = diff_report(library_root, report, snapshot_arg)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+
     snapshot_path = None
     if args.snapshot:
         snapshot_path = _write_snapshot(library_root, report)
 
+    output = dict(report, diff=diff) if diff is not None else report
     if args.json:
-        print(json.dumps(report, indent=2))
+        print(json.dumps(output, indent=2))
     else:
         _print_human(report)
+        if diff is not None:
+            _print_human_diff(diff)
     if snapshot_path is not None:
         print(f"\nsnapshot written: {snapshot_path}")
     return 0

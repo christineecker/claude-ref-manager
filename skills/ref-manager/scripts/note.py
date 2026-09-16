@@ -13,6 +13,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from lib_atomic import pmid_lock
+
 
 def notes_path(library_root: Path, pmid: str) -> Path:
     return library_root / "papers" / pmid / "notes.md"
@@ -23,8 +25,9 @@ def append(library_root: Path, pmid: str, text: str) -> Path:
     if not path.parent.is_dir():
         raise FileNotFoundError(f"pmid {pmid!r} not found — add it first via /ref:add")
     stamp = datetime.now(timezone.utc).isoformat()
-    with path.open("a", encoding="utf-8") as f:
-        f.write(f"\n---\n{stamp}\n\n{text}\n")
+    with pmid_lock(library_root, pmid):
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"\n---\n{stamp}\n\n{text}\n")
     return path
 
 

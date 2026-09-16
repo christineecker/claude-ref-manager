@@ -2,6 +2,13 @@ Rebuild `index/catalog.sqlite` from committed records (§3a), and recompute grap
 staleness (phase 8, §3a: "Re-extraction invalidates affected evidence links and triggers
 an incremental graph refresh"). Idempotent; incomplete staging directories are ignored.
 
+The rebuild writes to a temp file under `index/.catalog.lock` and atomically replaces
+`catalog.sqlite`, so a failed or concurrent rebuild never leaves a partial catalog. It
+records a fingerprint (path, size, mtime of every `meta.json`, `current.json`,
+`claim_registry.json`, and current `source.md`) in `catalog_meta`; `/ref:status` and
+`/ref:lint` compare it against the files on disk and report the catalog as stale when
+anything changed since the last rebuild.
+
 Parse `$ARGUMENTS` for:
 - `--rebuild` — required for now (the only supported mode).
 

@@ -100,6 +100,15 @@ class TestLint(unittest.TestCase):
         self.assertIn("40003", report["issues"]["oa_pending"])
         self.assertNotIn("40003", report["issues"]["abstract_only"])
 
+    def test_pdf_backed_paper_is_not_flagged_as_missing_source(self):
+        self._write_paper("40004", {"title": "t", "abstract_available": True, "full_text": False})
+        raw = self.library_root / "papers" / "40004" / "raw" / "abc"
+        raw.mkdir(parents=True)
+        (raw / "source.pdf").write_bytes(b"%PDF-1.4")
+        report = json.loads(self._run("--json").stdout)
+        for bucket in ("metadata_only", "abstract_only", "oa_pending"):
+            self.assertNotIn("40004", report["issues"][bucket])
+
     def test_stale_retraction_check_respects_stale_days(self):
         old_ts = (datetime.now(timezone.utc) - timedelta(days=400)).isoformat()
         self._write_paper("50001", {"title": "t", "checked_at": old_ts})
@@ -133,6 +142,49 @@ class TestLint(unittest.TestCase):
         self.assertEqual(len(snapshots), 1)
         snapshot_report = json.loads(snapshots[0].read_text())
         self.assertEqual(set(snapshot_report["issues"].keys()), EXPECTED_BUCKETS)
+
+    def test_diff_defaults_to_previous_snapshot(self):
+        self._write_paper("90001", {"title": "t", "abstract_available": False, "full_text": False})
+        proc = self._run("--snapshot", "--json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+        # a second paper appears as newly metadata_only-flagged since the snapshot
+        self._write_paper("90002", {"title": "t", "abstract_available": False, "full_text": False})
+        proc = self._run("--diff", "--json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertIn("diff", report)
+        self.assertIn("90002", report["diff"]["buckets"]["metadata_only"]["added"])
+        self.assertNotIn("90001", report["diff"]["buckets"].get("metadata_only", {}).get("added", []))
+
+    def test_diff_human_output_shows_added_and_removed(self):
+        self._write_paper("91001", {"title": "t", "abstract_available": False, "full_text": False})
+        self._run("--snapshot")
+        self._write_paper("91002", {"title": "t", "abstract_available": False, "full_text": False})
+        proc = self._run("--diff")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("diff vs snapshot", proc.stdout)
+        self.assertIn("+91002", proc.stdout)
+
+    def test_diff_against_explicit_snapshot_by_stem(self):
+        self._write_paper("92001", {"title": "t", "abstract_available": False, "full_text": False})
+        proc = self._run("--snapshot", "--json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        maintenance_dir = self.library_root / "maintenance"
+        snap_path = next(maintenance_dir.glob("*.json"))
+
+        self._write_paper("92002", {"title": "t", "abstract_available": False, "full_text": False})
+        proc = self._run("--diff", snap_path.stem, "--json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertIn("92002", report["diff"]["buckets"]["metadata_only"]["added"])
+        self.assertEqual(report["diff"]["against"], snap_path.stem)
+
+    def test_diff_with_no_snapshots_fails_loudly(self):
+        self._write_paper("93001", {"title": "t"})
+        proc = self._run("--diff")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("error:", proc.stderr)
 
     def test_missing_repo_fails_loudly(self):
         script = SCRIPTS / "lint.py"

@@ -90,6 +90,8 @@ Steps:
 - `/ref:audit` — re-check retraction/errata status; `--citations` records dated PMC cited-by counts
 - `/ref:index --rebuild` — rebuild `catalog.sqlite` from committed records
 - `/ref:status` — one-line health state, what needs attention, and what to run next
+- `/ref:list` — filterable browse/report over the library: source, tier, year, lint issues, project/reading state, or a coverage matrix
+- `/ref:dashboard` — live dashboard server (default) over 127.0.0.1 with an in-page PDF viewer and one-click notes; `--static` builds the self-contained HTML instead: health, coverage, funnel, trend, paper table, coverage matrix, projects, maintenance
 - `/ref:open <pmid>` — open the acquired PDF in Papers.app
 - `/ref:pull-annotations <pmid>` — import your Papers highlights and margin notes, read-only
 

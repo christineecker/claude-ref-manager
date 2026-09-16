@@ -12,72 +12,22 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import catalog
 from init_repo import CONFIG_PATH, load_config
 import project as project_mod
+from lib_inventory import rows as inventory_rows
 from lib_selector import recent
-
-
-def _load_meta(path: Path) -> dict:
-    return json.loads(path.read_text())
-
-
-def _current_version(paper_dir: Path) -> str | None:
-    current_path = paper_dir / "current.json"
-    if not current_path.exists():
-        return None
-    try:
-        return json.loads(current_path.read_text()).get("version")
-    except (OSError, ValueError, TypeError):
-        return None
-
-
-def _paper_has_figures(paper_dir: Path) -> bool:
-    version = _current_version(paper_dir)
-    if not version:
-        return False
-    figures_path = paper_dir / "versions" / version / "figures.json"
-    if not figures_path.exists():
-        return False
-    try:
-        figures = json.loads(figures_path.read_text())
-    except (OSError, ValueError, TypeError):
-        return False
-    return any(fig.get("asset_available") for fig in figures if isinstance(fig, dict))
-
-
-def _paper_meta_rows(library_root: Path) -> list[dict]:
-    papers_dir = library_root / "papers"
-    if not papers_dir.is_dir():
-        return []
-    rows = []
-    for pdir in sorted(papers_dir.iterdir()):
-        meta_path = pdir / "meta.json"
-        if not meta_path.exists():
-            continue
-        meta = _load_meta(meta_path)
-        meta["pmid"] = pdir.name
-        rows.append(meta)
-    return rows
 
 
 def _print_recent_papers(library_root: Path, limit: int = 5) -> None:
     rows = recent(library_root, limit=limit)
     print(f"recent papers: {len(rows)}")
+    inv_by_pmid = {row["pmid"]: row for row in inventory_rows(library_root)}
     for row in rows:
         pmid = row.get("pmid")
-        paper_dir = library_root / "papers" / pmid
-        meta = _load_meta(paper_dir / "meta.json") if (paper_dir / "meta.json").exists() else {}
-        source_badge = "metadata-only"
-        if any((p / "source.pdf").exists() for p in (paper_dir / "raw").iterdir() if p.is_dir()) if (paper_dir / "raw").is_dir() else False:
-            source_badge = "pdf-backed"
-        elif meta.get("full_text"):
-            source_badge = "full-text"
-        elif meta.get("oa_location"):
-            source_badge = "oa-pending"
-        elif meta.get("abstract_available"):
-            source_badge = "abstract-only"
-
-        if source_badge in {"pdf-backed", "full-text"} and _paper_has_figures(paper_dir):
+        inv_row = inv_by_pmid.get(pmid, {})
+        source_badge = inv_row.get("source_badge") or "unknown"
+        if source_badge in {"pdf-backed", "full-text"} and inv_row.get("figures_with_image"):
             source_badge += "+figures"
 
         title = row.get("title") or "(untitled)"
@@ -117,8 +67,8 @@ def _print_project_overview(library_root: Path, limit: int = 5) -> None:
 
 def _tier_counts(rows: list[dict]) -> dict:
     counts = {"abstract": 0, "full": 0, "unavailable": 0}
-    for meta in rows:
-        tier = meta.get("extraction_tier") or "unavailable"
+    for row in rows:
+        tier = row.get("extraction_tier") or "unavailable"
         counts[tier] = counts.get(tier, 0) + 1
     return counts
 
@@ -129,7 +79,7 @@ def _print_tier_breakdown(counts: dict) -> None:
         print(f"  {tier}: {counts.get(tier, 0)}")
 
 
-def _source_counts(library_root: Path, rows: list[dict]) -> dict:
+def _source_counts(rows: list[dict]) -> dict:
     counts = {
         "metadata_only": 0,
         "abstract_only": 0,
@@ -137,26 +87,11 @@ def _source_counts(library_root: Path, rows: list[dict]) -> dict:
         "pdf_backed": 0,
         "oa_pending": 0,
     }
-    for meta in rows:
-        paper_dir = library_root / "papers" / meta["pmid"]
-        has_pdf = False
-        raw_dir = paper_dir / "raw"
-        if raw_dir.is_dir():
-            has_pdf = any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
-        has_oa = bool(meta.get("oa_location"))
-        full_text = bool(meta.get("full_text"))
-        abstract_available = bool(meta.get("abstract_available"))
-
-        if has_pdf:
-            counts["pdf_backed"] += 1
-        elif full_text:
-            counts["full_text"] += 1
-        elif has_oa:
-            counts["oa_pending"] += 1
-        elif abstract_available:
-            counts["abstract_only"] += 1
-        else:
-            counts["metadata_only"] += 1
+    for row in rows:
+        badge = row.get("source_badge")
+        if badge is None:  # missing/malformed meta.json -- lib_inventory.rows() still
+            continue       # emits a row for it, but it has no source state to classify
+        counts[badge.replace("-", "_")] += 1
     return counts
 
 
@@ -172,6 +107,7 @@ def _health(
     n_projects: int,
     catalog_built: bool,
     n_indexed: int,
+    catalog_stale: bool = False,
 ) -> tuple[str, list[str], list[str]]:
     """One-pass health check derived from the same counts already printed
     below -- no separate recommendation engine (UX_BACKLOG.md #2)."""
@@ -179,13 +115,16 @@ def _health(
     actions = []
 
     n_papers = len(rows)
-    not_indexed = n_papers > 0 and (not catalog_built or n_indexed < n_papers)
+    not_indexed = n_papers > 0 and (not catalog_built or n_indexed < n_papers or catalog_stale)
     missing_metadata = sum(1 for m in rows if not m.get("title"))
     needs_full_text = source_counts["metadata_only"] + source_counts["abstract_only"] + source_counts["oa_pending"]
     no_active_project = n_projects == 0 and n_papers > 0
 
     if not_indexed:
-        attention.append(f"catalog not fully indexed ({n_indexed}/{n_papers} papers)")
+        if catalog_built and n_indexed >= n_papers:
+            attention.append("catalog out of date (papers changed since last rebuild)")
+        else:
+            attention.append(f"catalog not fully indexed ({n_indexed}/{n_papers} papers)")
         actions.append("/ref:index --rebuild")
     if missing_metadata:
         attention.append(f"{missing_metadata} paper(s) missing title/metadata")
@@ -242,7 +181,7 @@ def main() -> int:
         )
         return 1
 
-    rows = _paper_meta_rows(library_root)
+    rows = inventory_rows(library_root)
     n_papers = len(rows)
 
     db_path = library_root / "index" / "catalog.sqlite"
@@ -255,9 +194,10 @@ def main() -> int:
 
     n_projects = sum(1 for p in (library_root / "projects").iterdir() if p.is_dir()) if (library_root / "projects").is_dir() else 0
     tier_counts = _tier_counts(rows)
-    source_counts = _source_counts(library_root, rows)
+    source_counts = _source_counts(rows)
 
-    state, attention, actions = _health(rows, source_counts, n_projects, catalog_built, n_indexed)
+    catalog_stale = catalog.is_stale(library_root)
+    state, attention, actions = _health(rows, source_counts, n_projects, catalog_built, n_indexed, catalog_stale)
 
     print(f"status: {state}")
     print(f"library: {library_root}")

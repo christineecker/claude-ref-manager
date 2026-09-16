@@ -273,28 +273,22 @@ def resolve_from_args(library_root: Path, args) -> dict:
     )
 
 
-def _recent_row(library_root: Path, pmid: str) -> dict:
-    meta = _meta(library_root, pmid) or {}
-    raw_dir = library_root / "papers" / pmid / "raw"
-    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
-    if has_pdf:
-        source_badge = "pdf-backed"
-    elif meta.get("full_text"):
-        source_badge = "full-text"
-    elif meta.get("oa_location"):
-        source_badge = "oa-pending"
-    elif meta.get("abstract_available"):
-        source_badge = "abstract-only"
-    else:
-        source_badge = "metadata-only"
-    return {
-        "pmid": pmid,
-        "citekey": meta.get("citekey"),
-        "title": meta.get("title"),
-        "year": meta.get("year"),
-        "checked_at": meta.get("checked_at", ""),
-        "source_badge": source_badge,
-    }
+def has_pdf(paper_dir: Path) -> bool:
+    raw_dir = paper_dir / "raw"
+    return raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
+
+
+def source_badge(paper_dir: Path, meta: dict) -> str:
+    """Single source-state classifier shared by status, lint, and the picker."""
+    if has_pdf(paper_dir):
+        return "pdf-backed"
+    if meta.get("full_text"):
+        return "full-text"
+    if meta.get("oa_location"):
+        return "oa-pending"
+    if meta.get("abstract_available"):
+        return "abstract-only"
+    return "metadata-only"
 
 
 def recent(library_root: Path, limit: int = 15, kind: str = "recent") -> list[dict]:
@@ -304,17 +298,28 @@ def recent(library_root: Path, limit: int = 15, kind: str = "recent") -> list[di
     `meta.json.checked_at`. `kind="unresolved"` returns papers that still
     need source follow-up, newest first.
     Each row carries what a checkbox UI needs to label an option: pmid,
-    citekey, title, year, source badge, and checked_at.
+    citekey, title, year, source badge, and checked_at. Built from
+    `lib_inventory.rows()` (LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md §4.4) so
+    this picker and every other view agree on source-badge classification.
     """
-    rows = []
-    for pmid in _all_pmids(library_root):
-        row = _recent_row(library_root, pmid)
-        if kind == "unresolved":
-            if row["source_badge"] not in ("metadata-only", "oa-pending"):
-                continue
-        rows.append(row)
-    rows.sort(key=lambda r: r["checked_at"], reverse=True)
-    return rows[:limit]
+    # local import: lib_inventory imports catalog, which callers that never
+    # touch recent() (e.g. selector-only commands) shouldn't have to load.
+    from lib_inventory import rows as inventory_rows
+
+    picks = []
+    for row in inventory_rows(library_root):
+        if kind == "unresolved" and row["source_badge"] not in ("metadata-only", "oa-pending"):
+            continue
+        picks.append({
+            "pmid": row["pmid"],
+            "citekey": row["citekey"],
+            "title": row["title"],
+            "year": row["year"],
+            "checked_at": row["checked_at"] or "",
+            "source_badge": row["source_badge"],
+        })
+    picks.sort(key=lambda r: r["checked_at"], reverse=True)
+    return picks[:limit]
 
 
 def main() -> int:

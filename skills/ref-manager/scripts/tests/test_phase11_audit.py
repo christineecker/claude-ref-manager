@@ -7,6 +7,8 @@ Run: python3 skills/ref-manager/scripts/tests/test_phase11_audit.py
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import shutil
 import sys
@@ -286,13 +288,17 @@ class TestReportCitations(TempLibrary):
         self.assertTrue(manifest["includes_citations"])
         self.assertIn("not a total citation count", manifest["citation_coverage_note"])
         csv_text = (self.library_root / "reports/rep1/publications.csv").read_text()
-        self.assertIn("400,ecker.n.d.,10.1/400,2022" if False else "400,", csv_text)
+        self.assertIn("400,", csv_text)
         self.assertIn(",4,pmc_elink,", csv_text)  # real observation
-        rows = csv_text.splitlines()
-        row_401 = next(r for r in rows if r.startswith("401,"))
-        fields = row_401.split(",")
-        self.assertEqual(fields[7], "")  # citation_count column empty (None), never "0"
-        self.assertNotIn(",0,", row_401)
+
+        # report.py's fieldnames now include author_role/extraction_tier/
+        # abstract_available/full_text/checked_at before citation_count, so
+        # parse with csv.DictReader (also robust to commas inside titles)
+        # rather than a naive split(",") on column index (§9.2).
+        reader = csv.DictReader(io.StringIO(csv_text))
+        rows_by_pmid = {row["pmid"]: row for row in reader}
+        row_401 = rows_by_pmid["401"]
+        self.assertEqual(row_401["citation_count"], "")  # None, never "0"
 
     def test_stale_observation_flagged(self):
         self.add_paper("402", year="2022")

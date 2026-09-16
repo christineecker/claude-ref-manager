@@ -84,6 +84,9 @@ Steps:
 - `/ref:report --person <id>` — reproducible publication report for a date window
 
 **Maintain**
+- `/ref:maintain` — one-pass maintenance loop: status, lint, optional index rebuild, optional retraction audit
+- `/ref:lint` — read-only maintenance lint for incomplete metadata/full-text and stale checks
+- `/ref:repair-fulltext` — batch-repair full-text gaps found by `/ref:lint`, bounded by `--limit`, resume-safe
 - `/ref:audit` — re-check retraction/errata status; `--citations` records dated PMC cited-by counts
 - `/ref:index --rebuild` — rebuild `catalog.sqlite` from committed records
 - `/ref:status` — one-line health state, what needs attention, and what to run next

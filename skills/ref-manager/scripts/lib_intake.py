@@ -16,9 +16,12 @@ command, same as it does today for url_identify.py/pdf_identify.py.
 `main()` below is the CLI entry point `/ref:import` shells out to (mirrors
 url_identify.py/pdf_identify.py's own "print JSON, no side effects" shape).
 
-Out of scope: parsing bib/csl.json file contents (flagged here as
-"unparsed" -- see UX_BACKLOG.md #4 risk note, biggest unknown left for a
-follow-up pass) and add.py's own post-resolution DOI/title conflict scan
+`.bib`/`.csl.json` files are parsed locally via `lib_bibparse.py`
+(MAINTENANCE_FEATURE_IMPLEMENTATION_PLAN.md Phase 4) and expanded into one
+`bib_entry`/`csl_entry` per record in `classify_all()`, the same way a
+`pdf_dir` expands into individual `pdf` items.
+
+Out of scope: add.py's own post-resolution DOI/title conflict scan
 (`_flag_doi_title_conflicts`), which stays as its own single-pass walk rather
 than doing a second directory scan through `find_existing_by_identity`.
 """
@@ -29,6 +32,7 @@ import json
 import re
 from pathlib import Path
 
+import lib_bibparse
 import pdf_identify
 import url_identify
 
@@ -53,6 +57,12 @@ def _identity(item: dict) -> tuple[str, str] | None:
             return ("doi", item["doi"].lower())
         if item.get("pmcid"):
             return ("pmcid", item["pmcid"])
+        return (kind, item["raw"])
+    if kind in ("bib_entry", "csl_entry"):
+        if item.get("pmid"):
+            return ("pmid", item["pmid"])
+        if item.get("doi"):
+            return ("doi", item["doi"].lower())
         return (kind, item["raw"])
     if kind in ("pdf_dir", "bib_file", "csl_file", "unknown"):
         return (kind, item["raw"])
@@ -90,9 +100,17 @@ def classify_item(item: str) -> dict:
             identified = pdf_identify.identify_pdf(path)
             return {"raw": item, "kind": "pdf", **identified}
         if suffix == ".bib":
-            return {"raw": item, "kind": "bib_file", "path": str(path), "result": "unparsed"}
+            entries = lib_bibparse.parse_bib_file(path)
+            return {
+                "raw": item, "kind": "bib_file", "path": str(path), "entries": entries,
+                "result": "identified_entries" if entries else "no_clues",
+            }
         if path.name.lower().endswith(".csl.json"):
-            return {"raw": item, "kind": "csl_file", "path": str(path), "result": "unparsed"}
+            entries = lib_bibparse.parse_csl_json_file(path)
+            return {
+                "raw": item, "kind": "csl_file", "path": str(path), "entries": entries,
+                "result": "identified_entries" if entries else "no_clues",
+            }
 
     return {"raw": item, "kind": "unknown", "result": "no_clues"}
 
@@ -112,6 +130,27 @@ def classify_all(items: list[str]) -> list[dict]:
                 sub = classify_item(pdf_path)
                 sub["from_dir"] = classified["path"]
                 flat.append(sub)
+        elif classified["kind"] in ("bib_file", "csl_file"):
+            entries = classified.get("entries") or []
+            if not entries:
+                flat.append(classified)
+                continue
+            entry_kind = "bib_entry" if classified["kind"] == "bib_file" else "csl_entry"
+            for idx, entry in enumerate(entries):
+                label = entry.get("citekey") or str(idx)
+                clue_found = bool(entry.get("pmid") or entry.get("doi"))
+                flat.append({
+                    "raw": f"{classified['path']}#{label}",
+                    "kind": entry_kind,
+                    "citekey": entry.get("citekey"),
+                    "title": entry.get("title"),
+                    "doi": entry.get("doi"),
+                    "pmid": entry.get("pmid"),
+                    "year": entry.get("year"),
+                    "journal": entry.get("journal"),
+                    "from_file": classified["path"],
+                    "result": "identified_clues" if clue_found else "no_clues",
+                })
         else:
             flat.append(classified)
 

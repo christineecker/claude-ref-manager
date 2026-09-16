@@ -1,12 +1,12 @@
 # Graph Report - claude-ref-manager  (2026-09-16)
 
 ## Corpus Check
-- 148 files · ~165,027 words
+- 147 files · ~164,769 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1785 nodes · 3968 edges · 123 communities (98 shown, 25 thin omitted)
-- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 336 edges (avg confidence: 0.69)
+- 1773 nodes · 3951 edges · 124 communities (99 shown, 25 thin omitted)
+- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 336 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
@@ -84,6 +84,7 @@
 - [[_COMMUNITY_Community 67|Community 67]]
 - [[_COMMUNITY_Community 68|Community 68]]
 - [[_COMMUNITY_Community 69|Community 69]]
+- [[_COMMUNITY_Community 70|Community 70]]
 - [[_COMMUNITY_Community 71|Community 71]]
 - [[_COMMUNITY_Community 72|Community 72]]
 - [[_COMMUNITY_Community 73|Community 73]]
@@ -122,7 +123,7 @@
 5. `lib_atomic module` - 44 edges
 6. `Commands index doc page` - 40 edges
 7. `atomic_write_text()` - 26 edges
-8. `init_repo module` - 24 edges
+8. `init_repo module` - 23 edges
 9. `lib_ids module` - 21 edges
 10. `lib_schema module` - 21 edges
 
@@ -161,31 +162,31 @@
 - **Papers.app round-trip handoff** — commands_maintain_refopen, commands_write_refexportpapers, commands_maintain_refpullannotations, figures_paperrepoanatomy_papershandoff [EXTRACTED 1.00]
 - **PI identity-to-report evidence chain** — commands_people_refperson, commands_people_refdiscover, commands_organize_refverify, commands_people_refpublications, commands_people_refreport [EXTRACTED 1.00]
 
-## Communities (123 total, 25 thin omitted)
+## Communities (124 total, 25 thin omitted)
 
 ### Community 0 - "Ingestion & OKF Emit Pipeline"
-Cohesion: 0.05
-Nodes (77): attach module, attach_one(), attach_pdf_bytes(), _check_identity(), main(), _normalize(), _pdf_head_text(), Returns (verified, method_description). (+69 more)
+Cohesion: 0.09
+Nodes (44): convert_html(), convert_jats(), convert_pdf(), convert_plain_text(), _jats_figures(), main(), For sources that arrive as already-extracted plain text with no HTML/     XML ma, CLI wrapper for manual/diagnostic use: convert.py {jats|html|pdf} <input> <stagi (+36 more)
 
 ### Community 1 - "Selector, Audit & Export Pipeline"
 Cohesion: 0.07
-Nodes (41): cite module, export module, queue module, _all_pmids(), _load_json(), main(), _meta(), NotAvailableError (+33 more)
+Nodes (40): cite module, export module, _all_pmids(), _load_json(), main(), _meta(), NotAvailableError, _project_membership() (+32 more)
 
 ### Community 2 - "People, Grants & Identifiers"
 Cohesion: 0.11
-Nodes (13): author(), TempLibrary, TestAddCitekeyCollision, TestAddDuplicate, TestAddIdentityWarnings, TestAddMissingAbstract, TestAddPreservesRawOrderAndGrants, TestNoteAppendAndShow (+5 more)
+Nodes (14): queue module, author(), TempLibrary, TestAddCitekeyCollision, TestAddDuplicate, TestAddIdentityWarnings, TestAddMissingAbstract, TestAddPreservesRawOrderAndGrants (+6 more)
 
 ### Community 3 - "Repo Init, Schema & Screening"
 Cohesion: 0.12
-Nodes (27): studies/studies.jsonl entry (§3d). Field names match study.py's     actual phase, people/<slug>.json (§3c)., grants/<slug>.json (§3c)., One entry of a /ref:check-citations report's findings.json (§5a).      `verdict`, graph/concepts.jsonl entry (§3, §3d). Primary key is a user-chosen     slug (not, graph/relations.jsonl entry (§3, §3a, §4a). A typed edge between two     CONCEPT, meta.json's retraction_status sub-object (§4a, written at ingestion     by extra, One entry of papers/<pmid>/citations.json (§3c "Citation observations     (D25)" (+19 more)
+Nodes (29): studies/studies.jsonl entry (§3d). Field names match study.py's     actual phase, people/<slug>.json (§3c)., grants/<slug>.json (§3c)., One entry of a /ref:check-citations report's findings.json (§5a).      `verdict`, graph/concepts.jsonl entry (§3, §3d). Primary key is a user-chosen     slug (not, graph/relations.jsonl entry (§3, §3a, §4a). A typed edge between two     CONCEPT, meta.json's retraction_status sub-object (§4a, written at ingestion     by extra, One entry of papers/<pmid>/citations.json (§3c "Citation observations     (D25)" (+21 more)
 
 ### Community 4 - "Core Design Docs & Extraction Concepts"
-Cohesion: 0.12
-Nodes (13): /ref:attach, Citation observations (D25), Stable citekey (D14), Claim v2 schema, Evidence profile (D41), Tiered extraction (D4), Concept/relation knowledge graph (D13), MeSH hierarchy/ontology mapping (D37) (+5 more)
+Cohesion: 0.13
+Nodes (12): /ref:attach, Citation observations (D25), Stable citekey (D14), Claim v2 schema, Evidence profile (D41), Tiered extraction (D4), Concept/relation knowledge graph (D13), MeSH hierarchy/ontology mapping (D37) (+4 more)
 
 ### Community 5 - "Papers.app Export & Handoff"
-Cohesion: 0.09
-Nodes (47): Exception, papers_snapshot module, _allocate_path(), _escape_bibtex(), _is_foreign(), _last_author_lastname(), layout_relative_path(), _load_note_pushes() (+39 more)
+Cohesion: 0.07
+Nodes (59): Exception, papers_snapshot module, _batch_dir(), main(), _allocate_path(), _escape_bibtex(), _is_foreign(), _last_author_lastname() (+51 more)
 
 ### Community 6 - "Appraisal & Claim Verification"
 Cohesion: 0.13
@@ -196,24 +197,24 @@ Cohesion: 0.17
 Nodes (9): convert module, convert_html_worker.main, fetch module, funding_extract module, author(), TestConvertJats, TestConvertJatsRejectsNonXml, TestInterruptedCommitRecovers (+1 more)
 
 ### Community 8 - "Summarize/Review Tests (Phase 10)"
-Cohesion: 0.14
-Nodes (16): appraise module, concept module, author(), claim(), extractor_output(), TempLibrary, TestAppraisalReviewDistinguishable, TestChecklistSelectionByStudyType (+8 more)
+Cohesion: 0.16
+Nodes (12): author(), claim(), extractor_output(), TempLibrary, TestAppraisalReviewDistinguishable, TestChecklistSelectionByStudyType, TestDomainsTraceToEvidence, TestGradeCertainty (+4 more)
 
 ### Community 9 - "Concept Graph & Gap/Hypothesis Discovery"
 Cohesion: 0.07
 Nodes (57): AMSTAR-2 Checklist, GRADE Certainty Rating, Newcastle-Ottawa Scale, RoB 2 Risk-of-Bias Checklist, relation module, _active_claims(), amstar2_appraisal(), _batch_dir() (+49 more)
 
 ### Community 10 - "Extraction Tests (Phase 4)"
-Cohesion: 0.13
-Nodes (17): author(), claim(), extractor_output(), TempLibrary, TestAuthorContributionRequiresEvidence, TestClaimsResolveToSources, TestCorrectionPendingOnSupersession, TestCorrectionsOnUnchangedEvidence (+9 more)
+Cohesion: 0.12
+Nodes (18): author(), claim(), extractor_output(), TempLibrary, TestAuthorContributionRequiresEvidence, TestClaimsResolveToSources, TestCorrectionPendingOnSupersession, TestCorrectionsOnUnchangedEvidence (+10 more)
 
 ### Community 11 - "OKF & Related-Papers Tests"
 Cohesion: 0.09
 Nodes (13): add module, graph_people module, okf_emit module, related module, author(), TempLibrary, TestOkfBasicGeneration, TestOkfConceptDegradesWithoutRelations (+5 more)
 
 ### Community 12 - "Compare Tests (Phase 5)"
-Cohesion: 0.13
-Nodes (10): author(), claim(), TempLibrary, TestCompareCellSemantics, TestCompareFreezeAndRefresh, TestCompareSelectorEquivalence, TestCompareStudyGroupingVsDatasetReuse, TestCompareUserEdits (+2 more)
+Cohesion: 0.12
+Nodes (12): methods module, study module, author(), claim(), TempLibrary, TestCompareCellSemantics, TestCompareFreezeAndRefresh, TestCompareSelectorEquivalence (+4 more)
 
 ### Community 13 - "Gaps Tests (Phase 9)"
 Cohesion: 0.15
@@ -228,36 +229,36 @@ Cohesion: 0.10
 Nodes (48): compare module, lib_status_check module, lib_verify_link module, edit_brief(), _edits_path(), _evidence_hash(), _key_dir(), _latest_snapshot_id() (+40 more)
 
 ### Community 16 - "Ask/Retrieve Tests (Phase 6)"
-Cohesion: 0.14
-Nodes (12): ask_retrieve module, methods module, author(), claim(), TempLibrary, TestBrief, TestCatalogIndexesClaimsAndPassages, TestCitationValidation (+4 more)
+Cohesion: 0.15
+Nodes (11): ask_retrieve module, author(), claim(), TempLibrary, TestBrief, TestCatalogIndexesClaimsAndPassages, TestCitationValidation, TestReportAndMethodsProvenance (+3 more)
 
 ### Community 17 - "Audit Tests (Phase 11)"
-Cohesion: 0.14
-Nodes (10): brief module, extract module, report module, author(), _now(), TempLibrary, TestCacheInvalidation, TestCitationObservations (+2 more)
+Cohesion: 0.13
+Nodes (10): audit module, brief module, report module, author(), _now(), TempLibrary, TestCacheInvalidation, TestCitationObservations (+2 more)
 
 ### Community 18 - "Concept Graph Tests (Phase 8)"
 Cohesion: 0.15
-Nodes (8): author(), claim(), TempLibrary, TestConceptAliasResolution, TestConflictProposal, TestContradictsRequiresReview, TestNeighborsResolveToEvidence, TestStaleEdgeInvalidation
+Nodes (9): concept module, author(), claim(), TempLibrary, TestConceptAliasResolution, TestConflictProposal, TestContradictsRequiresReview, TestNeighborsResolveToEvidence (+1 more)
 
 ### Community 19 - "Check-Citations Tests (Phase 7)"
 Cohesion: 0.13
-Nodes (12): check_citations module, author(), claim(), TempLibrary, TestBibliographyExportScope, TestCaveat, TestCitedPmidMerge, TestEvidenceRequirements (+4 more)
+Nodes (13): check_citations module, extract module, author(), claim(), TempLibrary, TestBibliographyExportScope, TestCaveat, TestCitedPmidMerge (+5 more)
 
 ### Community 20 - "Papers.app Tests (Phase 3)"
 Cohesion: 0.19
 Nodes (13): export_papers module, open_in_papers module, resolve_from_args(), main(), Path, _args(), attach_pdf(), author() (+5 more)
 
 ### Community 21 - "Init/Catalog Tests (Phase 0)"
-Cohesion: 0.05
-Nodes (36): lib_selector module, audit_citation_observation(), audit_retraction_status(), _citations_path(), latest_real_observation(), main(), _meta_path(), propagate_status_changes() (+28 more)
+Cohesion: 0.08
+Nodes (11): catalog module, lib_selector module, TempLibrary, TestAtomicWrite, TestBrowseFirstSelector, TestCitekey, TestInitAndCatalog, TestQuestionIds (+3 more)
 
 ### Community 22 - "PRISMA Tests (Phase 5)"
 Cohesion: 0.17
 Nodes (9): prisma module, pubmed_query module, screen module, author(), TempLibrary, TestFreezeAndRefresh, TestHappyPath, TestStudiesVsPublications (+1 more)
 
 ### Community 23 - "Methods & Study Records"
-Cohesion: 0.25
-Nodes (21): _active_claims(), main(), methods_for_pmid(), run(), _append_row(), create_dataset(), create_method(), create_study() (+13 more)
+Cohesion: 0.27
+Nodes (20): _active_claims(), main(), methods_for_pmid(), run(), _append_row(), create_dataset(), create_method(), create_study() (+12 more)
 
 ### Community 24 - "Docs: Acquire/API Command Reference"
 Cohesion: 0.15
@@ -300,8 +301,8 @@ Cohesion: 0.30
 Nodes (12): open_in_papers.py, Papers.app, papers_snapshot.py, pull_annotations.py, /ref:open, /ref:pull-annotations, note.py, /ref:note (+4 more)
 
 ### Community 34 - "Publications & Authorship Script"
-Cohesion: 0.09
-Nodes (5): init_repo module, status.main, TestLint, TestRepairState, TestStatusVerbosity
+Cohesion: 0.80
+Nodes (4): decide(), history(), main(), Path
 
 ### Community 35 - "Related-Papers Script"
 Cohesion: 0.16
@@ -332,8 +333,8 @@ Cohesion: 0.25
 Nodes (7): metadata, description, name, owner, name, plugins, $schema
 
 ### Community 42 - "Docs: Ask/Brief/Summarize Commands"
-Cohesion: 0.25
-Nodes (17): audit module, publications module, _all_people(), _authorship(), classify_role(), coauthors(), _find_ambiguous_name_person(), _find_confirmed_identity() (+9 more)
+Cohesion: 0.27
+Nodes (16): publications module, _all_people(), _authorship(), classify_role(), coauthors(), _find_ambiguous_name_person(), _find_confirmed_identity(), main() (+8 more)
 
 ### Community 43 - "Docs: Search & PubMed Query Commands"
 Cohesion: 0.43
@@ -368,12 +369,12 @@ Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Existing Maintenance Tools (current), Gaps Identified (original, now closed — see Phase 4), Goals, Implementation Phases, Maintenance Feature Implementation Plan, Mitigations, New Tooling Introduced (this iteration) (+7 more)
 
 ### Community 60 - "Community 60"
-Cohesion: 0.41
-Nodes (14): add_alias(), create_concept(), find_concept(), get_concept(), _jsonl_path(), list_concepts(), main(), _norm() (+6 more)
+Cohesion: 0.10
+Nodes (38): attach_one(), attach_pdf_bytes(), _check_identity(), main(), _normalize(), _pdf_head_text(), Returns (verified, method_description)., _sha256_file() (+30 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.11
-Nodes (18): project module, _current_version(), _health(), _load_meta(), main(), _paper_has_figures(), _paper_meta_rows(), _print_project_overview() (+10 more)
+Cohesion: 0.06
+Nodes (22): init_repo module, project module, _current_version(), _health(), _load_meta(), main(), _paper_has_figures(), _paper_meta_rows() (+14 more)
 
 ### Community 62 - "Community 62"
 Cohesion: 0.32
@@ -392,16 +393,20 @@ Cohesion: 0.05
 Nodes (7): TempLibrary, TestClassifyAll, TestClassifyItem, TestClassifyItemFiles, TestCli, TestFindExistingByIdentity, TestResolveBatch
 
 ### Community 67 - "Community 67"
-Cohesion: 0.29
-Nodes (10): catalog module, _dedupe(), _diversify(), main(), _match_expr(), Claims win over an overlapping passage from the same paper (§5:     "exclude dup, Round-robin across distinct PMIDs (best-ranked-first within each) so     one hea, retrieve() (+2 more)
+Cohesion: 0.26
+Nodes (11): No embeddings in v1 (D3), ref-synthesizer Subagent, _dedupe(), _diversify(), main(), _match_expr(), Claims win over an overlapping passage from the same paper (§5:     "exclude dup, Round-robin across distinct PMIDs (best-ranked-first within each) so     one hea (+3 more)
 
 ### Community 68 - "Community 68"
 Cohesion: 0.29
 Nodes (9): Connection, _claim_fts_text(), _connect(), main(), (section, paragraph) pairs. A markdown heading updates the running     section l, Reconstruct the catalog from committed records. Incomplete staging     directori, rebuild(), split_passages() (+1 more)
 
+### Community 70 - "Community 70"
+Cohesion: 0.40
+Nodes (9): attach module, fetch_pmc_pdf_one(), main(), _normalize_href(), _oa_pdf_link(), _pmc_jats_available(), _pmcid(), _urlopen_bytes() (+1 more)
+
 ### Community 71 - "Community 71"
 Cohesion: 0.05
-Nodes (88): lib_atomic module, lib_ids module, lib_schema module, add_one(), _first_author_lastname(), _first_title_word(), _flag_doi_title_conflicts(), main() (+80 more)
+Nodes (96): lib_atomic module, lib_ids module, lib_schema module, add_one(), _first_author_lastname(), _first_title_word(), _flag_doi_title_conflicts(), main() (+88 more)
 
 ### Community 72 - "Community 72"
 Cohesion: 0.25
@@ -444,12 +449,12 @@ Cohesion: 0.83
 Nodes (3): cite(), main(), Path
 
 ### Community 89 - "Community 89"
-Cohesion: 0.50
-Nodes (7): ref-synthesizer Subagent, _check_dir(), main(), persist_check(), show_check(), Path, validate_citations module
+Cohesion: 0.62
+Nodes (6): _check_dir(), main(), persist_check(), show_check(), Path, validate_citations module
 
 ### Community 94 - "Community 94"
-Cohesion: 0.27
-Nodes (10): grant module, person module, verify._append_correction, author_contribution flags require explicit evidence, never inferred from position, corrections.json overlay record, grant_link review never folds award_number into approved_aliases, verify.review_author_contribution, verify.review_claim (+2 more)
+Cohesion: 0.23
+Nodes (12): appraise module, grant module, person module, verify._append_correction, author_contribution flags require explicit evidence, never inferred from position, corrections.json overlay record, grant_link review never folds award_number into approved_aliases, verify.review_appraisal (+4 more)
 
 ### Community 122 - "Community 122"
 Cohesion: 0.26
@@ -469,12 +474,12 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `audit.py` and `/ref:verify`?**
   _Edge tagged AMBIGUOUS (relation: references) - confidence is low._
-- **Why does `init_repo module` connect `Publications & Authorship Script` to `Selector, Audit & Export Pipeline`, `People, Grants & Identifiers`, `Community 66`, `Acquisition Tests (Phase 3)`, `Summarize/Review Tests (Phase 10)`, `Extraction Tests (Phase 4)`, `OKF & Related-Papers Tests`, `Compare Tests (Phase 5)`, `Gaps Tests (Phase 9)`, `Annotation & Vision Cache Tests`, `Ask/Retrieve Tests (Phase 6)`, `Audit Tests (Phase 11)`, `Concept Graph Tests (Phase 8)`, `Check-Citations Tests (Phase 7)`, `Papers.app Tests (Phase 3)`, `Init/Catalog Tests (Phase 0)`, `PRISMA Tests (Phase 5)`, `Community 61`?**
-  _High betweenness centrality (0.166) - this node is a cross-community bridge._
-- **Why does `lib_atomic module` connect `Community 71` to `Ingestion & OKF Emit Pipeline`, `Selector, Audit & Export Pipeline`, `Papers.app Export & Handoff`, `Appraisal & Claim Verification`, `Acquisition Tests (Phase 3)`, `Concept Graph & Gap/Hypothesis Discovery`, `OKF & Related-Papers Tests`, `Annotation & Vision Cache Tests`, `Brief & Compare Scripts`, `Init/Catalog Tests (Phase 0)`, `Methods & Study Records`, `PRISMA Flow Script`, `Related-Papers Script`, `Figure Vision Cache`, `Docs: Ask/Brief/Summarize Commands`, `Community 58`, `Community 60`, `Community 62`, `Community 89`?**
-  _High betweenness centrality (0.159) - this node is a cross-community bridge._
-- **Why does `atomic_write_json()` connect `Community 71` to `Ingestion & OKF Emit Pipeline`, `Selector, Audit & Export Pipeline`, `Papers.app Export & Handoff`, `Appraisal & Claim Verification`, `Concept Graph & Gap/Hypothesis Discovery`, `OKF & Related-Papers Tests`, `Annotation & Vision Cache Tests`, `Brief & Compare Scripts`, `Audit Tests (Phase 11)`, `Init/Catalog Tests (Phase 0)`, `PRISMA Flow Script`, `Related-Papers Script`, `Figure Vision Cache`, `Docs: Ask/Brief/Summarize Commands`, `Community 58`, `Community 62`, `Community 63`, `Community 83`, `Community 89`?**
-  _High betweenness centrality (0.091) - this node is a cross-community bridge._
+- **Why does `lib_atomic module` connect `Community 71` to `Ingestion & OKF Emit Pipeline`, `Selector, Audit & Export Pipeline`, `Papers.app Export & Handoff`, `Appraisal & Claim Verification`, `Acquisition Tests (Phase 3)`, `Concept Graph & Gap/Hypothesis Discovery`, `OKF & Related-Papers Tests`, `Annotation & Vision Cache Tests`, `Brief & Compare Scripts`, `Init/Catalog Tests (Phase 0)`, `Methods & Study Records`, `PRISMA Flow Script`, `Publications & Authorship Script`, `Related-Papers Script`, `Figure Vision Cache`, `Docs: Ask/Brief/Summarize Commands`, `Community 58`, `Community 60`, `Community 62`, `Community 89`?**
+  _High betweenness centrality (0.162) - this node is a cross-community bridge._
+- **Why does `init_repo module` connect `Community 61` to `Selector, Audit & Export Pipeline`, `Community 66`, `People, Grants & Identifiers`, `Acquisition Tests (Phase 3)`, `Summarize/Review Tests (Phase 10)`, `Extraction Tests (Phase 4)`, `OKF & Related-Papers Tests`, `Compare Tests (Phase 5)`, `Gaps Tests (Phase 9)`, `Annotation & Vision Cache Tests`, `Ask/Retrieve Tests (Phase 6)`, `Audit Tests (Phase 11)`, `Concept Graph Tests (Phase 8)`, `Check-Citations Tests (Phase 7)`, `Papers.app Tests (Phase 3)`, `Init/Catalog Tests (Phase 0)`, `PRISMA Tests (Phase 5)`?**
+  _High betweenness centrality (0.153) - this node is a cross-community bridge._
+- **Why does `atomic_write_json()` connect `Community 71` to `Ingestion & OKF Emit Pipeline`, `Selector, Audit & Export Pipeline`, `Papers.app Export & Handoff`, `Appraisal & Claim Verification`, `Concept Graph & Gap/Hypothesis Discovery`, `OKF & Related-Papers Tests`, `Annotation & Vision Cache Tests`, `Brief & Compare Scripts`, `Audit Tests (Phase 11)`, `PRISMA Flow Script`, `Publications & Authorship Script`, `Related-Papers Script`, `Figure Vision Cache`, `Docs: Ask/Brief/Summarize Commands`, `Community 58`, `Community 60`, `Community 62`, `Community 63`, `Community 83`, `Community 89`?**
+  _High betweenness centrality (0.092) - this node is a cross-community bridge._
 - **Are the 69 inferred relationships involving `SchemaError` (e.g. with `main()` and `persist_check()`) actually correct?**
   _`SchemaError` has 69 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 42 inferred relationships involving `atomic_write_json()` (e.g. with `run_review()` and `attach_one()`) actually correct?**

@@ -22,21 +22,26 @@ Steps:
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/lib_intake.py" classify --repo <library_root> <item...>
    ```
    This replaces doing type-dispatch by hand — the script is local and
-   deterministic (no network/MCP), and each result item carries `kind`
-   (`pmid`/`doi`/`url`/`pdf`/`bib_file`/`csl_file`/`unknown`), whatever
-   clues it found, and a `status` when the item is a duplicate:
+   deterministic (no network/MCP). A `.bib`/`.csl.json` file is parsed
+   locally and expanded into one `bib_entry`/`csl_entry` result per record
+   (same as a PDF directory expands into individual `pdf` results), each
+   carrying whatever `doi`/`pmid`/`title`/`year`/`journal` clues that record
+   had. Every result item carries `kind`
+   (`pmid`/`doi`/`url`/`pdf`/`bib_entry`/`csl_entry`/`bib_file`/`csl_file`/`unknown`
+   — a bare `bib_file`/`csl_file` result only appears when the file had zero
+   parseable entries), whatever clues it found, and a `status` when the item
+   is a duplicate:
    - `duplicate_in_batch` — an earlier item in this same call already claimed
      the same identity (e.g. a bare PMID and a PubMed URL for the same
-     paper). Skip it; report it against the first occurrence, don't resolve
-     it twice.
+     paper, or a `.bib` entry whose `doi` matches an earlier item). Skip it;
+     report it against the first occurrence, don't resolve it twice.
    - `already_imported` — the resolved identity (pmid/doi/pmcid) matches a
      paper already in the library (`existing_pmid` names it). Skip
      resolution/add for it and report `already imported as <pmid>` — this is
      the friendly duplicate message, not a failure.
-   - `bib_file`/`csl_file` results come back `"result": "unparsed"` —
-     parsing bibliography file contents isn't implemented yet. Tell the user
-     to extract PMIDs/DOIs from it another way for now, or skip it; don't
-     silently drop it from the report.
+   - a `bib_file`/`csl_file` result with `"result": "no_clues"` means the
+     file parsed but had zero entries (or wasn't valid BibTeX/JSON). Report
+     it and move on; there's nothing to resolve.
 3. For every remaining item (not a batch/library duplicate), resolve to a PMID:
    - `kind: "pmid"` — use it directly.
    - `kind: "doi"` or a `doi` clue on a `url`/`pdf` item — call PubMed MCP
@@ -48,6 +53,11 @@ Steps:
      JSON-LD/`citation_pmid`/`citation_pmcid`, then repeat the DOI/PMID/PMCID
      resolution above; for a `pdf`, show its `title_guess` and ask the user
      to pick/provide a PMID or skip it.
+   - `kind: "bib_entry"` or `"csl_entry"` — if it carries a `pmid` clue, use
+     it directly; else if it carries a `doi` clue, resolve via PubMed MCP
+     `search_articles` same as any other DOI clue; else show its `title`
+     (from the bib/CSL record, via `citekey`) and ask the user to
+     pick/provide a PMID or skip it.
    - `kind: "unknown"` — show the raw input and ask the user to provide a
      PMID/DOI/URL/path, or skip it.
 4. Call PubMed MCP `get_article_metadata` once for all resolved PMIDs and
@@ -65,7 +75,7 @@ Steps:
 Suggested output shape:
 ```text
 classify:
-<input>: pmid|doi|url|pdf|bib_file|csl_file|unknown [already imported as <pmid> | duplicate of <input>]
+<input>: pmid|doi|url|pdf|bib_entry|csl_entry|bib_file|csl_file|unknown [already imported as <pmid> | duplicate of <input>]
 
 add:
 ...

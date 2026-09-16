@@ -85,19 +85,36 @@ class TestClassifyItemFiles(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def test_bib_file_flagged_unparsed(self):
+    def test_bib_file_parsed_into_entries(self):
         bib = self.tmp / "refs.bib"
-        bib.write_text("@article{x, title={t}}")
+        bib.write_text('@article{x2020, title={t}, doi={10.1038/x}}')
         r = lib_intake.classify_item(str(bib))
         self.assertEqual(r["kind"], "bib_file")
-        self.assertEqual(r["result"], "unparsed")
+        self.assertEqual(r["result"], "identified_entries")
+        self.assertEqual(len(r["entries"]), 1)
+        self.assertEqual(r["entries"][0]["doi"], "10.1038/x")
 
-    def test_csl_json_file_flagged_unparsed(self):
+    def test_empty_bib_file_is_no_clues(self):
+        bib = self.tmp / "empty.bib"
+        bib.write_text("")
+        r = lib_intake.classify_item(str(bib))
+        self.assertEqual(r["kind"], "bib_file")
+        self.assertEqual(r["result"], "no_clues")
+
+    def test_csl_json_file_parsed_into_entries(self):
         csl = self.tmp / "refs.csl.json"
+        csl.write_text(json.dumps([{"id": "x", "title": "t", "DOI": "10.1038/x"}]))
+        r = lib_intake.classify_item(str(csl))
+        self.assertEqual(r["kind"], "csl_file")
+        self.assertEqual(r["result"], "identified_entries")
+        self.assertEqual(r["entries"][0]["doi"], "10.1038/x")
+
+    def test_empty_csl_json_file_is_no_clues(self):
+        csl = self.tmp / "empty.csl.json"
         csl.write_text("[]")
         r = lib_intake.classify_item(str(csl))
         self.assertEqual(r["kind"], "csl_file")
-        self.assertEqual(r["result"], "unparsed")
+        self.assertEqual(r["result"], "no_clues")
 
     def test_pdf_dir_expands_non_recursive(self):
         (self.tmp / "a.pdf").write_bytes(b"%PDF-1.4 fake")
@@ -152,6 +169,50 @@ class TestClassifyAll(unittest.TestCase):
         results = lib_intake.classify_all(["garbage-one", "garbage-two"])
         self.assertNotIn("status", results[0])
         self.assertNotIn("status", results[1])
+
+    def test_expands_bib_file_into_flat_bib_entry_items(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            bib = tmp / "refs.bib"
+            bib.write_text(
+                "@article{a2020, title={A}, doi={10.1038/a}}\n"
+                "@article{b2021, title={B}, year={2021}}\n"
+            )
+            results = lib_intake.classify_all([str(bib)])
+            self.assertEqual(len(results), 2)
+            self.assertTrue(all(r["kind"] == "bib_entry" for r in results))
+            self.assertEqual(results[0]["doi"], "10.1038/a")
+            self.assertEqual(results[0]["result"], "identified_clues")
+            self.assertIsNone(results[1]["doi"])
+            self.assertEqual(results[1]["result"], "no_clues")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_expands_csl_file_into_flat_csl_entry_items(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            csl = tmp / "refs.csl.json"
+            csl.write_text(json.dumps([
+                {"id": "a", "title": "A", "PMID": "12345678"},
+                {"id": "b", "title": "B"},
+            ]))
+            results = lib_intake.classify_all([str(csl)])
+            self.assertEqual(len(results), 2)
+            self.assertTrue(all(r["kind"] == "csl_entry" for r in results))
+            self.assertEqual(results[0]["pmid"], "12345678")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_bib_entry_with_pmid_matching_earlier_pmid_flagged_duplicate(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            bib = tmp / "refs.bib"
+            bib.write_text('@article{a2020, title={A}, pmid={12345678}}')
+            results = lib_intake.classify_all(["12345678", str(bib)])
+            self.assertNotIn("status", results[0])
+            self.assertEqual(results[1]["status"], "duplicate_in_batch")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class TestFindExistingByIdentity(TempLibrary):
@@ -210,6 +271,15 @@ class TestResolveBatch(TempLibrary):
         results = lib_intake.resolve_batch(self.library_root, ["11111", "11111"])
         self.assertEqual(results[0]["status"], "already_imported")
         self.assertEqual(results[1]["status"], "duplicate_in_batch")
+
+    def test_bib_entry_doi_flags_already_imported(self):
+        self._write_meta("11111", doi="10.1038/a")
+        bib = self.tmp / "refs.bib"
+        bib.write_text('@article{a2020, title={A}, doi={10.1038/a}}')
+        results = lib_intake.resolve_batch(self.library_root, [str(bib)])
+        self.assertEqual(results[0]["kind"], "bib_entry")
+        self.assertEqual(results[0]["status"], "already_imported")
+        self.assertEqual(results[0]["existing_pmid"], "11111")
 
 
 class TestCli(TempLibrary):

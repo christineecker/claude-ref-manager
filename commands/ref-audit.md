@@ -14,18 +14,18 @@ Parse `$ARGUMENTS` for:
   latest real citation observation plus its staleness, without checking
   anything new.
 
-**Read this before running `--citations`**: this environment's PubMed MCP
-server has no real cited-by/citing-article COUNT source. Every tool was
-checked — `search_articles`, `get_article_metadata`, `get_full_text_article`,
-`find_related_articles` (only `pubmed_pubmed` word-similarity, no citation
-graph — confirmed live in phase 9's `/ref:related` work), `convert_article_ids`,
-`lookup_article_by_citation`, `get_copyright_status`. None of them return a
-PMC ELink cited-by count. The persistence machinery below is fully built and
-tested so it activates the moment a real source is available (a PMC ELink API
-call via WebFetch, or a future MCP tool) — until then, be honest with the
-user that `--citations` has nothing to record rather than silently
-fabricating counts from `pubmed_pubmed` similarity results, which are NOT
-citations.
+**Read this before running `--citations`**: no PubMed MCP tool has a real
+cited-by/citing-article COUNT source — `search_articles`,
+`get_article_metadata`, `get_full_text_article`, `find_related_articles`
+(only `pubmed_pubmed` word-similarity, no citation graph — confirmed live in
+phase 9's `/ref:related` work), `convert_article_ids`,
+`lookup_article_by_citation`, `get_copyright_status` were all checked. The
+wired source is instead a direct NCBI E-utilities ELink call over WebFetch
+(see step 3 below) — a real, public "cited in PMC" count, not a fabricated
+one. Its `coverage` is intentionally narrow: it only counts citing articles
+that are themselves indexed in PMC, so it undercounts total literature
+citations. Never fabricate a count from `pubmed_pubmed` similarity results —
+those are NOT citations.
 
 Steps for the default (retraction-status) mode:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).
@@ -55,16 +55,32 @@ Steps for the default (retraction-status) mode:
    paper needs an explicit `--refresh` to surface that (never auto-refreshed
    silently; the artifact's prior frozen version is never overwritten).
 
-Steps for `--citations` mode (only if a real cited-by count source is
-actually available — see the caveat above):
+Steps for `--citations` mode:
 1-2. Same as above.
 3. For each PMID, first check `meta.json`/`convert_article_ids` for a PMCID.
-   No PMCID → `{"pmid": ..., "no_pmcid": true}`. Otherwise, look up the real
-   citing-article count from whatever source is actually wired in and wrap it
-   under the literal key `"observation"` — this is the one field name
-   `audit.py` actually reads for a successful result, verified live:
+   No PMCID → `{"pmid": ..., "no_pmcid": true}`. Otherwise, strip any `PMC`
+   prefix to get the bare numeric PMC id and fetch (via WebFetch, one PMID at
+   a time — do not batch multiple `id=` params into one call, so a single
+   malformed response never blocks the rest of the sweep):
+   ```
+   https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pmc&linkname=pmc_pmc_citedby&id=<pmcid-numeric>&retmode=json
+   ```
+   This is `pmc_pmc_citedby` — NCBI's "Cited By" link for a PMC record: other
+   PMC articles that cite it. Parse the response:
    ```json
-   {"pmid": "...", "observation": {"source": "pmc_elink", "query": "<exact query>",
+   {"linksets": [{"linksetdbs": [{"dbto": "pmc", "linkname": "pmc_pmc_citedby", "links": ["<pmcid>", ...]}]}]}
+   ```
+   `count` is `len(links)`. If `linksets[0]` has no `linksetdbs` entry (the
+   key is simply absent when there are zero citing links — NCBI omits empty
+   linksetdbs rather than returning an empty list), treat that as a real
+   `count: 0`, not a failure. A non-2xx response, unparseable JSON, or a
+   missing `linksets` key is a failed lookup, not a zero.
+   Wrap a successful result under the literal key `"observation"` — this is
+   the one field name `audit.py` actually reads for a successful result,
+   verified live:
+   ```json
+   {"pmid": "...", "observation": {"source": "pmc_elink",
+     "query": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pmc&linkname=pmc_pmc_citedby&id=<pmcid-numeric>&retmode=json",
      "count": <int>, "coverage": "citing articles indexed in PMC; not a total citation count"}}
    ```
    A failed lookup → `{"pmid": ..., "error": "..."}` — never a fabricated zero.

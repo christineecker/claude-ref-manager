@@ -29,6 +29,9 @@
   <ol>
     <li><a href="#overview">How they fit</a></li>
     <li><a href="#help"><code>/ref:help</code></a></li>
+    <li><a href="#maintain"><code>/ref:maintain</code></a></li>
+    <li><a href="#lint"><code>/ref:lint</code></a></li>
+    <li><a href="#repair-fulltext"><code>/ref:repair-fulltext</code></a></li>
     <li><a href="#audit"><code>/ref:audit</code></a></li>
     <li><a href="#index"><code>/ref:index</code></a></li>
     <li><a href="#status"><code>/ref:status</code></a></li>
@@ -170,6 +173,50 @@
 <h2>Commands</h2>
 <div class="cmd-groups">
 
+<!-- ================= maintain ================= -->
+<article class="cmd" id="maintain">
+  <div class="cmd-head"><h3>/ref:maintain</h3><div class="chips"><span class="tag phase">phase 11+</span><span class="tag ro">mostly read-only</span></div></div>
+  <p class="summary">Run a compact maintenance cycle: status, lint, optional index rebuild, and optional retraction audit.</p>
+  <div class="synopsis">/ref:maintain [--stale-days &lt;N&gt;] [--no-index] [--no-audit] [--verbosity quick|normal|verbose]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--stale-days &lt;N&gt;</dt><dd>Lint stale threshold in days. Default <code>180</code>.</dd>
+    <dt>--no-index</dt><dd>Skip catalog rebuild.</dd>
+    <dt>--no-audit</dt><dd>Skip retraction-status sweep.</dd>
+    <dt>--verbosity</dt><dd>Passed to <a href="#status"><code>/ref:status</code></a>. Default <code>quick</code>.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs <a href="#status"><code>/ref:status</code></a> first, to print a fast health snapshot.</li>
+    <li>Runs <a href="#lint"><code>/ref:lint</code></a> with <code>--snapshot</code> to bucket PMIDs by maintenance issue class and record a timestamped report under <code>maintenance/</code>.</li>
+    <li>Unless skipped, runs <a href="#index"><code>/ref:index --rebuild</code></a> (and relation refresh when graph relations exist).</li>
+    <li>Unless skipped, runs <a href="#audit"><code>/ref:audit</code></a> in default retraction mode.</li>
+    <li>Prints compact next actions based on what those stages found.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads everything status/lint/audit read. Writes a lint snapshot under <code>maintenance/</code>, plus whatever index/audit write when those stages are enabled.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:maintain --stale-days 180</span>
+<span class="o">status:</span>
+<span class="o">status: needs full text</span>
+
+<span class="o">lint:</span>
+<span class="o">- abstract_only: 18 [...]</span>
+
+<span class="o">index:</span>
+<span class="o">catalog rebuilt: ...</span>
+
+<span class="o">audit:</span>
+<span class="o">changed_pmids: []</span>
+
+<span class="o">next:</span>
+<span class="o">- /ref:fetch &lt;pmid...&gt;</span>
+<span class="o">- /ref:extract &lt;pmid...&gt;</span></pre>
+  <h4>See also</h4>
+  <p class="writes"><a href="#status"><code>/ref:status</code></a> · <a href="#lint"><code>/ref:lint</code></a> · <a href="#index"><code>/ref:index</code></a> · <a href="#audit"><code>/ref:audit</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
+</article>
+
 <!-- ================= help ================= -->
 <article class="cmd" id="help">
   <div class="cmd-head"><h3>/ref:help</h3><div class="chips"><span class="tag phase">phase 0</span><span class="tag ro">read-only</span></div></div>
@@ -200,6 +247,73 @@ required.
   <p class="writes"><a href="acquire.html#init"><code>/ref:init</code></a> · <a href="#status"><code>/ref:status</code></a> · <a href="find.html#selectors">selector grammar</a></p>
 </article>
 
+<!-- ================= lint ================= -->
+<article class="cmd" id="lint">
+  <div class="cmd-head"><h3>/ref:lint</h3><div class="chips"><span class="tag phase">phase 11+</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Read-only maintenance lint: list incomplete metadata/full-text state, repo integrity gaps, and stale checks with direct next-action commands.</p>
+  <div class="synopsis">/ref:lint [--stale-days &lt;N&gt;] [--json] [--snapshot]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--stale-days &lt;N&gt;</dt><dd>Optional age threshold in days for stale checks. Default <code>180</code>.</dd>
+    <dt>--json</dt><dd>Optional machine-readable report.</dd>
+    <dt>--snapshot</dt><dd>Optional. Also write the report to <code>maintenance/&lt;UTC-timestamp&gt;.json</code> in the library root.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Scans every paper folder and buckets PMIDs by maintenance issue class.</li>
+    <li>Flags metadata gaps (<code>missing_title</code>, <code>missing_year</code>, <code>missing_journal</code>, <code>missing_doi</code>), completeness gaps (<code>metadata_only</code>, <code>abstract_only</code>, <code>oa_pending</code>), and integrity gaps (<code>missing_meta</code>, <code>missing_current</code>, <code>missing_claim_registry</code>).</li>
+    <li>Flags stale checks when <code>checked_at</code> is older than the threshold.</li>
+    <li>Reports compact recommended follow-ups, e.g. <code>/ref:index --rebuild</code>, <code>/ref:audit</code>, <code>/ref:fetch</code>, <code>/ref:extract</code>.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads paper records and index presence. Writes nothing unless <code>--snapshot</code> is passed, in which case it writes one timestamped JSON report under <code>maintenance/</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:lint --stale-days 180</span>
+<span class="o">papers_total: 124</span>
+<span class="o">issues_total: 39</span>
+<span class="o">catalog_present: true</span>
+
+<span class="o">issues:</span>
+<span class="o">- abstract_only: 18 [40665956, 40691132, ...]</span>
+<span class="o">- missing_claim_registry: 11 [40510001, 40510002, ...]</span>
+
+<span class="o">recommended next actions:</span>
+<span class="o">- run /ref:audit</span>
+<span class="o">- run /ref:fetch &lt;pmid...&gt; or /ref:add-fetch &lt;pmid...&gt;</span>
+<span class="o">- run /ref:extract &lt;pmid...&gt;</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>lint.py run --repo &lt;library_root&gt; [--stale-days N] [--json] [--snapshot]</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#status"><code>/ref:status</code></a> · <a href="#audit"><code>/ref:audit</code></a> · <a href="#index"><code>/ref:index</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
+</article>
+
+<!-- ================= repair-fulltext ================= -->
+<article class="cmd" id="repair-fulltext">
+  <div class="cmd-head"><h3>/ref:repair-fulltext</h3><div class="chips"><span class="tag phase">phase 11+</span><span class="tag net">PubMed MCP</span><span class="tag net">Unpaywall</span></div></div>
+  <p class="summary">Batch-repair full-text gaps found by <code>/ref:lint</code>: work through <code>metadata_only</code>, <code>abstract_only</code>, and <code>oa_pending</code> PMIDs with the same per-PMID acquisition workflow as <code>/ref:fetch</code>, bounded by <code>--limit</code> and resume-safe across runs.</p>
+  <div class="synopsis">/ref:repair-fulltext [--limit &lt;N&gt;] [--stale-days &lt;N&gt;] [--retry-failed] [selector]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--limit &lt;N&gt;</dt><dd>Optional. Max PMIDs attempted this run. Default <code>20</code>.</dd>
+    <dt>--stale-days &lt;N&gt;</dt><dd>Optional. Passed to the underlying <code>/ref:lint</code> bucket selection. Default <code>180</code>.</dd>
+    <dt>--retry-failed</dt><dd>Optional. Without it, PMIDs marked <code>failed</code>/<code>abstract_only</code> in the resume state within the last 24h are skipped.</dd>
+    <dt>selector</dt><dd>Optional. Restrict candidates to a <code>/ref:search</code>-style selector match before batching.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Runs <a href="#lint"><code>/ref:lint --json</code></a> and unions the <code>metadata_only</code>, <code>abstract_only</code>, and <code>oa_pending</code> buckets into a candidate list.</li>
+    <li>Loads per-PMID resume state from <code>maintenance/repair-fulltext-state.json</code> and skips recently-attempted candidates unless <code>--retry-failed</code> is set.</li>
+    <li>Takes the first <code>--limit</code> remaining candidates and runs <code>/ref:fetch</code>'s acquisition workflow on each, independently.</li>
+    <li>Writes each attempted PMID's result and timestamp back to the resume state file.</li>
+    <li>Prints a summary with counts and, when candidates remain, a suggested re-run.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads lint output and paper records. Writes full-text/version data the same way <code>/ref:fetch</code> does, plus <code>maintenance/repair-fulltext-state.json</code> bookkeeping (never <code>papers/&lt;pmid&gt;/</code> directly).</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#lint"><code>/ref:lint</code></a> · <a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
+</article>
+
 <!-- ================= audit ================= -->
 <article class="cmd" id="audit">
   <div class="cmd-head"><h3>/ref:audit</h3><div class="chips"><span class="tag phase">phase 11</span><span class="tag net">PubMed MCP</span></div></div>
@@ -221,8 +335,8 @@ required.
     <li>A successful check updates <code>retraction_status</code> in <code>meta.json</code> and reports whether it changed. A failed check leaves the prior status untouched and prints a diagnostic. It never guesses <code>"none"</code> or downgrades an earlier <code>"retracted"</code>.</li>
     <li>If any status changed, <code>propagate</code> lists saved <code>/ref:brief</code>, <code>/ref:compare</code> and <code>/ref:summarize</code> artifacts that used those papers. They are not refreshed automatically; you run <code>--refresh</code> on them, and their earlier frozen versions are kept.</li>
   </ol>
-  <p><strong><code>--citations</code> mode:</strong> for each PMID, a paper with no PMCID gets a <code>no_pmcid</code> marker, a failed lookup gets a <code>check_failed</code> marker, and a real count is stored with its source, query, coverage note and retrieval date. Every call appends to <code>citations.json</code>; earlier entries are never overwritten, and a failure never becomes a zero.</p>
-  <div class="note warn"><strong>No citation-count source is wired in yet.</strong> None of the PubMed MCP tools available return a PMC cited-by count, and related-article similarity is not citation. The storage and display machinery is built and tested, but until a real source exists, <code>--citations</code> has nothing to record and the command says so instead of inventing counts.</div>
+  <p><strong><code>--citations</code> mode:</strong> for each PMID, a paper with no PMCID gets a <code>no_pmcid</code> marker; otherwise Claude fetches NCBI's <code>pubmed_pmc_refs</code> ELink ("Cited in PMC") for that PMID directly over WebFetch, one PMID at a time. A failed/unparseable response gets a <code>check_failed</code> marker; a real count is stored with source <code>pmc_elink</code>, the exact query URL, a coverage note, and the retrieval date. Every call appends to <code>citations.json</code>; earlier entries are never overwritten, and a failure never becomes a zero.</p>
+  <div class="note warn"><strong>Coverage is PMC-only.</strong> <code>pmc_elink</code> counts only citing articles that are themselves indexed in PMC — it undercounts total literature citations. No PubMed MCP tool provides a citation-graph count (related-article similarity is not citation), so this direct NCBI E-utilities call is the real source, not a fabricated one.</div>
   <p><strong><code>show-citations</code>:</strong> skips <code>check_failed</code> and <code>no_pmcid</code> markers and shows the most recent real observation. A PMID with none shows <code>null</code>, which means "no observation available", not zero.</p>
   <h4>Reads &amp; writes</h4>
   <p class="writes">Retraction mode updates <code>papers/&lt;pmid&gt;/meta.json</code> (<code>retraction_status</code>). <code>--citations</code> appends to <code>papers/&lt;pmid&gt;/citations.json</code>. <code>propagate</code> and <code>show-citations</code> only read: saved artifact manifests under <code>tables/</code>, <code>summaries/</code>, <code>briefs/</code> (library-wide and per project), and <code>citations.json</code>.</p>

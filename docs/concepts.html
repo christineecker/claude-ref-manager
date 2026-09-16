@@ -448,7 +448,7 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
 {"status": "check_failed", "reason": "…", "retrieved_at": "…"}
 <span class="c">// no PMCID, so no PMC cited-by is possible</span>
 {"status": "no_pmcid", "reason": "paper has no PMCID", "retrieved_at": "…"}</pre>
-<p>Markers must not carry a <code>count</code>. <code>latest_real_observation</code> skips markers, so a failed check leaves the previous dated count visible. <code>show-citations</code> prints <code>null</code> when there is no real observation, which means unknown, not zero. The staleness threshold defaults to 180 days (<code>--stale-days</code>). The count in the example above is illustrative. As <code>commands/ref-audit.md</code> states, the PubMed MCP server in this environment has no cited-by count source, so <code>--citations</code> has nothing real to record until one is connected.</p>
+<p>Markers must not carry a <code>count</code>. <code>latest_real_observation</code> skips markers, so a failed check leaves the previous dated count visible. <code>show-citations</code> prints <code>null</code> when there is no real observation, which means unknown, not zero. The staleness threshold defaults to 180 days (<code>--stale-days</code>). No PubMed MCP tool in this environment returns a citation count, so as <code>commands/ref-audit.md</code> describes, <code>--citations</code> fetches NCBI's <code>pmc_pmc_citedby</code> ELink directly over WebFetch — a real, PMC-only count (it undercounts total literature citations, since it only sees citing articles that are themselves in PMC).</p>
 </section>
 
 <!-- ============================================================ -->

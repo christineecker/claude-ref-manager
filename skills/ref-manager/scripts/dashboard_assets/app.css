@@ -83,6 +83,10 @@ svg.chart .v{fill:var(--ink);font-weight:500}
 .fchip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .fchip .x{font-family:"IBM Plex Mono",monospace}
 .result{font-size:.8rem;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.views{display:flex;gap:6px;align-items:center}
+.views select{font:inherit;font-size:.82rem;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.views button{font-size:.8rem;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 9px;cursor:pointer}
+.views button:hover{border-color:var(--accent);color:var(--accent)}
 
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
 table{border-collapse:collapse;width:100%;min-width:900px}
@@ -114,6 +118,12 @@ th.num{text-align:right}
 .actionbar button:hover{background:color-mix(in srgb,var(--ground) 14%,transparent)}
 .actionbar .n{font-weight:600}
 
+.pager{display:flex;align-items:center;gap:12px;justify-content:center;padding:2px 0}
+.pager button{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:.82rem}
+.pager button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager .pageinfo{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
 .heat{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px}
 .heat table{min-width:760px;border-collapse:collapse}
 .heat td,.heat th{border:0;padding:3px 4px}
@@ -129,6 +139,7 @@ th.num{text-align:right}
 .plegend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:.84rem}
 .kv span:nth-child(even){font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
+.pcmds{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 
 .spark{display:grid;grid-template-columns:150px 1fr 40px 54px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
 .spark:last-child{border-bottom:0}
@@ -141,6 +152,7 @@ th.num{text-align:right}
 .changes li:last-child{border-bottom:0}
 .changes .pm{font-family:"IBM Plex Mono",monospace;font-size:.76rem;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:var(--accent);color:#fff;padding:6px 14px;border-radius:6px;font-size:.84rem;z-index:30}
+.errbanner{background:color-mix(in srgb,var(--crit) 14%,var(--panel));border:1px solid var(--crit);color:var(--crit);border-radius:8px;padding:9px 14px;font-size:.84rem}
 tbody tr{cursor:pointer}
 tbody tr[aria-current="true"]{box-shadow:inset 3px 0 0 var(--accent)}
 
@@ -197,6 +209,22 @@ tbody tr[aria-current="true"]{box-shadow:inset 3px 0 0 var(--accent)}
 .cmdbtn:hover{border-color:var(--accent);color:var(--accent)}
 .cmdbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 @media (max-width:560px){.facts{grid-template-columns:96px 1fr}}
+
+/* P2.3: compact card layout for the papers table on narrow screens --
+   metadata and actions stay reachable without horizontal scrolling. */
+@media (max-width:680px){
+  .tablewrap{overflow-x:visible;border:0;background:transparent}
+  table{min-width:0;width:100%}
+  thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  tbody{display:grid;gap:10px}
+  tbody tr{display:grid;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  tbody td{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px dashed var(--line);padding:5px 0;text-align:right}
+  tbody td:last-child{border-bottom:0}
+  tbody td[data-label]::before{content:attr(data-label);font-weight:500;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;text-align:left}
+  tbody td[data-label="Paper"]{flex-direction:column;align-items:flex-start;text-align:left}
+  tbody td[data-label="Select"]{justify-content:flex-start}
+  .toolbar .views{width:100%;flex-wrap:wrap}
+}
 
 .pdf-status{padding:28px 20px;display:grid;gap:10px;align-content:start;max-width:60ch}
 .pdf-status h4{margin:0;font-size:1rem;font-weight:600}

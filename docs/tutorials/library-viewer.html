@@ -109,6 +109,7 @@
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --static --open</span>
 <span class="o">dashboard built: /Users/you/refs/reports/dashboard/index.html</span></pre>
 <div class="note">In static mode the PDF opens in a new browser tab, not in-page, and the notes composer only writes a browser-local draft with a "Copy <code>/ref:note</code>" button — nothing is committed until you actually run <code>/ref:note</code>. A rebuild replaces the whole <code>reports/dashboard/</code> directory in one step; a failed build never touches the previous snapshot.</div>
+<p>Keyboard: <code>/</code> focuses search, <code>j</code>/<code>k</code> (or arrow keys) move the row selection, <code>Enter</code> opens the selected row, <code>n</code>/<code>p</code> step through papers inside the open drawer, <code>Esc</code> closes it. Focus is trapped in the drawer while it's open and returns to the triggering row on close. In serve mode, a manual refresh re-fetches rows, snapshots, lint, and the coverage matrix independently — one endpoint failing shows an error banner naming it but leaves the other tabs on their last good data. Filter/sort/project combinations can be saved as named views (browser-local only, never sent to the server). The Papers table and coverage matrix paginate for large libraries, and narrow screens get a card layout instead of horizontal table scroll.</p>
 </section>
 
 <section>

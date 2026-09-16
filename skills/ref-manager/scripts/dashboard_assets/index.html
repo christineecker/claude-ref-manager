@@ -19,6 +19,8 @@
     <span class="meta-line" id="generated-line"></span>
   </header>
 
+  <div class="errbanner" id="errbanner" role="alert" hidden></div>
+
   <div class="grid g3">
     <section class="panel" aria-labelledby="h-health">
       <h2 id="h-health">Health <span id="health-count"></span></h2>
@@ -63,7 +65,14 @@
         <option value="all">All projects</option>
       </select>
       <span id="activefilters" class="toolbar"></span>
-      <span class="result" id="result"></span>
+      <span class="views">
+        <select id="viewselect" aria-label="Saved view"><option value="">Saved views…</option></select>
+        <button id="view-apply" type="button">Apply</button>
+        <button id="view-save" type="button">Save current…</button>
+        <button id="view-rename" type="button">Rename</button>
+        <button id="view-delete" type="button">Delete</button>
+      </span>
+      <span class="result" id="result" role="status" aria-live="polite"></span>
     </div>
     <div class="tablewrap">
       <table>
@@ -80,16 +89,20 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
+    <div class="pager" id="pager"></div>
     <div class="actionbar" id="actionbar" hidden>
       <span><span class="n" id="seln"></span> selected</span>
       <code id="cmd-fetch"></code><button data-copy="cmd-fetch">Copy</button>
       <code id="cmd-extract"></code><button data-copy="cmd-extract">Copy</button>
+      <code id="cmd-fetchpdf"></code><button data-copy="cmd-fetchpdf">Copy</button>
+      <code id="cmd-audit"></code><button data-copy="cmd-audit">Copy</button>
       <button id="clearsel">Clear</button>
     </div>
   </section>
 
   <section id="p-coverage" hidden>
     <div class="heat"><table id="heat"></table></div>
+    <div class="pager" id="matrix-pager"></div>
   </section>
 
   <section id="p-projects" class="projgrid" hidden></section>
@@ -103,10 +116,14 @@
       <h2>Changed since previous snapshot</h2>
       <ul class="changes" id="changes"></ul>
     </div>
+    <div class="panel">
+      <h2>Changed papers</h2>
+      <ul class="changes" id="changes-by-paper"></ul>
+    </div>
   </section>
 </div>
 
-<div class="toast" id="toast" hidden>Copied</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>Copied</div>
 
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title" hidden>

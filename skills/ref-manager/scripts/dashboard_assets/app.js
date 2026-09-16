@@ -32,6 +32,41 @@
     return fetch(path, opts);
   }
 
+  // P0.2: every live-data fetch goes through this so a non-2xx response
+  // (403 token mismatch, 404, 5xx, ...) surfaces the endpoint + status
+  // instead of silently handing bad JSON (or an {error:...} envelope) to
+  // the renderers.
+  function fetchJSON(path) {
+    return apiFetch(path).then(function (r) {
+      if (!r.ok) {
+        var err = new Error("http " + r.status + " on " + path);
+        err.endpoint = path;
+        err.status = r.status;
+        throw err;
+      }
+      return r.json();
+    });
+  }
+
+  function describeFetchError(err) {
+    if (err && err.endpoint) return err.endpoint + (err.status ? " (HTTP " + err.status + ")" : "");
+    return (err && err.message) || "unknown error";
+  }
+
+  function showError(msg) {
+    var banner = document.getElementById("errbanner");
+    if (!banner) return;
+    banner.textContent = msg;
+    banner.hidden = false;
+  }
+
+  function clearError() {
+    var banner = document.getElementById("errbanner");
+    if (!banner) return;
+    banner.hidden = true;
+    banner.textContent = "";
+  }
+
   var ROWS = [];
   var BY_PMID = {};
   function setRows(rows) {
@@ -64,7 +99,8 @@
         byslug[p.slug] = byslug[p.slug] || [];
         byslug[p.slug].push({
           pmid: row.pmid, title: row.title, reading_status: p.reading_status,
-          added_at: p.added_at, has_fulltext: row.has_fulltext, claims_active: row.claims_active,
+          added_at: p.added_at, has_fulltext: row.has_fulltext, has_pdf: row.has_pdf,
+          claims_active: row.claims_active, lint_flags: row.lint_flags,
         });
       });
     });
@@ -154,6 +190,12 @@
   }
   function needsExtract(row) {
     return (row.lint_flags || []).indexOf("missing_claim_registry") >= 0;
+  }
+  function needsFetchPdf(row) {
+    return row.has_fulltext && !row.has_pdf;
+  }
+  function needsAudit(row) {
+    return !!row.stale_check;
   }
 
   // -------------------------------------------------------------- header
@@ -395,19 +437,30 @@
   // -------------------------------------------------------------- tabs
 
   var TABS = ["papers", "coverage", "projects", "maint"];
+  var activeTab = "papers";
   function selectTab(name) {
+    activeTab = name;
     TABS.forEach(function (t) {
       document.getElementById("tab-" + t).setAttribute("aria-selected", String(t === name));
       document.getElementById("p-" + t).hidden = t !== name;
     });
   }
+  function renderTabContent(name) {
+    if (name === "coverage") renderCoverageMatrix();
+    if (name === "projects") renderProjects();
+    if (name === "maint") renderMaintenance();
+  }
+  // P0.1: whichever tab is on screen when a manual refresh lands must be
+  // redrawn from the fresh data immediately -- not just next time it's
+  // clicked -- so maintenance/coverage/projects never show stale snapshots.
+  function rerenderActiveTab() {
+    renderTabContent(activeTab);
+  }
   document.getElementById("tabs").addEventListener("click", function (e) {
     var btn = e.target.closest("button[data-tab]");
     if (!btn) return;
     selectTab(btn.dataset.tab);
-    if (btn.dataset.tab === "coverage") renderCoverageMatrix();
-    if (btn.dataset.tab === "projects") renderProjects();
-    if (btn.dataset.tab === "maint") renderMaintenance();
+    renderTabContent(btn.dataset.tab);
   });
 
   // ------------------------------------------------------------- papers
@@ -492,21 +545,52 @@
     return copy;
   }
 
-  var currentVisible = [];
+  var currentVisible = []; // full filtered+sorted set -- drawer prev/next (n/p) walks all of this, not just the current page
+  var currentPageRows = []; // the slice actually in the DOM right now
+  var keyboardActiveIndex = -1; // P0.3: j/k or arrow-key row cursor, scoped to the current page
+  var PAGE_SIZE = 100; // P2.1: keeps the DOM small on large libraries (target: 5k papers) without changing filter/sort semantics
+  var currentPage = 0;
+
+  function highlightActiveRow() {
+    var tbody = document.getElementById("rows");
+    Array.prototype.forEach.call(tbody.children, function (tr, i) {
+      if (i === keyboardActiveIndex) {
+        tr.setAttribute("aria-current", "true");
+        tr.scrollIntoView({ block: "nearest" });
+      } else {
+        tr.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  function moveKeyboardActive(delta) {
+    if (!currentPageRows.length) return;
+    keyboardActiveIndex = Math.max(0, Math.min(currentPageRows.length - 1, keyboardActiveIndex + delta));
+    highlightActiveRow();
+  }
 
   function renderTable() {
     var rows = sortRows(filteredRows());
     currentVisible = rows;
+    var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    if (currentPage >= pages) currentPage = 0;
     document.getElementById("result").textContent = rows.length + " of " + ROWS.length + " papers";
     document.getElementById("c-papers").textContent = String(ROWS.length);
+    renderTableRows();
+  }
+
+  function renderTableRows() {
+    keyboardActiveIndex = -1;
+    var start = currentPage * PAGE_SIZE;
+    currentPageRows = currentVisible.slice(start, start + PAGE_SIZE);
 
     var tbody = document.getElementById("rows");
     clear(tbody);
-    rows.forEach(function (r) {
+    currentPageRows.forEach(function (r) {
       var tr = el("tr", { attrs: { "data-pmid": r.pmid } });
       if (state.selected.has(r.pmid)) tr.className = "sel";
 
-      var cb = el("input", { attrs: { type: "checkbox" } });
+      var cb = el("input", { attrs: { type: "checkbox", "aria-label": "Select " + (r.title || r.pmid) } });
       cb.checked = state.selected.has(r.pmid);
       cb.addEventListener("click", function (e) { e.stopPropagation(); });
       cb.addEventListener("change", function () {
@@ -514,26 +598,26 @@
         renderActionBar();
         tr.className = cb.checked ? "sel" : "";
       });
-      tr.appendChild(el("td", {}, [cb]));
+      tr.appendChild(el("td", { attrs: { "data-label": "Select" } }, [cb]));
 
       var badge = r.source_badge || "none";
-      tr.appendChild(el("td", {}, [
+      tr.appendChild(el("td", { attrs: { "data-label": "Source" } }, [
         el("span", { className: "badge", attrs: { style: "--c:" + SOURCE_COLOR[badge] } }, [
           el("i"), el("span", { text: badge === "none" ? "no meta" : badge }),
         ]),
       ]));
 
-      var titleCell = el("td", {}, [
+      var titleCell = el("td", { attrs: { "data-label": "Paper" } }, [
         el("div", { className: "t-title", text: r.title || "(untitled)" }),
         el("div", { className: "t-key", text: (r.citekey || r.pmid) }),
       ]);
       tr.appendChild(titleCell);
 
-      tr.appendChild(el("td", { className: "num", text: r.year || "" }));
-      tr.appendChild(el("td", { text: r.journal || "" }));
-      tr.appendChild(el("td", { className: "proj", text: projectLabel(r) }));
-      tr.appendChild(el("td", { className: "num", text: r.claims_active }));
-      var ageCell = el("td", { className: "num" }, [
+      tr.appendChild(el("td", { className: "num", attrs: { "data-label": "Year" }, text: r.year || "" }));
+      tr.appendChild(el("td", { attrs: { "data-label": "Journal" }, text: r.journal || "" }));
+      tr.appendChild(el("td", { className: "proj", attrs: { "data-label": "Project" }, text: projectLabel(r) }));
+      tr.appendChild(el("td", { className: "num", attrs: { "data-label": "Claims" }, text: r.claims_active }));
+      var ageCell = el("td", { className: "num", attrs: { "data-label": "Last check" } }, [
         el("span", { className: "age" + (r.stale_check ? " stale" : ""), text: fmtDays(r.days_since_check) }),
       ]);
       tr.appendChild(ageCell);
@@ -541,10 +625,61 @@
       tr.addEventListener("click", function () { openDrawer(r.pmid); });
       tbody.appendChild(tr);
     });
+    renderPager();
+  }
+
+  function renderPager() {
+    var wrap = document.getElementById("pager");
+    if (!wrap) return;
+    clear(wrap);
+    var total = currentVisible.length;
+    var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (pages <= 1) return; // nothing to page through -- keep the toolbar clean for small libraries
+    wrap.appendChild(el("button", {
+      text: "‹ Prev", attrs: { type: "button", disabled: currentPage <= 0 ? "disabled" : null },
+      on: { click: function () { if (currentPage > 0) { currentPage--; renderTableRows(); } } },
+    }));
+    wrap.appendChild(el("span", { className: "pageinfo", text: "page " + (currentPage + 1) + " / " + pages + " · " + total + " papers" }));
+    wrap.appendChild(el("button", {
+      text: "Next ›", attrs: { type: "button", disabled: currentPage >= pages - 1 ? "disabled" : null },
+      on: { click: function () { if (currentPage < pages - 1) { currentPage++; renderTableRows(); } } },
+    }));
   }
 
   document.getElementById("q").addEventListener("input", function (e) { state.query = e.target.value; renderTable(); });
   document.getElementById("proj").addEventListener("change", function (e) { state.project = e.target.value; renderTable(); });
+
+  // P0.3 keyboard shortcuts. Disabled while typing in a text field so "/"
+  // and "j"/"k"/"n"/"p" keep working as ordinary characters in the search
+  // box, note composer, etc.
+  document.addEventListener("keydown", function (e) {
+    var target = document.activeElement;
+    var tag = (target && target.tagName) || "";
+    var typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (target && target.isContentEditable);
+    var drawerOpen = !document.getElementById("drawer").hidden;
+
+    if (e.key === "/" && !typing) {
+      e.preventDefault();
+      document.getElementById("q").focus();
+      return;
+    }
+    if (typing) return;
+
+    if (drawerOpen) {
+      if (e.key === "n") { e.preventDefault(); stepDrawer(1); }
+      else if (e.key === "p") { e.preventDefault(); stepDrawer(-1); }
+      return;
+    }
+
+    if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); moveKeyboardActive(1); }
+    else if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); moveKeyboardActive(-1); }
+    else if (e.key === "Enter") {
+      if (keyboardActiveIndex >= 0 && currentPageRows[keyboardActiveIndex]) {
+        e.preventDefault();
+        openDrawer(currentPageRows[keyboardActiveIndex].pmid);
+      }
+    }
+  });
 
   document.querySelectorAll("th button[data-sort]").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -572,17 +707,23 @@
     if (!n) { bar.hidden = true; return; }
     bar.hidden = false;
     document.getElementById("seln").textContent = String(n);
-    var fetchPmids = [], extractPmids = [];
+    var fetchPmids = [], extractPmids = [], fetchPdfPmids = [], auditPmids = [];
     state.selected.forEach(function (pmid) {
       var r = BY_PMID[pmid];
       if (!r) return;
       if (needsFetch(r)) fetchPmids.push(pmid);
       if (needsExtract(r)) extractPmids.push(pmid);
+      if (needsFetchPdf(r)) fetchPdfPmids.push(pmid);
+      if (needsAudit(r)) auditPmids.push(pmid);
     });
     var fetchCmd = fetchPmids.length ? "/ref:fetch " + fetchPmids.join(" ") : "";
     var extractCmd = extractPmids.length ? "/ref:extract " + extractPmids.join(" ") : "";
+    var fetchPdfCmd = fetchPdfPmids.length ? "/ref:fetch-pdf " + fetchPdfPmids.join(" ") : "";
+    var auditCmd = auditPmids.length ? "/ref:audit " + auditPmids.join(" ") : "";
     document.getElementById("cmd-fetch").textContent = fetchCmd || "(none need /ref:fetch)";
     document.getElementById("cmd-extract").textContent = extractCmd || "(none need /ref:extract)";
+    document.getElementById("cmd-fetchpdf").textContent = fetchPdfCmd || "(none need /ref:fetch-pdf)";
+    document.getElementById("cmd-audit").textContent = auditCmd || "(none stale for /ref:audit)";
     document.querySelectorAll("[data-copy]").forEach(function (btn) {
       btn.onclick = function () {
         var text = document.getElementById(btn.dataset.copy).textContent;
@@ -595,6 +736,104 @@
     state.selected.clear();
     renderTable();
     renderActionBar();
+  });
+
+  // ------------------------------------------------------- saved views (P1.1)
+  //
+  // Named filter/sort/project combinations, persisted in this browser's
+  // localStorage only -- like the note drafts, there is no write path back
+  // into the library, so saved views never leave the browser they were
+  // created in.
+
+  var VIEWS_KEY = "ref-dashboard-views";
+
+  function loadViews() {
+    try { return JSON.parse(localStorage.getItem(VIEWS_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function saveViews(list) {
+    try { localStorage.setItem(VIEWS_KEY, JSON.stringify(list)); } catch (e) { /* private mode etc. */ }
+  }
+
+  function captureView() {
+    return {
+      query: state.query,
+      project: state.project,
+      sort: state.sort,
+      issues: state.chips.map(function (c) {
+        return { bucket: c.id.slice("issue:".length), label: c.label.replace(/^issue: /, "") };
+      }),
+      source: sourceFilterSet ? Array.from(sourceFilterSet) : null,
+    };
+  }
+
+  function applyView(v) {
+    state.query = v.query || "";
+    document.getElementById("q").value = state.query;
+    state.project = v.project || "all";
+    document.getElementById("proj").value = state.project;
+    state.sort = v.sort || null;
+    document.querySelectorAll("th button[data-sort]").forEach(function (b) { b.removeAttribute("data-dir"); });
+    if (state.sort) {
+      var sortBtn = document.querySelector('th button[data-sort="' + state.sort.field + '"]');
+      if (sortBtn) sortBtn.setAttribute("data-dir", state.sort.dir);
+    }
+    state.chips = (v.issues || []).map(function (i) {
+      return {
+        id: "issue:" + i.bucket, label: "issue: " + i.label,
+        pred: function (r) { return (r.lint_flags || []).indexOf(i.bucket) >= 0; },
+      };
+    });
+    sourceFilterSet = v.source && v.source.length ? new Set(v.source) : null;
+    renderSourceCoverage();
+    renderChips();
+    renderTable();
+  }
+
+  function renderViewSelect() {
+    var sel = document.getElementById("viewselect");
+    var current = sel.value;
+    clear(sel);
+    sel.appendChild(el("option", { attrs: { value: "" }, text: "Saved views…" }));
+    loadViews().forEach(function (v) { sel.appendChild(el("option", { attrs: { value: v.name }, text: v.name })); });
+    if (Array.prototype.some.call(sel.options, function (o) { return o.value === current; })) sel.value = current;
+  }
+  renderViewSelect();
+
+  document.getElementById("view-apply").addEventListener("click", function () {
+    var name = document.getElementById("viewselect").value;
+    if (!name) return;
+    var views = loadViews();
+    for (var i = 0; i < views.length; i++) if (views[i].name === name) { applyView(views[i]); return; }
+  });
+  document.getElementById("view-save").addEventListener("click", function () {
+    var name = (window.prompt("Save current filters as:") || "").trim();
+    if (!name) return;
+    var views = loadViews().filter(function (v) { return v.name !== name; });
+    var view = captureView();
+    view.name = name;
+    views.push(view);
+    saveViews(views);
+    renderViewSelect();
+    document.getElementById("viewselect").value = name;
+  });
+  document.getElementById("view-rename").addEventListener("click", function () {
+    var sel = document.getElementById("viewselect");
+    var oldName = sel.value;
+    if (!oldName) return;
+    var newName = (window.prompt("Rename view:", oldName) || "").trim();
+    if (!newName || newName === oldName) return;
+    var views = loadViews().filter(function (v) { return v.name !== newName; });
+    views.forEach(function (v) { if (v.name === oldName) v.name = newName; });
+    saveViews(views);
+    renderViewSelect();
+    sel.value = newName;
+  });
+  document.getElementById("view-delete").addEventListener("click", function () {
+    var sel = document.getElementById("viewselect");
+    var name = sel.value;
+    if (!name) return;
+    saveViews(loadViews().filter(function (v) { return v.name !== name; }));
+    renderViewSelect();
   });
 
   // populate project select -- derived from rows() (projectSummaries()) so
@@ -616,9 +855,17 @@
   // ---------------------------------------------------------- coverage
 
   var coverageRendered = false;
+  var MATRIX_PAGE_SIZE = 200; // P2.2: windowed rendering so opening the tab stays instant on large libraries
+  var matrixPage = 0;
+
   function renderCoverageMatrix() {
     if (coverageRendered) return;
     coverageRendered = true;
+    matrixPage = 0;
+    renderCoverageMatrixRows();
+  }
+
+  function renderCoverageMatrixRows() {
     var cols = MATRIX_COLUMNS_LIVE;
     var table = document.getElementById("heat");
     clear(table);
@@ -626,7 +873,9 @@
       cols.map(function (c) { return el("th", { className: "col", text: c }); })
     ));
     table.appendChild(thead);
-    MATRIX_ROWS_LIVE.forEach(function (row) {
+    var start = matrixPage * MATRIX_PAGE_SIZE;
+    var pageRows = MATRIX_ROWS_LIVE.slice(start, start + MATRIX_PAGE_SIZE);
+    pageRows.forEach(function (row) {
       var tr = el("tr", {}, [el("td", { className: "rowlbl", text: row.pmid })].concat(
         cols.map(function (c) {
           return el("td", {}, [el("div", { className: "cell" + (row[c] ? " on" : ""), attrs: { title: c + ": " + (row[c] ? "yes" : "no") } })]);
@@ -634,6 +883,25 @@
       ));
       table.appendChild(tr);
     });
+    renderMatrixPager();
+  }
+
+  function renderMatrixPager() {
+    var wrap = document.getElementById("matrix-pager");
+    if (!wrap) return;
+    clear(wrap);
+    var total = MATRIX_ROWS_LIVE.length;
+    var pages = Math.max(1, Math.ceil(total / MATRIX_PAGE_SIZE));
+    if (pages <= 1) return;
+    wrap.appendChild(el("button", {
+      text: "‹ Prev", attrs: { type: "button", disabled: matrixPage <= 0 ? "disabled" : null },
+      on: { click: function () { if (matrixPage > 0) { matrixPage--; renderCoverageMatrixRows(); } } },
+    }));
+    wrap.appendChild(el("span", { className: "pageinfo", text: "page " + (matrixPage + 1) + " / " + pages + " · " + total + " papers" }));
+    wrap.appendChild(el("button", {
+      text: "Next ›", attrs: { type: "button", disabled: matrixPage >= pages - 1 ? "disabled" : null },
+      on: { click: function () { if (matrixPage < pages - 1) { matrixPage++; renderCoverageMatrixRows(); } } },
+    }));
   }
 
   // ---------------------------------------------------------- projects
@@ -650,14 +918,18 @@
     }
     projects.forEach(function (p) {
       var statusCounts = {};
-      var fulltext = 0, claims = 0;
+      var fulltext = 0, claimedPapers = 0, claims = 0;
+      var fetchPmids = [], extractPmids = [];
       p.papers.forEach(function (paper) {
         var s = paper.reading_status || "unset";
         statusCounts[s] = (statusCounts[s] || 0) + 1;
         if (paper.has_fulltext) fulltext++;
+        if (paper.claims_active > 0) claimedPapers++;
         claims += paper.claims_active || 0;
+        if (needsFetch(paper)) fetchPmids.push(paper.pmid);
+        if (needsExtract(paper)) extractPmids.push(paper.pmid);
       });
-      var total = p.papers.length;
+      var total = p.papers.length || 1;
       var pbar = el("div", { className: "pbar" });
       var plegend = el("div", { className: "plegend" });
       Object.keys(statusCounts).forEach(function (s) {
@@ -670,13 +942,38 @@
         ]));
       });
       var kv = el("dl", { className: "kv" }, [
-        el("span", { text: "papers" }), el("span", { text: total }),
-        el("span", { text: "full text" }), el("span", { text: fulltext + "/" + total }),
+        el("span", { text: "papers" }), el("span", { text: p.papers.length }),
+        el("span", { text: "full text coverage" }), el("span", { text: fulltext + "/" + p.papers.length + " (" + Math.round(fulltext / total * 100) + "%)" }),
+        el("span", { text: "claim extraction coverage" }), el("span", { text: claimedPapers + "/" + p.papers.length + " (" + Math.round(claimedPapers / total * 100) + "%)" }),
         el("span", { text: "active claims" }), el("span", { text: claims }),
       ]);
+      var cmds = el("div", { className: "pcmds" });
+      if (fetchPmids.length) {
+        cmds.appendChild(el("button", {
+          className: "cmdbtn", text: "Copy /ref:fetch (" + fetchPmids.length + ")", attrs: { type: "button" },
+          on: { click: function () { copyText("/ref:fetch " + fetchPmids.join(" ")); } },
+        }));
+      }
+      if (extractPmids.length) {
+        cmds.appendChild(el("button", {
+          className: "cmdbtn", text: "Copy /ref:extract (" + extractPmids.length + ")", attrs: { type: "button" },
+          on: { click: function () { copyText("/ref:extract " + extractPmids.join(" ")); } },
+        }));
+      }
+      cmds.appendChild(el("button", {
+        className: "cmdbtn", text: "View in Papers", attrs: { type: "button" },
+        on: {
+          click: function () {
+            state.project = p.slug;
+            document.getElementById("proj").value = p.slug;
+            selectTab("papers");
+            renderTable();
+          },
+        },
+      }));
       wrap.appendChild(el("article", { className: "panel" }, [
         el("h2", { text: p.slug }),
-        pbar, plegend, kv,
+        pbar, plegend, kv, cmds,
       ]));
     });
   }
@@ -737,6 +1034,52 @@
       });
       if (!changes.children.length) changes.appendChild(el("li", { text: "no changes since the previous snapshot" }));
     }
+
+    // P1.2: the same before/after diff, regrouped by pmid instead of
+    // bucket -- "which papers changed and why" rather than "which buckets
+    // grew/shrank", built from the identical two snapshots so the two
+    // panels can never disagree.
+    var changesByPaper = document.getElementById("changes-by-paper");
+    clear(changesByPaper);
+    if (snaps.length < 2) {
+      changesByPaper.appendChild(el("li", { text: "not enough snapshots yet" }));
+    } else {
+      var prevSnap2 = snaps[snaps.length - 2], lastSnap2 = snaps[snaps.length - 1];
+      var buckets3 = Object.keys(lastSnap2.issues || {});
+      var byPmid = {}; // pmid -> {added: [bucket], removed: [bucket]}
+      buckets3.forEach(function (bucket) {
+        var before = new Set(prevSnap2.issues && prevSnap2.issues[bucket] || []);
+        var after = new Set(lastSnap2.issues && lastSnap2.issues[bucket] || []);
+        after.forEach(function (pmid) {
+          if (before.has(pmid)) return;
+          byPmid[pmid] = byPmid[pmid] || { added: [], removed: [] };
+          byPmid[pmid].added.push(bucket);
+        });
+        before.forEach(function (pmid) {
+          if (after.has(pmid)) return;
+          byPmid[pmid] = byPmid[pmid] || { added: [], removed: [] };
+          byPmid[pmid].removed.push(bucket);
+        });
+      });
+      var pmids = Object.keys(byPmid).sort();
+      pmids.forEach(function (pmid) {
+        var d = byPmid[pmid];
+        var row = BY_PMID[pmid];
+        var title = row ? (row.title || "(untitled)") : "(not in current library)";
+        var parts = [];
+        d.added.forEach(function (b) { parts.push("+" + (LINT_BUCKET_LABELS[b] || b)); });
+        d.removed.forEach(function (b) { parts.push("resolved " + (LINT_BUCKET_LABELS[b] || b)); });
+        changesByPaper.appendChild(el("li", {}, [
+          el("span", { className: "pm", text: pmid }),
+          el("span", {}, [
+            el("span", { text: title }),
+            el("br"),
+            el("span", { className: "cmd", text: parts.join("  ") }),
+          ]),
+        ]));
+      });
+      if (!pmids.length) changesByPaper.appendChild(el("li", { text: "no changes since the previous snapshot" }));
+    }
   }
 
   // -------------------------------------------------------------- drawer
@@ -763,25 +1106,64 @@
     document.body.appendChild(script);
   }
 
+  // P0.4: the element focused right before the drawer opens (a table row's
+  // checkbox, or nothing if opened via keyboard Enter) gets focus back on
+  // close, so keyboard-only browsing of the table can continue where it
+  // left off instead of dropping focus to <body>.
+  var lastFocusedBeforeDrawer = null;
+
+  function drawerFocusables() {
+    var drawer = document.getElementById("drawer");
+    return Array.prototype.filter.call(
+      drawer.querySelectorAll('button:not([disabled]), [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'),
+      function (node) { return node.offsetParent !== null; }
+    );
+  }
+
   function openDrawer(pmid) {
+    lastFocusedBeforeDrawer = document.activeElement;
     drawerState.pmid = pmid;
     drawerState.mode = "details";
     document.getElementById("scrim").hidden = false;
     document.getElementById("drawer").hidden = false;
+    // P2.4: hide the (still visible, but now non-interactive) background
+    // content from assistive tech while the drawer is modal -- the drawer
+    // itself is a sibling of .wrap, not inside it, so this never hides the
+    // drawer.
+    var wrap = document.querySelector(".wrap");
+    if (wrap) wrap.setAttribute("aria-hidden", "true");
     setDrawerMode("details");
     renderDrawerHeader();
     loadDetail(pmid, function (detail) { renderDrawerBody(detail); });
+    var focusables = drawerFocusables();
+    if (focusables.length) focusables[0].focus();
   }
 
   function closeDrawer() {
     document.getElementById("scrim").hidden = true;
     document.getElementById("drawer").hidden = true;
     drawerState.pmid = null;
+    var wrap = document.querySelector(".wrap");
+    if (wrap) wrap.removeAttribute("aria-hidden");
+    if (lastFocusedBeforeDrawer && document.contains(lastFocusedBeforeDrawer)) lastFocusedBeforeDrawer.focus();
+    lastFocusedBeforeDrawer = null;
   }
 
   document.getElementById("d-close").addEventListener("click", closeDrawer);
   document.getElementById("scrim").addEventListener("click", closeDrawer);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !document.getElementById("drawer").hidden) closeDrawer(); });
+
+  // Focus trap (P0.4): Tab/Shift+Tab cycles within the drawer's focusable
+  // elements while it's open, so keyboard focus never escapes to the
+  // (visually dimmed, non-interactive) background content.
+  document.getElementById("drawer").addEventListener("keydown", function (e) {
+    if (e.key !== "Tab") return;
+    var focusables = drawerFocusables();
+    if (!focusables.length) return;
+    var first = focusables[0], last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
 
   document.getElementById("d-prev").addEventListener("click", function () { stepDrawer(-1); });
   document.getElementById("d-next").addEventListener("click", function () { stepDrawer(1); });
@@ -1328,26 +1710,48 @@
     renderChips();
   }
 
+  // P0.2: a refresh fetches all four live endpoints independently
+  // (allSettled, not all-or-nothing) -- one endpoint returning non-2xx
+  // must not blank out the others. Whatever succeeded replaces its slice
+  // of state; whatever failed keeps its last known-good value and is
+  // named in the error banner.
+  var REFRESH_ENDPOINTS = [
+    { key: "rows", path: "/api/rows" },
+    { key: "snapshots", path: "/api/snapshots" },
+    { key: "lint", path: "/api/lint" },
+    { key: "matrix", path: "/api/matrix" },
+  ];
+
   function refreshRows() {
     if (!LIVE) return;
-    Promise.all([
-      apiFetch("/api/rows").then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }),
-      apiFetch("/api/lint").then(function (r) { return r.json(); }).catch(function () { return LINT; }),
-      apiFetch("/api/matrix").then(function (r) { return r.json(); }).catch(function () { return null; }),
-    ])
+    Promise.allSettled(REFRESH_ENDPOINTS.map(function (e) { return fetchJSON(e.path); }))
       .then(function (results) {
-        setRows(results[0]);
-        LINT = results[1] || {};
-        if (results[2]) {
-          MATRIX_COLUMNS_LIVE = results[2].columns || [];
-          MATRIX_ROWS_LIVE = results[2].rows || [];
-        }
+        var failed = [];
+        results.forEach(function (res, i) {
+          var key = REFRESH_ENDPOINTS[i].key;
+          if (res.status === "fulfilled") {
+            if (key === "rows") setRows(res.value);
+            else if (key === "snapshots") SNAPSHOTS = res.value || [];
+            else if (key === "lint") LINT = res.value || {};
+            else if (key === "matrix" && res.value) {
+              MATRIX_COLUMNS_LIVE = res.value.columns || [];
+              MATRIX_ROWS_LIVE = res.value.rows || [];
+            }
+          } else {
+            failed.push(describeFetchError(res.reason));
+          }
+        });
         loadedDetails = {};
         coverageRendered = false;
         maintRendered = false;
         renderAll();
-      })
-      .catch(function () { /* keep showing the last good data on failure */ });
+        rerenderActiveTab();
+        if (failed.length) {
+          showError("refresh partly failed (" + failed.join(", ") + ") -- showing last loaded data for those");
+        } else {
+          clearError();
+        }
+      });
   }
 
   var refreshBtn = document.getElementById("btn-refresh");
@@ -1357,11 +1761,15 @@
   }
 
   if (LIVE) {
+    // /api/rows is load-bearing (everything else degrades gracefully) --
+    // its failure is fatal and reported as such; the other three fall
+    // back to an empty/last-resort value so a lint/matrix/snapshots
+    // hiccup on first load doesn't block the papers table from appearing.
     Promise.all([
-      apiFetch("/api/rows").then(function (r) { return r.json(); }),
-      apiFetch("/api/snapshots").then(function (r) { return r.json(); }).catch(function () { return []; }),
-      apiFetch("/api/lint").then(function (r) { return r.json(); }).catch(function () { return {}; }),
-      apiFetch("/api/matrix").then(function (r) { return r.json(); }).catch(function () { return null; }),
+      fetchJSON("/api/rows"),
+      fetchJSON("/api/snapshots").catch(function () { return []; }),
+      fetchJSON("/api/lint").catch(function () { return {}; }),
+      fetchJSON("/api/matrix").catch(function () { return null; }),
     ]).then(function (results) {
       setRows(results[0]);
       SNAPSHOTS = results[1] || [];
@@ -1370,9 +1778,12 @@
         MATRIX_COLUMNS_LIVE = results[3].columns || [];
         MATRIX_ROWS_LIVE = results[3].rows || [];
       }
+      clearError();
       renderAll();
-    }).catch(function () {
-      document.getElementById("result").textContent = "failed to load live data -- is the dashboard server running?";
+    }).catch(function (err) {
+      document.getElementById("result").textContent =
+        "failed to load live data from " + describeFetchError(err) + " -- is the dashboard server running?";
+      showError("initial load failed: " + describeFetchError(err));
     });
   } else {
     renderAll();

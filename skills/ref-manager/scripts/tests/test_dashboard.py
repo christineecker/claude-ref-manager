@@ -256,6 +256,113 @@ class TestHtmlEscaping(DashboardFixture):
         self.assertNotIn("innerHTML", app_js)
 
 
+class TestViewerUxWiring(DashboardFixture):
+    """LIBRARY_VIEWER_IMPROVEMENT_IMPLEMENTATION_PLAN.md P0.5: baseline
+    smoke coverage for the refresh/error-handling/keyboard/focus/paging/
+    view-preset features added on top of the original dashboard. There is
+    no headless browser in this test environment, so these are structural
+    checks -- the markup and wiring a real browser would need are present
+    and internally consistent -- rather than simulated clicks/keypresses.
+    HTTP-level behavior (routes, status codes) is covered by
+    test_dashboard_serve.py; JSON round-tripping is covered above."""
+
+    def setUp(self):
+        super().setUp()
+        self.app_js = (SCRIPTS / "dashboard_assets" / "app.js").read_text(encoding="utf-8")
+        self.index_html = (SCRIPTS / "dashboard_assets" / "index.html").read_text(encoding="utf-8")
+        self.app_css = (SCRIPTS / "dashboard_assets" / "app.css").read_text(encoding="utf-8")
+
+    # P0.1/P0.2 -- refresh re-fetches every live endpoint independently and
+    # reports (rather than silently swallowing) a partial failure.
+    def test_refresh_uses_allsettled_across_all_four_endpoints(self):
+        self.assertIn("Promise.allSettled(REFRESH_ENDPOINTS", self.app_js)
+        for path in ("/api/rows", "/api/snapshots", "/api/lint", "/api/matrix"):
+            self.assertIn(path, self.app_js)
+
+    def test_fetch_wrapper_checks_status_before_parsing(self):
+        self.assertIn("function fetchJSON(path)", self.app_js)
+        self.assertIn("if (!r.ok)", self.app_js)
+
+    def test_error_banner_exists_and_is_wired(self):
+        self.assertIn('id="errbanner"', self.index_html)
+        self.assertIn("function showError(", self.app_js)
+        self.assertIn("function clearError(", self.app_js)
+
+    def test_active_tab_rerendered_after_refresh(self):
+        self.assertIn("function rerenderActiveTab()", self.app_js)
+        self.assertIn("rerenderActiveTab();", self.app_js)
+
+    # P0.3 -- keyboard shortcuts.
+    def test_keyboard_shortcuts_wired(self):
+        self.assertIn('e.key === "/"', self.app_js)
+        self.assertIn('e.key === "j" || e.key === "ArrowDown"', self.app_js)
+        self.assertIn('e.key === "k" || e.key === "ArrowUp"', self.app_js)
+        self.assertIn('e.key === "n"', self.app_js)
+        self.assertIn('e.key === "p"', self.app_js)
+        self.assertIn('e.key === "Escape"', self.app_js)
+
+    # P0.4 -- drawer focus behavior.
+    def test_drawer_focus_management_wired(self):
+        self.assertIn("lastFocusedBeforeDrawer = document.activeElement", self.app_js)
+        self.assertIn("function drawerFocusables()", self.app_js)
+        self.assertIn('if (e.key !== "Tab") return;', self.app_js)
+        self.assertIn("lastFocusedBeforeDrawer.focus()", self.app_js)
+
+    # P1.1 -- saved views/presets, localStorage-only.
+    def test_saved_views_persist_to_local_storage_only(self):
+        for id_ in ("viewselect", "view-apply", "view-save", "view-rename", "view-delete"):
+            self.assertIn('id="' + id_ + '"', self.index_html)
+        self.assertIn('localStorage.setItem(VIEWS_KEY', self.app_js)
+        self.assertNotIn("apiFetch(\"/api/views", self.app_js)  # never a server round-trip
+
+    # P1.2 -- maintenance diff by paper.
+    def test_maintenance_has_per_paper_diff(self):
+        self.assertIn('id="changes-by-paper"', self.index_html)
+        self.assertIn("byPmid[pmid].added.push(bucket)", self.app_js)
+
+    # P1.3 -- project-focused mode.
+    def test_project_panel_has_coverage_metrics_and_commands(self):
+        self.assertIn("full text coverage", self.app_js)
+        self.assertIn("claim extraction coverage", self.app_js)
+        self.assertIn("View in Papers", self.app_js)
+
+    # P1.4 -- expanded batch actions.
+    def test_action_bar_has_fetch_pdf_and_audit_commands(self):
+        for id_ in ("cmd-fetchpdf", "cmd-audit"):
+            self.assertIn('id="' + id_ + '"', self.index_html)
+        self.assertIn("function needsFetchPdf(row)", self.app_js)
+        self.assertIn("function needsAudit(row)", self.app_js)
+
+    # P2.1/P2.2 -- pagination for the papers table and coverage matrix.
+    def test_table_and_matrix_are_paginated(self):
+        self.assertIn("var PAGE_SIZE = 100;", self.app_js)
+        self.assertIn("var MATRIX_PAGE_SIZE = 200;", self.app_js)
+        self.assertIn('id="pager"', self.index_html)
+        self.assertIn('id="matrix-pager"', self.index_html)
+
+    # P2.3 -- mobile card layout.
+    def test_mobile_card_layout_present(self):
+        self.assertIn("@media (max-width:680px)", self.app_css)
+        self.assertIn('"data-label"', self.app_js)
+
+    # P2.4 -- accessibility.
+    def test_accessibility_affordances_present(self):
+        self.assertIn('aria-live="polite"', self.index_html)
+        self.assertIn('wrap.setAttribute("aria-hidden", "true")', self.app_js)
+
+    # Rows carry the fields the new client-side predicates need
+    # (needsFetchPdf/needsAudit/project quick-commands) -- a schema
+    # regression in lib_inventory.rows() would break those silently
+    # in the browser with no test failure anywhere else.
+    def test_rows_carry_fields_new_predicates_depend_on(self):
+        dashboard.build(self.library_root)
+        data = self._embedded_data()
+        for row in data["rows"]:
+            self.assertIn("has_pdf", row)
+            self.assertIn("lint_flags", row)
+            self.assertIn("stale_check", row)
+
+
 class TestCli(DashboardFixture):
     def _run(self, *args):
         import subprocess

@@ -20,6 +20,17 @@
     try { return new URLSearchParams(location.search).get("token") || ""; } catch (e) { return ""; }
   })();
 
+  // /ref:read deep-link (?paper=<pmid>&tab=pdf|details): opens straight
+  // into one paper's drawer instead of the library table, reusing this
+  // same drawer/pdf.js/notes machinery rather than a separate reader page.
+  var DEEPLINK = (function () {
+    try {
+      var params = new URLSearchParams(location.search);
+      var paper = params.get("paper");
+      return paper ? { pmid: paper, tab: params.get("tab") === "details" ? "details" : "pdf" } : null;
+    } catch (e) { return null; }
+  })();
+
   // Every fetch this page makes to its own server carries the per-run token
   // as a header (never a query param past the initial page load) --
   // LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md §7.3.
@@ -1780,6 +1791,10 @@
       }
       clearError();
       renderAll();
+      if (DEEPLINK && BY_PMID[DEEPLINK.pmid]) {
+        openDrawer(DEEPLINK.pmid);
+        setDrawerMode(DEEPLINK.tab);
+      }
     }).catch(function (err) {
       document.getElementById("result").textContent =
         "failed to load live data from " + describeFetchError(err) + " -- is the dashboard server running?";

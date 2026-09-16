@@ -1,42 +1,39 @@
-Render a readable local HTML copy of one or more already-fetched papers.
+Open the live PDF+notes reading viewer for one or more already-fetched
+papers.
 
 Parse `$ARGUMENTS` for:
 - `<pmid...>` — one or more PubMed IDs. Each must already exist and have a
-  current full-text version with `source.md` from `/ref:fetch` or `/ref:attach`.
-- `--engine simple|quarto` — renderer. Default is `simple`; `quarto` writes an
-  intermediate `article.qmd` and renders through Quarto.
-- `--format html|pdf|both` — output format for `--engine quarto`. Default
-  `html`. The simple renderer supports HTML only.
-- `--table-images` — with `--engine quarto` and an HTML output, snapshot each
-  rendered HTML table to `reader/tables/table-<n>.png` and insert the image
-  below the live table. Keeps the live/searchable table as the default source.
-- `--open` — after rendering, open each generated HTML file in the default
-  browser, or the primary Quarto output.
+  real PDF on file (`raw/<hash>/source.pdf` from `/ref:fetch-pdf` or
+  `/ref:attach`).
+- `--port <n>` — fixed port for the local server instead of an OS-assigned
+  ephemeral one. Default is `0` (ephemeral).
+- `--no-open` — print the reader URL(s) instead of opening a browser tab
+  automatically.
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if
    unconfigured).
 2. Print, then run:
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/read_article.py" --repo <library_root> [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open] <pmid...>
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/read_article.py" --repo <library_root> [--port <n>] [--no-open] <pmid...>
    ```
 3. Print the script's own output verbatim. Per PMID:
-   - `rendered` — wrote `papers/<pmid>/reader/article.html` and
-     `papers/<pmid>/reader/manifest.json`.
-   - `no_full_text` — the paper exists but has no current `source.md`; point at
-     `/ref:fetch`, `/ref:fetch-pdf`, or `/ref:attach`.
-   - `failed` — missing record or filesystem/open error.
+   - `ready` — has a PDF; a browser tab opens (unless `--no-open`) straight
+     into that paper's drawer with the PDF tab active.
+   - `no_pdf` — the paper exists but has no PDF on file; point at
+     `/ref:fetch-pdf` or `/ref:attach`.
+   - `failed` — no such paper; point at `/ref:add`.
 
 Notes:
-- This is a reading reconstruction, not the publisher PDF. It renders the
-  current converted `source.md` and appends a figure gallery from
-  `figures.json`, linking to local files under `versions/<v>/figures/` when
-  image bytes are available.
-- In Quarto mode, inline image references from converted JATS/Pandoc output are
-  rewritten to those local figure assets before `article.qmd` is rendered, so
-  the article body does not show broken figure icons when the assets exist.
-- With `--table-images`, tables remain real HTML tables and image snapshots are
-  added underneath them. This is useful for cramped or complex tables while
-  preserving copy/search/accessibility from the live table.
-- Missing figure images do not fail rendering; the HTML shows a placeholder and
-  the output reports `images=<available>/<figures>`.
+- This reuses the `/ref:dashboard serve` viewer (pdf.js canvas, page
+  nav/zoom, notes composer that writes straight to `notes.md` via
+  `note.py append()`, loopback-only with per-run token auth) rather than a
+  separate reader — `?paper=<pmid>&tab=pdf` just deep-links into it. There
+  is no separate reading reconstruction of converted text anymore; a paper
+  with only `source.md` and no PDF is `no_pdf`, not a fallback render.
+- The command blocks in the foreground serving the library over
+  `127.0.0.1` (same as `/ref:dashboard serve`) until interrupted (Ctrl-C).
+  Requesting multiple pmids opens one browser tab per paper against the
+  same server.
+- A note taken while reading page N of the PDF is tagged with that page
+  number; clicking it later jumps the viewer back to that page.

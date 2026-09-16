@@ -471,73 +471,35 @@ class TestFetchPmcPdf(TempLibrary):
 
 
 class TestReadArticle(TempLibrary):
-    def test_render_current_source_with_downloaded_figures(self):
+    def test_ready_when_pdf_on_file(self):
         self.add_paper("3201", title="Readable paper", pmcid="PMC3201")
         paper_dir = self.library_root / "papers" / "3201"
-        vdir = paper_dir / "versions" / "v-read"
-        (vdir / "figures").mkdir(parents=True)
-        atomic_write_json(paper_dir / "current.json", {"version": "v-read"})
-        atomic_write_bytes(vdir / "source.md", b"# Introduction\n\nA useful result.\n")
-        atomic_write_bytes(vdir / "figures" / "fig1.jpg", b"fake image bytes")
-        atomic_write_json(vdir / "figures.json", [{
-            "id": "fig1", "label": "Figure 1", "caption": "A useful picture.",
-            "source_locator": "fig1.jpg", "sha256": "abc", "asset_available": True,
-        }])
+        raw_dir = paper_dir / "raw" / "somehash"
+        raw_dir.mkdir(parents=True)
+        atomic_write_bytes(raw_dir / "source.pdf", b"%PDF fake")
 
         result = read_article.render_one(self.library_root, "3201")
 
-        self.assertEqual(result["result"], "rendered")
-        self.assertEqual(result["figures"], 1)
-        self.assertEqual(result["images_available"], 1)
-        html = (paper_dir / "reader" / "article.html").read_text()
-        self.assertIn("Readable paper", html)
-        self.assertIn("<h1>Readable paper</h1>", html)
-        self.assertIn("<h1>Introduction</h1>", html)
-        self.assertIn("../versions/v-read/figures/fig1.jpg", html)
-        self.assertIn("A useful picture.", html)
-        manifest = json.loads((paper_dir / "reader" / "manifest.json").read_text())
-        self.assertEqual(manifest["version"], "v-read")
+        self.assertEqual(result["result"], "ready")
 
-    def test_render_reports_no_full_text_without_source_md(self):
+    def test_no_pdf_without_a_downloaded_pdf(self):
         self.add_paper("3202")
         paper_dir = self.library_root / "papers" / "3202"
-        (paper_dir / "versions" / "v-claims").mkdir(parents=True)
+        vdir = paper_dir / "versions" / "v-claims"
+        vdir.mkdir(parents=True)
         atomic_write_json(paper_dir / "current.json", {"version": "v-claims"})
+        atomic_write_bytes(vdir / "source.md", b"# Introduction\n\nText only, no PDF.\n")
 
         result = read_article.render_one(self.library_root, "3202")
 
-        self.assertEqual(result["result"], "no_full_text")
-        self.assertIn("source.md", result["reason"])
+        self.assertEqual(result["result"], "no_pdf")
+        self.assertIn("/ref:fetch-pdf", result["reason"])
 
-    def test_quarto_source_rewrites_inline_figure_paths(self):
-        figures = [{
-            "id": "fig1", "label": "Figure 1", "caption": "Caption",
-            "source_locator": "AUR-18-1861-g002.jpg",
-            "sha256": "abc", "asset_available": True,
-        }]
-        source = (
-            '<figure id="fig1"><p><img src="AUR-18-1861-g002.jpg" /></p></figure>\n'
-            "![same](AUR-18-1861-g002.jpg)\n"
-        )
+    def test_failed_without_meta_json(self):
+        result = read_article.render_one(self.library_root, "3203")
 
-        qmd, rewrites = read_article._quarto_source(
-            {"pmid": "3203", "title": "T"}, "v-read", source, figures,
-        )
-
-        self.assertEqual(rewrites, 2)
-        self.assertIn('../versions/v-read/figures/AUR-18-1861-g002.jpg', qmd)
-        self.assertNotIn('src="AUR-18-1861-g002.jpg"', qmd)
-        self.assertNotIn('](AUR-18-1861-g002.jpg)', qmd)
-
-    def test_table_image_refs_are_inserted_after_live_tables(self):
-        html = "<html><body><table><tr><td>A</td></tr></table><p>after</p></body></html>"
-
-        updated, inserted = read_article._insert_table_image_refs(html, ["tables/table-1.png"])
-
-        self.assertEqual(inserted, 1)
-        self.assertIn("<table><tr><td>A</td></tr></table>", updated)
-        self.assertIn('<figure class="table-snapshot"><img src="tables/table-1.png"', updated)
-        self.assertLess(updated.index("</table>"), updated.index("table-snapshot"))
+        self.assertEqual(result["result"], "failed")
+        self.assertIn("/ref:add", result["reason"])
 
 
 class TestPdfIdentify(TempLibrary):

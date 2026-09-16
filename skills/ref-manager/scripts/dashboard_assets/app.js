@@ -618,9 +618,19 @@
         ]),
       ]));
 
+      var availSteps = [
+        { label: "abs", ok: r.source_badge && r.source_badge !== "metadata-only" },
+        { label: "full", ok: r.has_fulltext },
+        { label: "pdf", ok: r.has_pdf },
+      ];
       var titleCell = el("td", { attrs: { "data-label": "Paper" } }, [
         el("div", { className: "t-title", text: r.title || "(untitled)" }),
-        el("div", { className: "t-key", text: (r.citekey || r.pmid) }),
+        el("div", { className: "t-meta" }, [
+          el("span", { className: "t-key", text: (r.citekey || r.pmid) }),
+          el("span", { className: "t-avail" }, availSteps.map(function (s) {
+            return el("span", { className: "step-mini " + (s.ok ? "ok" : "bad"), text: s.label });
+          })),
+        ]),
       ]);
       tr.appendChild(titleCell);
 
@@ -1537,7 +1547,24 @@
     return PDFJS_LOAD_PROMISE;
   }
 
-  var pdfState = { doc: null, pageNum: 1, scale: null, matches: [], matchIdx: -1 };
+  // Vendored pdf-lib 1.17.1 UMD build -- only pulled in when the user
+  // actually exports a highlighted PDF, so viewing a PDF never pays for it.
+  var PDFLIB_LOAD_PROMISE = null;
+  function loadPdfLib() {
+    if (window.PDFLib) return Promise.resolve(window.PDFLib);
+    if (!PDFLIB_LOAD_PROMISE) {
+      PDFLIB_LOAD_PROMISE = new Promise(function (resolve, reject) {
+        var script = document.createElement("script");
+        script.src = "/vendor/pdf-lib/pdf-lib.min.js";
+        script.onload = function () { resolve(window.PDFLib); };
+        script.onerror = function () { reject(new Error("failed to load pdf-lib")); };
+        document.body.appendChild(script);
+      });
+    }
+    return PDFLIB_LOAD_PROMISE;
+  }
+
+  var pdfState = { doc: null, pageNum: 1, scale: null, matches: [], matchIdx: -1, pmid: null, highlights: [] };
 
   function pdfCurrentPage() {
     return pdfState.doc ? pdfState.pageNum : null;
@@ -1552,6 +1579,7 @@
   function renderPdfPage() {
     var canvas = document.getElementById("pdf-canvas");
     if (!canvas || !pdfState.doc) return;
+    closeHlPopup();
     pdfState.doc.getPage(pdfState.pageNum).then(function (page) {
       var container = document.getElementById("pdf-pagewrap");
       var viewport0 = page.getViewport({ scale: 1 });
@@ -1564,10 +1592,206 @@
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       page.render({ canvasContext: canvas.getContext("2d"), viewport: viewport });
+
+      var pageEl = document.getElementById("pdf-page");
+      if (pageEl) { pageEl.style.width = viewport.width + "px"; pageEl.style.height = viewport.height + "px"; }
+
+      var textLayerDiv = document.getElementById("pdf-textlayer");
+      if (textLayerDiv && window.pdfjsLib) {
+        clear(textLayerDiv);
+        textLayerDiv.style.setProperty("--scale-factor", String(scale));
+        page.getTextContent().then(function (textContent) {
+          if (pdfState.pageNum !== page.pageNumber) return; // stale response from a fast page flip
+          window.pdfjsLib.renderTextLayer({
+            textContentSource: textContent, container: textLayerDiv, viewport: viewport, textDivs: [],
+          });
+        });
+      }
+      renderPdfMarks();
+
       var pageInput = document.getElementById("pdf-pagenum");
       if (pageInput) pageInput.value = pdfState.pageNum;
       var total = document.getElementById("pdf-pagetotal");
       if (total) total.textContent = "/ " + pdfState.doc.numPages;
+    });
+  }
+
+  // --------------------------------------------------------- pdf highlights
+
+  function renderPdfMarks() {
+    var wrap = document.getElementById("pdf-marks");
+    if (!wrap) return;
+    clear(wrap);
+    var scale = pdfState.scale || 1;
+    (pdfState.highlights || []).forEach(function (h) {
+      if (h.page !== pdfState.pageNum) return;
+      (h.rects || []).forEach(function (r) {
+        var mark = el("span", { className: "pdf-mark", attrs: { "data-color": h.color, title: h.note || h.text || "" } });
+        mark.style.left = (r.x * scale) + "px";
+        mark.style.top = (r.y * scale) + "px";
+        mark.style.width = (r.w * scale) + "px";
+        mark.style.height = (r.h * scale) + "px";
+        mark.addEventListener("click", function (e) { e.stopPropagation(); showRemovePopup(mark, h); });
+        wrap.appendChild(mark);
+      });
+    });
+  }
+
+  function closeHlPopup() {
+    var p = document.getElementById("hl-popup");
+    if (p) p.remove();
+  }
+
+  function handlePdfSelection() {
+    closeHlPopup();
+    var sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+    var range = sel.getRangeAt(0);
+    var textLayerDiv = document.getElementById("pdf-textlayer");
+    if (!textLayerDiv || !textLayerDiv.contains(range.commonAncestorContainer)) return;
+    var text = sel.toString().trim();
+    if (!text) return;
+    var clientRects = Array.prototype.slice.call(range.getClientRects());
+    if (!clientRects.length) return;
+
+    var pageRect = textLayerDiv.getBoundingClientRect();
+    var scale = pdfState.scale || 1;
+    var rects = clientRects.map(function (r) {
+      return {
+        x: (r.left - pageRect.left) / scale, y: (r.top - pageRect.top) / scale,
+        w: r.width / scale, h: r.height / scale,
+      };
+    });
+    var last = clientRects[clientRects.length - 1];
+    showColorPopup(last.right - pageRect.left, last.bottom - pageRect.top, function (color) {
+      savePdfHighlight(rects, text, color);
+      sel.removeAllRanges();
+    });
+  }
+
+  function showColorPopup(x, y, onPick) {
+    closeHlPopup();
+    var marks = document.getElementById("pdf-marks");
+    if (!marks) return;
+    var popup = el("div", { className: "hl-popup", attrs: { id: "hl-popup" } },
+      ["yellow", "green", "red"].map(function (c) {
+        return el("button", {
+          className: "sw", attrs: { type: "button", "data-color": c, title: "highlight " + c },
+          on: { click: function () { onPick(c); closeHlPopup(); } },
+        });
+      }));
+    popup.style.left = Math.max(0, x - 40) + "px";
+    popup.style.top = (y + 6) + "px";
+    marks.appendChild(popup);
+  }
+
+  function showRemovePopup(anchorEl, h) {
+    closeHlPopup();
+    var marks = document.getElementById("pdf-marks");
+    if (!marks) return;
+    var rect = anchorEl.getBoundingClientRect();
+    var parentRect = marks.getBoundingClientRect();
+    var popup = el("div", { className: "hl-popup", attrs: { id: "hl-popup" } }, [
+      el("button", {
+        className: "del", text: "Remove highlight", attrs: { type: "button" },
+        on: { click: function () { deletePdfHighlight(h.id); closeHlPopup(); } },
+      }),
+    ]);
+    popup.style.left = (rect.left - parentRect.left) + "px";
+    popup.style.top = (rect.bottom - parentRect.top + 4) + "px";
+    marks.appendChild(popup);
+  }
+
+  function savePdfHighlight(rects, text, color) {
+    var pmid = pdfState.pmid;
+    if (!pmid) return;
+    apiFetch("/api/paper/" + encodeURIComponent(pmid) + "/highlights", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ page: pdfState.pageNum, rects: rects, text: text, color: color }),
+    }).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(function (entry) { pdfState.highlights.push(entry); renderPdfMarks(); })
+      .catch(function () {
+        var toast = document.getElementById("toast");
+        toast.textContent = "highlight save failed";
+        toast.hidden = false;
+        clearTimeout(toast._t);
+        toast._t = setTimeout(function () { toast.hidden = true; }, 2200);
+      });
+  }
+
+  function deletePdfHighlight(id) {
+    var pmid = pdfState.pmid;
+    if (!pmid) return;
+    apiFetch("/api/paper/" + encodeURIComponent(pmid) + "/highlights/" + encodeURIComponent(id), { method: "DELETE" })
+      .then(function () {
+        pdfState.highlights = pdfState.highlights.filter(function (x) { return x.id !== id; });
+        renderPdfMarks();
+      });
+  }
+
+  // Same hex per color as .pdf-mark's CSS (app.css), as 0-1 RGB triples for pdf-lib.
+  var PDF_EXPORT_COLORS = { yellow: [0.910, 0.784, 0.290], green: [0.561, 0.749, 0.435], red: [0.878, 0.541, 0.420] };
+
+  // "Save PDF with highlights" (§ PDF annotations, option 01): fetches the
+  // source PDF bytes fresh, draws each saved highlight as a flattened
+  // semi-transparent rectangle (Multiply blend, so it reads like a real
+  // marker on any page background) at its stored page -- unscaled, so this
+  // is independent of whatever zoom level is on screen right now -- and
+  // triggers a browser download of the result. Nothing is written back to
+  // the library; the export is a client-side copy only.
+  function pdfExportWithHighlights(row) {
+    var btn = document.getElementById("pdf-export");
+    var paths = (row && row.pdf_paths) || [];
+    if (!paths.length || !btn) return;
+    var path = paths[0];
+    var origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+
+    Promise.all([
+      loadPdfLib(),
+      apiFetch("/files/" + encodeURIComponent(row.pmid) + "/" + path.split("/").map(encodeURIComponent).join("/"))
+        .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.arrayBuffer(); }),
+      apiFetch("/api/paper/" + encodeURIComponent(row.pmid) + "/highlights")
+        .then(function (r) { return r.ok ? r.json() : []; }),
+    ]).then(function (results) {
+      var PDFLib = results[0], bytes = results[1], highlights = results[2] || [];
+      return PDFLib.PDFDocument.load(bytes).then(function (pdfDoc) {
+        var pages = pdfDoc.getPages();
+        highlights.forEach(function (h) {
+          var page = pages[h.page - 1];
+          if (!page) return;
+          var pageHeight = page.getHeight();
+          var rgb = PDF_EXPORT_COLORS[h.color] || PDF_EXPORT_COLORS.yellow;
+          (h.rects || []).forEach(function (r) {
+            page.drawRectangle({
+              x: r.x, y: pageHeight - r.y - r.h, width: r.w, height: r.h,
+              color: PDFLib.rgb(rgb[0], rgb[1], rgb[2]), opacity: 0.4, blendMode: PDFLib.BlendMode.Multiply,
+            });
+          });
+        });
+        return pdfDoc.save();
+      });
+    }).then(function (outBytes) {
+      var blob = new Blob([outBytes], { type: "application/pdf" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = (row.citekey || row.pmid) + "-highlighted.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }).catch(function () {
+      var toast = document.getElementById("toast");
+      toast.textContent = "export failed";
+      toast.hidden = false;
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function () { toast.hidden = true; }, 2200);
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = origText;
     });
   }
 
@@ -1685,13 +1909,35 @@
       }),
       el("button", { text: "↑", attrs: { type: "button", title: "Previous match" }, on: { click: function () { pdfFindNext(-1); } } }),
       el("button", { text: "↓", attrs: { type: "button", title: "Next match" }, on: { click: function () { pdfFindNext(1); } } }),
+      el("button", {
+        text: "Save PDF with highlights", attrs: { type: "button", id: "pdf-export", style: "margin-left:auto" },
+        on: { click: function () { pdfExportWithHighlights(row); } },
+      }),
     ]);
     var thumbs = el("div", { className: "pdf-thumbs", attrs: { id: "pdf-thumbs" } });
-    var pageWrap = el("div", { className: "pdf-pagewrap", attrs: { id: "pdf-pagewrap" } }, [
+    var textLayerDiv = el("div", { className: "textLayer", attrs: { id: "pdf-textlayer" } });
+    var marksDiv = el("div", { className: "pdf-marks", attrs: { id: "pdf-marks" } });
+    var pageInner = el("div", { className: "pdf-page", attrs: { id: "pdf-page" } }, [
       el("canvas", { attrs: { id: "pdf-canvas" } }),
+      textLayerDiv,
+      marksDiv,
     ]);
+    var pageWrap = el("div", { className: "pdf-pagewrap", attrs: { id: "pdf-pagewrap" } }, [pageInner]);
     wrap.appendChild(toolbar);
     wrap.appendChild(el("div", { className: "pdf-body" }, [thumbs, pageWrap]));
+
+    // Highlighting (§ PDF annotations): select text in the layer above the
+    // canvas -> a small popup offers a highlight color -> saved through
+    // highlight.py's POST route, keyed by page + unscaled (scale=1)
+    // rects so a mark stays put across zoom levels (§ pdfState.scale below).
+    textLayerDiv.addEventListener("mouseup", function () { setTimeout(handlePdfSelection, 0); });
+
+    pdfState.pmid = row.pmid;
+    pdfState.highlights = [];
+    apiFetch("/api/paper/" + encodeURIComponent(row.pmid) + "/highlights")
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (list) { pdfState.highlights = list || []; renderPdfMarks(); })
+      .catch(function () { /* highlights are a nice-to-have; the PDF still renders without them */ });
 
     loadPdfJs().then(function (pdfjsLib) {
       return apiFetch("/files/" + encodeURIComponent(row.pmid) + "/" + path.split("/").map(encodeURIComponent).join("/"))

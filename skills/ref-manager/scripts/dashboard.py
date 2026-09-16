@@ -19,9 +19,10 @@ via two directory renames -- a failed build never touches the previous
 dashboard, and a rebuild replaces it in one visible step.
 
 `serve` (§7, the default `/ref:dashboard` mode) runs a `127.0.0.1`-only
-`ThreadingHTTPServer` with a live JSON API, an in-page pdf.js viewer, and
-notes that write straight through `note.py append()` (which holds
-`pmid_lock()`). Both modes are read-only except that one write path --
+`ThreadingHTTPServer` with a live JSON API, an in-page pdf.js viewer with
+text-layer highlighting, and notes -- both write straight through
+`note.py append()` / `highlight.py add()`/`remove()` (each holds
+`pmid_lock()`). Both modes are read-only except those two write paths --
 nothing else in this module or its handler ever writes to the library.
 """
 from __future__ import annotations
@@ -41,6 +42,7 @@ import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 
+import highlight as highlight_module
 import lib_intake
 import lib_inventory
 import lint as lint_module
@@ -70,6 +72,11 @@ _FILE_ALLOWLIST_PATTERNS = (
 
 MAX_NOTE_TEXT_BYTES = 20 * 1024  # §7.3 "note text length cap (e.g. 20 KB)"
 MAX_BODY_BYTES = 24 * 1024  # a little headroom over MAX_NOTE_TEXT_BYTES for the JSON envelope
+
+MAX_HIGHLIGHT_TEXT_BYTES = 4 * 1024
+MAX_HIGHLIGHT_NOTE_BYTES = 4 * 1024
+MAX_HIGHLIGHT_RECTS = 60  # a multi-paragraph selection wraps many lines, one rect each
+HIGHLIGHT_COLORS = ("yellow", "green", "red")
 
 
 def _valid_pmid(pmid: str) -> bool:
@@ -158,6 +165,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._serve_static_file(ASSETS_DIR / "vendor" / "pdfjs" / "pdf.min.js", "application/javascript")
         elif path == "/vendor/pdfjs/pdf.worker.min.js":
             self._serve_static_file(ASSETS_DIR / "vendor" / "pdfjs" / "pdf.worker.min.js", "application/javascript")
+        elif path == "/vendor/pdf-lib/pdf-lib.min.js":
+            self._serve_static_file(ASSETS_DIR / "vendor" / "pdf-lib" / "pdf-lib.min.js", "application/javascript")
         elif path == "/api/rows":
             if self._check_token():
                 self._send_json(lib_inventory.rows(self.library_root))
@@ -170,6 +179,9 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/snapshots":
             if self._check_token():
                 self._send_json(_read_snapshots(self.library_root))
+        elif path.startswith("/api/paper/") and path.endswith("/highlights"):
+            if self._check_token():
+                self._serve_highlights(path[len("/api/paper/"):-len("/highlights")].rstrip("/"))
         elif path.startswith("/api/paper/"):
             if self._check_token():
                 self._serve_detail(path[len("/api/paper/"):])
@@ -220,6 +232,16 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             return
         self._send_json(detail)
 
+    def _serve_highlights(self, raw_pmid: str) -> None:
+        pmid = urllib.parse.unquote(raw_pmid)
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        if not (self.library_root / "papers" / pmid).is_dir():
+            self._reject(404, "pmid not found")
+            return
+        self._send_json(highlight_module.load(self.library_root, pmid))
+
     def _serve_file(self, raw_rel: str) -> None:
         segments = _decode_path_segments(raw_rel)
         if not segments or len(segments) < 2 or not all(segments):
@@ -259,6 +281,24 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
 
     # ----------------------------------------------------------------- POST
 
+    def _read_json_body(self, max_bytes: int) -> object | None:
+        """Returns the parsed JSON body, or None after sending an error
+        response (Content-Length missing/oversized, or invalid JSON)."""
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self._reject(411, "Content-Length required")
+            return None
+        if length < 0 or length > max_bytes:
+            self._reject(413, "request body too large")
+            return None
+        raw_body = self.rfile.read(length)
+        try:
+            return json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            self._reject(400, "invalid JSON body")
+            return None
+
     def do_POST(self) -> None:  # noqa: N802 -- stdlib method name
         port = self.server.server_address[1]
         if not _host_allowed(self.headers, port):
@@ -269,31 +309,43 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         path = urllib.parse.urlsplit(self.path).path
-        if not (path.startswith("/api/paper/") and path.endswith("/notes")):
+        if path.startswith("/api/paper/") and path.endswith("/notes"):
+            if self._check_token():
+                self._post_note(path[len("/api/paper/"):-len("/notes")].rstrip("/"))
+        elif path.startswith("/api/paper/") and path.endswith("/highlights"):
+            if self._check_token():
+                self._post_highlight(path[len("/api/paper/"):-len("/highlights")].rstrip("/"))
+        else:
+            self._reject(404, "not found")
+
+    def do_DELETE(self) -> None:  # noqa: N802 -- stdlib method name
+        port = self.server.server_address[1]
+        if not _host_allowed(self.headers, port):
+            self._reject(403, "invalid Host header")
+            return
+        if not _origin_allowed(self.headers, port):
+            self._reject(403, "invalid or missing Origin header")
+            return
+
+        path = urllib.parse.urlsplit(self.path).path
+        prefix = "/api/paper/"
+        segments = path[len(prefix):].split("/") if path.startswith(prefix) else []
+        # <pmid>/highlights/<id>, nothing else is deletable.
+        if len(segments) != 3 or segments[1] != "highlights" or not segments[0] or not segments[2]:
             self._reject(404, "not found")
             return
         if not self._check_token():
             return
+        self._delete_highlight(urllib.parse.unquote(segments[0]), urllib.parse.unquote(segments[2]))
 
-        pmid = urllib.parse.unquote(path[len("/api/paper/"):-len("/notes")].rstrip("/"))
+    def _post_note(self, raw_pmid: str) -> None:
+        pmid = urllib.parse.unquote(raw_pmid)
         if not _valid_pmid(pmid):
             self._reject(400, "invalid pmid")
             return
 
-        try:
-            length = int(self.headers.get("Content-Length", ""))
-        except ValueError:
-            self._reject(411, "Content-Length required")
-            return
-        if length < 0 or length > MAX_BODY_BYTES:
-            self._reject(413, "request body too large")
-            return
-        raw_body = self.rfile.read(length)
-
-        try:
-            payload = json.loads(raw_body.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError):
-            self._reject(400, "invalid JSON body")
+        payload = self._read_json_body(MAX_BODY_BYTES)
+        if payload is None:
             return
         if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
             self._reject(400, "body must be {text: str, page?: int}")
@@ -312,8 +364,6 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
 
         final_text = f"p. {page}: {text}" if page is not None else text
 
-        # The only mutation path anywhere in this server: note.append(),
-        # which itself holds pmid_lock() (§7.5's "note.py change").
         try:
             note_module.append(self.library_root, pmid, final_text)
         except FileNotFoundError:
@@ -323,6 +373,85 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         detail = lib_inventory.detail(self.library_root, pmid)
         entry = detail["notes"][-1] if detail.get("notes") else {"at": None, "text": final_text}
         self._send_json(entry, status=201)
+
+    def _post_highlight(self, raw_pmid: str) -> None:
+        pmid = urllib.parse.unquote(raw_pmid)
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+
+        payload = self._read_json_body(MAX_BODY_BYTES)
+        if payload is None:
+            return
+        if not isinstance(payload, dict):
+            self._reject(400, "body must be an object")
+            return
+
+        page = payload.get("page")
+        if isinstance(page, bool) or not isinstance(page, int) or page < 1:
+            self._reject(400, "page must be a positive integer")
+            return
+
+        text = payload.get("text")
+        if not isinstance(text, str) or not text.strip():
+            self._reject(400, "text must be a non-empty string")
+            return
+        if len(text.encode("utf-8")) > MAX_HIGHLIGHT_TEXT_BYTES:
+            self._reject(413, "highlight text too long")
+            return
+
+        color = payload.get("color")
+        if color not in HIGHLIGHT_COLORS:
+            self._reject(400, f"color must be one of {HIGHLIGHT_COLORS}")
+            return
+
+        rects = payload.get("rects")
+        if not isinstance(rects, list) or not rects or len(rects) > MAX_HIGHLIGHT_RECTS:
+            self._reject(400, f"rects must be a non-empty list of at most {MAX_HIGHLIGHT_RECTS} boxes")
+            return
+        clean_rects = []
+        for r in rects:
+            if not isinstance(r, dict) or set(r) != {"x", "y", "w", "h"}:
+                self._reject(400, "each rect must be {x, y, w, h}")
+                return
+            values = {}
+            for k, v in r.items():
+                if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0:
+                    self._reject(400, "rect coordinates must be non-negative numbers")
+                    return
+                values[k] = float(v)
+            clean_rects.append(values)
+
+        note = payload.get("note")
+        if note is not None:
+            if not isinstance(note, str):
+                self._reject(400, "note must be a string")
+                return
+            if len(note.encode("utf-8")) > MAX_HIGHLIGHT_NOTE_BYTES:
+                self._reject(413, "highlight note too long")
+                return
+            note = note.strip() or None
+
+        try:
+            entry = highlight_module.add(
+                self.library_root, pmid, page=page, rects=clean_rects, text=text.strip(), color=color, note=note,
+            )
+        except FileNotFoundError:
+            self._reject(404, "pmid not found")
+            return
+        self._send_json(entry, status=201)
+
+    def _delete_highlight(self, pmid: str, highlight_id: str) -> None:
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        if not re.fullmatch(r"[0-9a-f]{1,64}", highlight_id):
+            self._reject(400, "invalid highlight id")
+            return
+        if highlight_module.remove(self.library_root, pmid, highlight_id):
+            self._send_bytes(b"", "application/json", status=204)
+        else:
+            self._reject(404, "highlight not found")
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002 -- stdlib signature
         pass  # keep the terminal clean; the one line serve() prints is the launch URL

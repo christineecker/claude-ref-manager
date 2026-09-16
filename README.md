@@ -84,6 +84,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-16 · [`b004d0d`](https://github.com/christineecker/claude-ref-manager/commit/b004d0d) docs: fix D-number gap in decision tables
 - 2026-09-16 · [`c0eb24f`](https://github.com/christineecker/claude-ref-manager/commit/c0eb24f) feat: /ref:read opens live PDF+notes viewer instead of md reconstruction
 - 2026-09-16 · [`e7fde72`](https://github.com/christineecker/claude-ref-manager/commit/e7fde72) docs: PhD-friendly command explanations + file-structure trees in tutorials
 - 2026-09-16 · [`02ae63d`](https://github.com/christineecker/claude-ref-manager/commit/02ae63d) Implement library viewer UX improvements (P0-P2)
@@ -98,5 +99,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`7eb9b16`](https://github.com/christineecker/claude-ref-manager/commit/7eb9b16) docs: update adding-papers tutorial for new intake commands
 - 2026-09-15 · [`eda8686`](https://github.com/christineecker/claude-ref-manager/commit/eda8686) docs: sync command reference with phase 5/6 changes
 - 2026-09-15 · [`eae23af`](https://github.com/christineecker/claude-ref-manager/commit/eae23af) Implement phases 5 and 6 provenance and identity updates
-- 2026-09-15 · [`4130e2f`](https://github.com/christineecker/claude-ref-manager/commit/4130e2f) Add /ref:add-url command with local URL identify helper
 <!-- changelog:end -->

@@ -84,6 +84,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-16 · [`9e51278`](https://github.com/christineecker/claude-ref-manager/commit/9e51278) fix: library-viewer drawer hidden-attribute override; rename plugin ref-manager -> ref
 - 2026-09-16 · [`6ed94ae`](https://github.com/christineecker/claude-ref-manager/commit/6ed94ae) docs: remove plan docs
 - 2026-09-16 · [`b004d0d`](https://github.com/christineecker/claude-ref-manager/commit/b004d0d) docs: fix D-number gap in decision tables
 - 2026-09-16 · [`c0eb24f`](https://github.com/christineecker/claude-ref-manager/commit/c0eb24f) feat: /ref:read opens live PDF+notes viewer instead of md reconstruction
@@ -98,5 +99,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`a5e9202`](https://github.com/christineecker/claude-ref-manager/commit/a5e9202) Implement UX_BACKLOG.md: onboarding, status health check, error messages, unified intake, and deferred items
 - 2026-09-15 · [`5085f9f`](https://github.com/christineecker/claude-ref-manager/commit/5085f9f) Remove completed IMPLEMENTATION_PLAN.md and fix stale refs
 - 2026-09-15 · [`7eb9b16`](https://github.com/christineecker/claude-ref-manager/commit/7eb9b16) docs: update adding-papers tutorial for new intake commands
-- 2026-09-15 · [`eda8686`](https://github.com/christineecker/claude-ref-manager/commit/eda8686) docs: sync command reference with phase 5/6 changes
 <!-- changelog:end -->

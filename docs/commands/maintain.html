@@ -314,6 +314,72 @@ required.
   <p class="writes"><a href="#lint"><code>/ref:lint</code></a> · <a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="../tutorials/maintenance.html">Maintenance tutorial</a></p>
 </article>
 
+<!-- ================= list ================= -->
+<article class="cmd" id="list">
+  <div class="cmd-head"><h3>/ref:list</h3><div class="chips"><span class="tag phase">library viewer</span><span class="tag ro">read-only</span></div></div>
+  <p class="summary">Filterable browse/report over the paper library: metadata, source coverage, lint issues, project/reading state, and a coverage matrix. Built on the same <code>lib_inventory.rows()</code> every other view uses. No filters lists every paper; a filter combination matching nothing prints an explicit message rather than nothing.</p>
+  <div class="synopsis">/ref:list [--source &lt;badge,...&gt;] [--has/--missing &lt;key,...&gt;] [--tier &lt;t&gt;] [--year &lt;YYYY|YYYY..YYYY&gt;] [--journal &lt;substr&gt;] [--retracted] [--stale-days &lt;N&gt;] [--issue &lt;bucket&gt;] [selector] [--sort &lt;field&gt;] [--columns &lt;col,...&gt;] [--format table|csv|json|pmids] [--matrix]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--source &lt;badge,...&gt;</dt><dd>Subset of <code>pdf-backed,full-text,oa-pending,abstract-only,metadata-only</code>.</dd>
+    <dt>--has / --missing &lt;key,...&gt;</dt><dd>Presence filters (ANDed), subset of <code>pdf,fulltext,claims,figures,notes</code>.</dd>
+    <dt>--tier &lt;abstract|full|unavailable&gt;</dt><dd><code>meta.json.extraction_tier</code>.</dd>
+    <dt>--year &lt;YYYY|YYYY..YYYY&gt;</dt><dd>Single year or inclusive range.</dd>
+    <dt>--journal &lt;substring&gt;</dt><dd>Case-insensitive.</dd>
+    <dt>--retracted</dt><dd><code>retraction_status</code> is <code>retracted</code> or <code>erratum</code>.</dd>
+    <dt>--stale-days &lt;N&gt;</dt><dd>Only papers whose <code>checked_at</code> is older than <code>N</code> days.</dd>
+    <dt>--issue &lt;lint-bucket&gt;</dt><dd>One of the buckets <a href="#lint"><code>/ref:lint</code></a> reports.</dd>
+    <dt>selector</dt><dd><code>--project</code>, <code>--reading-status</code>, <code>--query</code>, <code>--from-file</code> — the shared selector grammar; <code>--reading-status</code> requires <code>--project</code>.</dd>
+    <dt>--sort &lt;year|added|title|checked|claims&gt;</dt><dd>Sort order.</dd>
+    <dt>--columns &lt;col,...&gt;</dt><dd>Projection for <code>table</code>/<code>csv</code>/<code>json</code>; omit for the default column set.</dd>
+    <dt>--format &lt;table|csv|json|pmids&gt;</dt><dd>Default <code>table</code>. <code>pmids</code> prints a bare space-separated PMID list — pipe it straight into <code>/ref:fetch</code> / <code>/ref:extract</code>.</dd>
+    <dt>--matrix</dt><dd>Paper × <code>{meta, abstract, fulltext, pdf, figures, claims, indexed, retraction}</code> coverage grid instead of <code>--columns</code>.</dd>
+  </dl>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads paper records and index presence. Writes nothing.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:list --issue abstract_only --format pmids</span>
+<span class="o">40665956 40691132 40701004</span>
+<span class="p">›</span> <span class="cmd">/ref:list --source abstract-only,oa-pending --stale-days 180 --sort checked</span>
+<span class="o">pmid       title                                  year  source        checked</span>
+<span class="o">40665956   Sham tDCS and social cognition in...  2024  abstract-only  2026-02-11</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>list.py --repo &lt;library_root&gt; [flags above]</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#lint"><code>/ref:lint</code></a> · <a href="#dashboard"><code>/ref:dashboard</code></a> · <a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="../tutorials/library-viewer.html">Library viewer tutorial</a></p>
+</article>
+
+<!-- ================= dashboard ================= -->
+<article class="cmd" id="dashboard">
+  <div class="cmd-head"><h3>/ref:dashboard</h3><div class="chips"><span class="tag phase">library viewer</span><span class="tag ro">read-only except notes</span></div></div>
+  <p class="summary">Dashboard over the paper library: health state, source coverage, pipeline funnel, papers-by-year, lint trend, a searchable/sortable paper table, a coverage matrix, per-project reading progress, maintenance sparklines, a paper panel, and a PDF viewer. Built on the same <code>lib_inventory.rows()</code>/<code>detail()</code> every other view uses.</p>
+  <div class="synopsis">/ref:dashboard [--port &lt;n&gt;] [--open]
+/ref:dashboard --static [--open]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>--static</dt><dd>Build the static self-contained HTML dashboard instead of serving (also triggered by the literal word <code>build</code>).</dd>
+    <dt>--port &lt;n&gt;</dt><dd>Serve mode only. Fixed port instead of an OS-assigned one.</dd>
+    <dt>--open</dt><dd>Open the dashboard in the default browser once ready.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <p><strong>Default (serve):</strong> a local HTTP server on <code>127.0.0.1</code> with a live API, an in-page pdf.js viewer (thumbnails, zoom, fit-width, page jump, find-in-PDF), and notes that save immediately through <code>note.py append</code> — the same file/format as <a href="organize.html#note"><code>/ref:note</code></a>. Binds <code>127.0.0.1</code> only, with a random per-run token required on every request and checked against <code>Host</code>/<code>Origin</code> — not reachable from other machines or other browser tabs without the token in the URL. Blocks until interrupted (Ctrl-C).</p>
+  <p><strong><code>--static</code>:</strong> writes atomically to <code>reports/dashboard/</code> (template + inline rows/lint JSON, one <code>details/&lt;pmid&gt;.js</code> per paper loaded on demand). No server; the PDF tab opens in a new browser tab instead of in-page. The notes composer only writes a browser-local draft with a "Copy <code>/ref:note</code>" button — committed notes still come from <code>/ref:note</code>.</p>
+  <p>Both modes: selecting rows in the Papers tab builds ready-to-copy <code>/ref:fetch</code> / <code>/ref:extract</code> commands for papers that still need them.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads the same inventory/lint data as <code>/ref:list</code> and <code>/ref:lint</code>. Serve mode's notes composer is the only thing that writes to the library, via <code>note.py append</code>. Static mode writes only <code>reports/dashboard/</code>; a failed build never touches the previous snapshot.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --open</span>
+<span class="o">dashboard serving: http://127.0.0.1:53211/?token=9f2c...  (Ctrl-C to stop)</span>
+<span class="p">›</span> <span class="cmd">/ref:dashboard --static --open</span>
+<span class="o">dashboard built: /Users/you/refs/reports/dashboard/index.html</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>dashboard.py serve --repo &lt;library_root&gt; [--port N] [--open]</code>, or <code>dashboard.py build --repo &lt;library_root&gt; [--open]</code> for <code>--static</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="#list"><code>/ref:list</code></a> · <a href="#lint"><code>/ref:lint</code></a> · <a href="organize.html#note"><code>/ref:note</code></a> · <a href="../tutorials/library-viewer.html">Library viewer tutorial</a></p>
+</article>
+
 <!-- ================= audit ================= -->
 <article class="cmd" id="audit">
   <div class="cmd-head"><h3>/ref:audit</h3><div class="chips"><span class="tag phase">phase 11</span><span class="tag net">PubMed MCP</span></div></div>

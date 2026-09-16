@@ -155,6 +155,31 @@
 </section>
 
 <section>
+<h2>No starting PMID? Two more routes</h2>
+<p>The decision map above assumes you already have a PMID, PICO question, URL, PDF, or mixed batch. Two other cases feed candidates in rather than an ID you already hold.</p>
+
+<h3>Snowball from a paper you already have</h3>
+<p><code>/ref:related &lt;pmid&gt; [--direction backward|forward|both]</code> — backward reads the reference list out of already-committed full text (no network call); forward asks PubMed's <code>find_related_articles</code> for similar papers. Either direction only surfaces candidates in <code>papers/&lt;pmid&gt;/related.json</code>; nothing is added automatically.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 31000001 --direction forward</span>
+<span class="o">{ "count": 1, "rows": [
+    { "candidate": "31000002", "resolved": true, "direction": "forward",
+      "method": "find_related_articles:pubmed_pubmed", "already_in_library": false } ] }</span>
+<span class="p">›</span> <span class="cmd">/ref:add-fetch 31000002</span></pre>
+<div class="note warn"><strong><code>pubmed_pubmed</code> is similarity, not "cited by."</strong> There is no true citation-graph link type in the live MCP tool — record the exact <code>link_type</code>, don't call it a citation.</div>
+
+<h3>A researcher's back-catalog</h3>
+<p>Confirm identity first, then let <code>/ref:discover</code> build the author query. Name similarity alone never creates a confirmed link.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person create moreau-c --name "Moreau, Claire" --orcid 0000-0002-1825-0097</span>
+<span class="p">›</span> <span class="cmd">/ref:discover --person moreau-c</span>
+<span class="o">{ "candidate_publications": [{ "pmid": "31000003", "title": "..." }] }</span>
+<span class="p">›</span> <span class="cmd">/ref:person confirm-publication moreau-c --pmid 31000003 --author-index 2</span>
+<span class="p">›</span> <span class="cmd">/ref:add-fetch 31000003</span></pre>
+<div class="note">Confirming identity still doesn't create a paper record — that's <code>/ref:add</code> (or <code>/ref:add-fetch</code>). A rejected candidate via <code>/ref:person reject-publication</code> is never re-suggested.</div>
+</section>
+
+<section>
 <h2>Minimal recipes</h2>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
 <span class="p">›</span> <span class="cmd">/ref:update-queries asd-tdcs</span>
@@ -191,7 +216,7 @@
 
 <nav class="pager" aria-label="Tutorial pages">
   <a href="index.html"><small>Previous</small>Tutorials</a>
-  <a href="thesis-chapter.html" style="text-align:right"><small>Next</small>Thesis chapter</a>
+  <a href="maintenance.html" style="text-align:right"><small>Next</small>Maintenance loop</a>
 </nav>
 
 </main>

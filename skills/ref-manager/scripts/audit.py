@@ -9,7 +9,7 @@ errata status, and (`--citations`) record dated PMC cited-by observations
 This script never calls PubMed itself -- same command-markdown-calls-MCP-
 then-hands-JSON-to-script split as add.py/fetch.py/extract.py. The
 retraction check reuses the EXACT logic extract.py's own command doc
-(commands/ref-extract.md) already specifies at ingestion time: call
+(commands/extract.md) already specifies at ingestion time: call
 get_article_metadata again, check article_types for a retraction/erratum/
 correction marker, "unknown" on any failure or ambiguity, never a false
 "none".
@@ -36,7 +36,7 @@ real cited-by/citing-article COUNT (search_articles, get_article_metadata,
 get_full_text_article, find_related_articles -- only pubmed_pubmed word-
 similarity, no citation graph, confirmed live in phase 9's /ref:related
 work -- convert_article_ids, lookup_article_by_citation,
-get_copyright_status all checked). commands/ref-audit.md instead wires a
+get_copyright_status all checked). commands/audit.md instead wires a
 direct NCBI E-utilities ELink call (pubmed_pmc_refs, "Cited in PMC") over
 WebFetch -- a real, public count, though PMC-only coverage (undercounts
 total literature citations). This script stays source-agnostic: it only

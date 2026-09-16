@@ -158,6 +158,7 @@ tbody tr[aria-current="true"]{box-shadow:inset 3px 0 0 var(--accent)}
 
 .scrim{position:fixed;inset:0;background:rgba(20,18,14,.28);z-index:20}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(660px,100vw);background:var(--panel);border-left:1px solid var(--line);z-index:21;display:flex;flex-direction:column;box-shadow:-12px 0 40px rgba(0,0,0,.14)}
+.scrim[hidden],.drawer[hidden]{display:none}
 .d-head{padding:12px 20px 0;display:grid;gap:10px;border-bottom:1px solid var(--line)}
 .d-nav{display:flex;align-items:center;gap:6px}
 .d-nav .pos{font-family:"IBM Plex Mono",monospace;font-size:.75rem;color:var(--muted);margin-right:auto;font-variant-numeric:tabular-nums}

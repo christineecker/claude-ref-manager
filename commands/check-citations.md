@@ -18,7 +18,7 @@ Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).
 2. Note any `[^pmid]` markers already present in the paragraph — these are existing
    citations you must verify, not just candidates a search might surface.
-3. **Query expansion + retrieval**, same as `/ref:ask` (steps 2-3 of `commands/ref-ask.md`):
+3. **Query expansion + retrieval**, same as `/ref:ask` (steps 2-3 of `commands/ask.md`):
    think of 2-4 expansion terms, then run `ask_retrieve.py` with the paragraph text as
    the question (optionally selector-scoped). This rebuilds the FTS catalog and returns
    candidates.

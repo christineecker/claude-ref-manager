@@ -6,7 +6,7 @@
 
 Extraction judgment (study-type classification, PICO+ normalization) needs
 an LLM, so it cannot be a deterministic script like add.py/fetch.py. The
-split: commands/ref-extract.md spawns one `agents/ref-extractor.md` subagent
+split: commands/extract.md spawns one `agents/ref-extractor.md` subagent
 per PMID (in parallel, per §4a: "fans out one ref-extractor agent invocation
 per PMID"), each returning the JSON shape documented in that agent file.
 This script only validates that JSON, assigns stable claim IDs, and commits

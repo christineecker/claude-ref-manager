@@ -4,8 +4,8 @@ required.
 
 Parse `$ARGUMENTS` for:
 - Nothing — print the grouped overview below.
-- `<command>` — the bare command name with or without its `ref-`/`/ref:` prefix
-  (`status`, `ref-status`, `/ref:status` all mean the same thing) — print that
+- `<command>` — the bare command name with or without its `/ref:` prefix
+  (`status`, `/ref:status` both mean the same thing) — print that
   command's own spec.
 
 Steps:
@@ -19,9 +19,9 @@ Steps:
    - If a library *is* configured, close with: run `/ref:status` next for a
      health check and concrete next actions.
 2. If `$ARGUMENTS` names one command:
-   - Resolve it to `commands/ref-<name>.md` (strip a leading `/ref:` or `ref-`
-     if given). If no such file exists, say so and suggest the closest matches
-     by name, or point at the grouped overview instead of guessing.
+   - Resolve it to `commands/<name>.md` (strip a leading `/ref:` if given). If
+     no such file exists, say so and suggest the closest matches by name, or
+     point at the grouped overview instead of guessing.
    - Read and print that file's content — it's already the authoritative,
      terse spec for that command (arguments, steps, safety notes). Don't
      paraphrase or shorten it; the whole point is showing the real spec.

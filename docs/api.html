@@ -54,10 +54,10 @@ table.sel td:first-child{white-space:normal}
 <!-- ============================================================ -->
 <section id="architecture">
 <h2>Architecture</h2>
-<p>Each <code>commands/ref-&lt;name&gt;.md</code> file is a prompt that Claude Code runs as <code>/ref:&lt;name&gt;</code>. The prompt parses <code>$ARGUMENTS</code>, reads <code>library_root</code> from <code>~/.config/ref-manager/config.json</code> (and stops, pointing at <code>/ref:init</code>, if the file is missing), then does some mix of three things:</p>
+<p>Each <code>commands/&lt;name&gt;.md</code> file is a prompt that Claude Code runs as <code>/ref:&lt;name&gt;</code>. The prompt parses <code>$ARGUMENTS</code>, reads <code>library_root</code> from <code>~/.config/ref-manager/config.json</code> (and stops, pointing at <code>/ref:init</code>, if the file is missing), then does some mix of three things:</p>
 <figure>
 <div class="svg-wrap">
-<svg viewBox="0 0 940 400" role="img" aria-label="Layer diagram. You type a slash command such as /ref:add. The command file commands/ref-add.md is a markdown prompt that parses arguments and resolves library_root from ~/.config/ref-manager/config.json. It fans out to three kinds of worker: PubMed MCP tools (get_article_metadata, get_full_text_article, search_articles, find_related_articles), python3 scripts under ${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts called with --repo and JSON input files, and Agent-tool subagents ref-extractor (one per PMID) and ref-synthesizer (one per question). MCP results and subagent JSON are written to temp files and handed to the scripts. Only scripts write the library. Committed library files feed the rebuildable projections index/catalog.sqlite and okf/. WebFetch and the firecrawl skill fetch publisher HTML or OA PDFs for /ref:fetch.">
+<svg viewBox="0 0 940 400" role="img" aria-label="Layer diagram. You type a slash command such as /ref:add. The command file commands/add.md is a markdown prompt that parses arguments and resolves library_root from ~/.config/ref-manager/config.json. It fans out to three kinds of worker: PubMed MCP tools (get_article_metadata, get_full_text_article, search_articles, find_related_articles), python3 scripts under ${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts called with --repo and JSON input files, and Agent-tool subagents ref-extractor (one per PMID) and ref-synthesizer (one per question). MCP results and subagent JSON are written to temp files and handed to the scripts. Only scripts write the library. Committed library files feed the rebuildable projections index/catalog.sqlite and okf/. WebFetch and the firecrawl skill fetch publisher HTML or OA PDFs for /ref:fetch.">
   <defs>
     <marker id="aArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
     <marker id="aArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
@@ -71,7 +71,7 @@ table.sel td:first-child{white-space:normal}
   <line x1="184" y1="52" x2="220" y2="52" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
 
   <rect x="224" y="20" width="310" height="64" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
-  <text x="238" y="44" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">commands/ref-add.md</text>
+  <text x="238" y="44" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">commands/add.md</text>
   <text x="238" y="64" font-size="11" fill="currentColor" fill-opacity=".7">markdown prompt · parses $ARGUMENTS</text>
   <text x="238" y="78" font-size="11" fill="currentColor" fill-opacity=".7">prints each script call before running it</text>
   <line x1="534" y1="52" x2="570" y2="52" stroke="currentColor" stroke-width="1.5" marker-end="url(#aArr)"/>
@@ -181,7 +181,7 @@ table.sel td:first-child{white-space:normal}
   </tbody>
 </table>
 </div>
-<div class="note warn"><strong>Heads-up.</strong> <code>commands/ref-fetch.md</code> describes <code>unpaywall_email</code> as recorded at <code>/ref:init</code>, but <code>init_repo.py</code> accepts only <code>path</code> and <code>--force</code> and writes only <code>library_root</code>. Re-running <code>init --force</code> rewrites the file with <code>library_root</code> alone, so any keys you added by hand are lost.</div>
+<div class="note warn"><strong>Heads-up.</strong> <code>commands/fetch.md</code> describes <code>unpaywall_email</code> as recorded at <code>/ref:init</code>, but <code>init_repo.py</code> accepts only <code>path</code> and <code>--force</code> and writes only <code>library_root</code>. Re-running <code>init --force</code> rewrites the file with <code>library_root</code> alone, so any keys you added by hand are lost.</div>
 </section>
 
 <!-- ============================================================ -->

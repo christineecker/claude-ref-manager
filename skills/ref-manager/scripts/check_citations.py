@@ -15,7 +15,7 @@ closer to ref-synthesizer's "grounded judgment over supplied evidence" than
 to ref-extractor's per-paper extraction, but it verifies EXISTING text
 rather than writing new text -- a distinct enough task that reusing either
 agent file verbatim would blur its contract. Rather than invent a third
-agent file, `commands/ref-check-citations.md` instructs the calling Claude
+agent file, `commands/check-citations.md` instructs the calling Claude
 session to do the assertion-splitting and evidence-judgment itself, inline
 -- the same pattern `/ref:add`'s metadata normalization already uses (no
 dedicated agent, just command-markdown instructions the calling session

@@ -34,14 +34,14 @@ The repo is its own Claude Code plugin marketplace
 
 ```
 /plugin marketplace add christineecker/claude-ref-manager
-/plugin install ref-manager@claude-ref-manager
+/plugin install ref@claude-ref-manager
 ```
 
 Or from a terminal:
 
 ```bash
 claude plugin marketplace add christineecker/claude-ref-manager
-claude plugin install ref-manager@claude-ref-manager
+claude plugin install ref@claude-ref-manager
 ```
 
 Restart Claude Code; the commands appear as `/ref:<name>`. To pick up new

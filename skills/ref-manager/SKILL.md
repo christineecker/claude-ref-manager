@@ -27,7 +27,7 @@ The library root is chosen at `/ref:init` and recorded in
 | `lib_schema.py` | record-shape validators for config/meta/project/screening/claim/correction/study/person/grant |
 
 Later phases add scripts alongside these; commands stay thin wrappers that resolve
-`--repo` from the config file and call a script (see `commands/ref-init.md` for the
+`--repo` from the config file and call a script (see `commands/init.md` for the
 house style).
 
 ## Read next

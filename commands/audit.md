@@ -33,7 +33,7 @@ Steps for the default (retraction-status) mode:
 3. For each PMID, call `mcp__claude_ai_PubMed__get_article_metadata` again and
    check `article_types` for a retraction/erratum/correction marker — the
    IDENTICAL check `/ref:extract`'s command doc already runs once at
-   ingestion (`commands/ref-extract.md` step 4's `retraction_status` section
+   ingestion (`commands/extract.md` step 4's `retraction_status` section
    — reuse that logic verbatim, don't invent a second approach). On success,
    normalize to `{"status": "retracted"|"erratum"|"none"|"unknown", "source":
    "pubmed", "checked_at": "<iso8601>"}`. On any failure or ambiguity, record

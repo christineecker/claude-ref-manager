@@ -9,10 +9,10 @@
   },
   "plugins": [
     {
-      "name": "ref-manager",
+      "name": "ref",
       "source": "./",
       "description": "Scientific reference management — acquisition, extraction, retrieval, and knowledge-graph synthesis over a PMID-keyed paper library.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "author": {
         "name": "Christine Ecker"
       },

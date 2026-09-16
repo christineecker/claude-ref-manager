@@ -27,7 +27,7 @@ Steps:
    ```
    print the result, stop.
 4. Otherwise (save or `--refresh`): run this exact same retrieval + synthesis +
-   validation sequence `/ref:ask` uses (steps 2-5 of `commands/ref-ask.md` —
+   validation sequence `/ref:ask` uses (steps 2-5 of `commands/ask.md` —
    query expansion, `ask_retrieve.py`, the `ref-synthesizer` subagent,
    `validate_citations.py`). Write the returned candidates JSON and the
    selector resolution (if any) to temp files too.

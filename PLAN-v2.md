@@ -12,23 +12,23 @@ Numbering continues from `PLAN.md` §0.
 
 | # | Decision | Consequence |
 |---|---|---|
-| D29 | **Graph built from library claims only.** No import of external knowledge bases (DrugBank, AHBA, DisGeNET). | Every node and edge traces to a PMID passage; D11 holds. Multi-hop mechanistic chains will be sparse, and presentation must not imply otherwise. |
-| D30 | **Small generic entity-type core.** `population`, `condition`, `phenotype_measure`, `intervention_exposure`, `outcome`, `method`, `modality`, `biological_entity`, `anatomical_entity`, `dataset`, plus `unknown`. | Extending the list is an explicit schema bump with a migration note, never an extractor invention. |
-| D31 | **Closed predicate list with `associated_with` fallback.** Out-of-vocabulary relationships map to `associated_with` and retain the original verb. | Predicate queries stay reliable. The fallback share is a watched metric (§6): a high share means the list is wrong, not the papers. |
-| D32 | **One primary triple per claim, plus typed context entities.** Population, method, modality, and dataset attach as context links, not as extra findings. | Support counts are not inflated by compound sentences. Claim IDs keep their phase-4 stability rules. |
-| D33 | **`claim_role` on every claim; `cited` claims are pointers only.** Roles: `own_result`, `background`, `interpretation`, `cited`, `method`. | Cited claims are searchable and resolve to the cited PMID when possible, but never count toward support, replication, or consistency. |
-| D34 | **Extraction confidence = deterministic checks + LLM label.** Checks: evidence span found verbatim, locator resolves, share of normalized fields known, direction consistent with span. The model's `high/medium/low` label is displayed separately. | The LLM label never enters evidence scoring, ranking, or bands. |
-| D35 | **Inferred edges are never persisted.** `relations.jsonl` holds only reported and reviewed edges; paths and hypotheses are computed on demand. | A saved artifact freezes the inferred paths it showed, with index version IDs, so it stays reproducible without polluting the graph. |
-| D36 | **Lazy v1→v2 claim migration.** Existing claims are marked `schema_version: 1`; new extractions write v2; `/ref:extract --upgrade <selector>` re-extracts chosen papers. | Graph views label v1-backed edges as untyped. No library-wide re-extraction cost; overlays follow phase-4 pending rules where spans shift. |
-| D37 | **MeSH hierarchy from a pinned local descriptor file.** NLM's yearly MeSH XML is downloaded once per chosen year and recorded in config. MeSH headings are captured per paper as dated observations. | Offline, reproducible tree lookups. A yearly refresh is an explicit command. MeSH indexing that arrives after ingest is a new observation, not a `meta.json` edit (D25 reasoning). |
-| D38 | **Only exact reuse applies automatically.** Reusing an existing concept on an exact alias or MeSH-ID match is automatic; new concepts, aliases, parent links, merges, and splits are proposals reviewed in `/ref:verify`. | Safest growth; review load scales with the library, so `/ref:verify` gains per-project batch review (§6 risk 1). |
-| D39 | **Merge re-points edges and resets reviews to pending.** The merged-away ID becomes a redirect; duplicate edges are listed, never collapsed silently. | Reviewed `contradicts` decisions survive a merge but must be reconfirmed, because context may differ. |
-| D40 | **Ambiguous aliases are allowed and flagged.** One alias may belong to several concepts (CT: cortical thickness / computed tomography). A match on an ambiguous alias never auto-resolves. | The mapper decides with entity type and claim context; the decision is recorded with provenance. Supersedes phase 8's one-alias-one-concept rule. |
-| D41 | **Evidence profiles are deterministic and never collapse to one number.** Independence is reported as a min–max range (ungrouped papers widen it); study weights come from a versioned rule table in config; abstract-tier contributions are shown separately; the summary is a rule-derived band (`high/moderate/low/very_low`). | Profiles are rebuildable projections, never stored in `meta.json`. Every displayed profile names its rule-table version. |
-| D42 | **Discovery stays evidence-first.** Conflict explanation is a deterministic split by context fields, with an optional LLM moderator hypothesis labelled `hypothesis_generating`; gap-matrix axes are declared per project; hypothesis paths go up to 3 hops, each hop from different PMIDs, within a candidate budget; opportunities reuse existing dataset/method/person records flagged as available to you; feasibility is an explicit match, never a model score. | No output reads as "novel" or "unstudied"; empty cells read "none in this library". |
-| D43 | **The graph explorer is a local static HTML file.** Generated under `exports/graph/<id>/`, opened with `file://`, no network, no upload. Personal content (notes, screening, grant links) is excluded unless `--include-personal`. | The file can be shared deliberately without leaking personal records by default. |
-| D44 | **Embeddings are gated by a measured recall trigger.** A labelled question set and baseline run are built at the start of phase 12, before any retrieval change; embeddings are added only if recall at the candidate budget falls below a configured threshold. | D3 becomes a measured decision instead of a permanent one. |
-| D45 | **Extraction feedback is opt-in and versioned.** Reviewed corrections are curated into a versioned example set; activating one changes the prompt version, so caches miss and re-extraction is explicit. | Existing claims never change silently. Paper→paper `cites` edges come from resolved JATS references, not similarity. |
+| D28 | **Graph built from library claims only.** No import of external knowledge bases (DrugBank, AHBA, DisGeNET). | Every node and edge traces to a PMID passage; D11 holds. Multi-hop mechanistic chains will be sparse, and presentation must not imply otherwise. |
+| D29 | **Small generic entity-type core.** `population`, `condition`, `phenotype_measure`, `intervention_exposure`, `outcome`, `method`, `modality`, `biological_entity`, `anatomical_entity`, `dataset`, plus `unknown`. | Extending the list is an explicit schema bump with a migration note, never an extractor invention. |
+| D30 | **Closed predicate list with `associated_with` fallback.** Out-of-vocabulary relationships map to `associated_with` and retain the original verb. | Predicate queries stay reliable. The fallback share is a watched metric (§6): a high share means the list is wrong, not the papers. |
+| D31 | **One primary triple per claim, plus typed context entities.** Population, method, modality, and dataset attach as context links, not as extra findings. | Support counts are not inflated by compound sentences. Claim IDs keep their phase-4 stability rules. |
+| D32 | **`claim_role` on every claim; `cited` claims are pointers only.** Roles: `own_result`, `background`, `interpretation`, `cited`, `method`. | Cited claims are searchable and resolve to the cited PMID when possible, but never count toward support, replication, or consistency. |
+| D33 | **Extraction confidence = deterministic checks + LLM label.** Checks: evidence span found verbatim, locator resolves, share of normalized fields known, direction consistent with span. The model's `high/medium/low` label is displayed separately. | The LLM label never enters evidence scoring, ranking, or bands. |
+| D34 | **Inferred edges are never persisted.** `relations.jsonl` holds only reported and reviewed edges; paths and hypotheses are computed on demand. | A saved artifact freezes the inferred paths it showed, with index version IDs, so it stays reproducible without polluting the graph. |
+| D35 | **Lazy v1→v2 claim migration.** Existing claims are marked `schema_version: 1`; new extractions write v2; `/ref:extract --upgrade <selector>` re-extracts chosen papers. | Graph views label v1-backed edges as untyped. No library-wide re-extraction cost; overlays follow phase-4 pending rules where spans shift. |
+| D36 | **MeSH hierarchy from a pinned local descriptor file.** NLM's yearly MeSH XML is downloaded once per chosen year and recorded in config. MeSH headings are captured per paper as dated observations. | Offline, reproducible tree lookups. A yearly refresh is an explicit command. MeSH indexing that arrives after ingest is a new observation, not a `meta.json` edit (D25 reasoning). |
+| D37 | **Only exact reuse applies automatically.** Reusing an existing concept on an exact alias or MeSH-ID match is automatic; new concepts, aliases, parent links, merges, and splits are proposals reviewed in `/ref:verify`. | Safest growth; review load scales with the library, so `/ref:verify` gains per-project batch review (§6 risk 1). |
+| D38 | **Merge re-points edges and resets reviews to pending.** The merged-away ID becomes a redirect; duplicate edges are listed, never collapsed silently. | Reviewed `contradicts` decisions survive a merge but must be reconfirmed, because context may differ. |
+| D39 | **Ambiguous aliases are allowed and flagged.** One alias may belong to several concepts (CT: cortical thickness / computed tomography). A match on an ambiguous alias never auto-resolves. | The mapper decides with entity type and claim context; the decision is recorded with provenance. Supersedes phase 8's one-alias-one-concept rule. |
+| D40 | **Evidence profiles are deterministic and never collapse to one number.** Independence is reported as a min–max range (ungrouped papers widen it); study weights come from a versioned rule table in config; abstract-tier contributions are shown separately; the summary is a rule-derived band (`high/moderate/low/very_low`). | Profiles are rebuildable projections, never stored in `meta.json`. Every displayed profile names its rule-table version. |
+| D41 | **Discovery stays evidence-first.** Conflict explanation is a deterministic split by context fields, with an optional LLM moderator hypothesis labelled `hypothesis_generating`; gap-matrix axes are declared per project; hypothesis paths go up to 3 hops, each hop from different PMIDs, within a candidate budget; opportunities reuse existing dataset/method/person records flagged as available to you; feasibility is an explicit match, never a model score. | No output reads as "novel" or "unstudied"; empty cells read "none in this library". |
+| D42 | **The graph explorer is a local static HTML file.** Generated under `exports/graph/<id>/`, opened with `file://`, no network, no upload. Personal content (notes, screening, grant links) is excluded unless `--include-personal`. | The file can be shared deliberately without leaking personal records by default. |
+| D43 | **Embeddings are gated by a measured recall trigger.** A labelled question set and baseline run are built at the start of phase 12, before any retrieval change; embeddings are added only if recall at the candidate budget falls below a configured threshold. | D3 becomes a measured decision instead of a permanent one. |
+| D44 | **Extraction feedback is opt-in and versioned.** Reviewed corrections are curated into a versioned example set; activating one changes the prompt version, so caches miss and re-extraction is explicit. | Existing claims never change silently. Paper→paper `cites` edges come from resolved JATS references, not similarity. |
 
 ---
 
@@ -51,7 +51,7 @@ Numbering continues from `PLAN.md` §0.
 | Semantic vector index | deferred (D3) | eval-gated hybrid retrieval (12 baseline, 17) |
 | Corrections inform processing | — | versioned extraction examples (18) |
 
-Out of scope by decision: external KB import (D29), Zotero integration, automatic/background ingestion (D9), non-PubMed sources (D11).
+Out of scope by decision: external KB import (D28), Zotero integration, automatic/background ingestion (D9), non-PubMed sources (D11).
 
 ---
 
@@ -100,27 +100,27 @@ Adds to the §4a claim (all v1 fields unchanged):
 | Field | Shape | Rule |
 |---|---|---|
 | `schema_version` | `1` \| `2` | v1 claims lack every field below; readers treat them as untyped |
-| `claim_role` | `own_result` \| `background` \| `interpretation` \| `cited` \| `method` | only `own_result` feeds evidence counts (D33) |
+| `claim_role` | `own_result` \| `background` \| `interpretation` \| `cited` \| `method` | only `own_result` feeds evidence counts (D32) |
 | `triple` | `{subject_text, subject_concept_id, predicate, object_text, object_concept_id, original_verb}` | concept IDs may be `null` until mapped; `predicate` from the closed list |
 | `context_entities` | `[{text, entity_type, concept_id, role}]` | role ∈ `population`, `method`, `modality`, `dataset`, `anatomical`, `other` |
 | `cited_pmid` | string \| `null` | set only for `claim_role: cited` when resolvable |
 | `extraction_checks` | `{span_verbatim, locator_resolves, known_field_share, direction_consistent}` | computed in code after the model returns |
-| `model_confidence_label` | `high` \| `medium` \| `low` | display only; never read by scoring (D34) |
+| `model_confidence_label` | `high` \| `medium` \| `low` | display only; never read by scoring (D33) |
 
-Predicates (closed list, D31): `increases`, `decreases`, `no_effect_on`, `associated_with`, `predicts`, `mediates`, `moderates`, `measures`, `uses_method`, `uses_dataset`, `targets`, `part_of`, `located_in`, `expressed_in`, `derived_from`.
+Predicates (closed list, D30): `increases`, `decreases`, `no_effect_on`, `associated_with`, `predicts`, `mediates`, `moderates`, `measures`, `uses_method`, `uses_dataset`, `targets`, `part_of`, `located_in`, `expressed_in`, `derived_from`.
 
 Direction mapping for evidence: `increase` → +1, `decrease` → −1, `no significant difference` → 0 (null, counted), `not reported` → excluded and counted as missing.
 
 ### 3b. Concepts, mappings, proposals
 
-- `concepts.jsonl` gains `entity_type` (D30) and `alias_flags: {<alias>: {"ambiguous": bool}}`. An alias present on two concepts is `ambiguous` on both.
+- `concepts.jsonl` gains `entity_type` (D29) and `alias_flags: {<alias>: {"ambiguous": bool}}`. An alias present on two concepts is `ambiguous` on both.
 - `mappings.jsonl` row: `mapping_id`, `concept_id`, `mesh_ui`, `match` (`exact|broader|narrower|none`), `mesh_year`, `source` (`auto_exact|proposal:<id>|manual`), `review_state`, timestamps. A MeSH UI is an alias-level attribute, never a concept key (§3d).
 - `proposals.jsonl` row: `proposal_id`, `kind` (`new_concept|add_alias|parent|merge|split|mapping|disambiguation`), payload, evidence (claim IDs / passages), proposer (`extractor|weave|manual`), `status` (`pending|accepted|rejected`), reviewer, rationale. Rejected proposals are retained to suppress repeats.
-- Merge: under the library lock, re-point relations and mappings to the target, write a redirect, set every affected reviewed relation to `review_state: pending` with the prior decision retained, and report duplicate edges (D39). Split mirrors this with explicit claim reassignment.
+- Merge: under the library lock, re-point relations and mappings to the target, write a redirect, set every affected reviewed relation to `review_state: pending` with the prior decision retained, and report duplicate edges (D38). Split mirrors this with explicit claim reassignment.
 
 ### 3c. Relation v2
 
-Adds `kind` (`evidential|semantic`), `predicate` (semantic only; from §3a list), and `origin` (`reported|reviewed`). Existing rows migrate to `kind: evidential, origin: reported|reviewed` from their `review_state`. `supporting_claims` stays mandatory and must reference `claim_role: own_result` claims. Inferred paths have no row (D35). `review_state` gains `pending` for merge/stale reconfirmation.
+Adds `kind` (`evidential|semantic`), `predicate` (semantic only; from §3a list), and `origin` (`reported|reviewed`). Existing rows migrate to `kind: evidential, origin: reported|reviewed` from their `review_state`. `supporting_claims` stays mandatory and must reference `claim_role: own_result` claims. Inferred paths have no row (D34). `review_state` gains `pending` for merge/stale reconfirmation.
 
 ### 3d. Evidence profile
 
@@ -137,7 +137,7 @@ Computed per relation or concept pair, over active, non-rejected, `own_result` c
 | Modality convergence | distinct `modality` context entities among agreeing sources |
 | Tier split | every component shown for full-tier vs abstract-tier contributions |
 
-Weights `wᵢ` = rule table in config (`evidence.rules`, versioned): design tier × appraisal result × extraction tier. Bands come from explicit threshold rules in the same table. No 0–100 score (D41). Profiles live in `index/catalog.sqlite` and are frozen into any artifact that displays them.
+Weights `wᵢ` = rule table in config (`evidence.rules`, versioned): design tier × appraisal result × extraction tier. Bands come from explicit threshold rules in the same table. No 0–100 score (D40). Profiles live in `index/catalog.sqlite` and are frozen into any artifact that displays them.
 
 ### 3e. Output classification
 
@@ -207,12 +207,12 @@ Order: **12 → 13 → 14, then re-plan 15–18** after running them on one real
 
 ## 6. Risks and watched metrics
 
-1. **Review load (D38).** Nearly every ontology change is a proposal. Watch pending-proposal count per project; mitigate with batch review and per-project scoping before relaxing auto-apply.
-2. **`associated_with` fallback share (D31).** If it exceeds a threshold you set on real extractions, revise the predicate list with a schema bump rather than accepting a vague graph.
-3. **Study grouping coverage (D41).** Independence ranges stay wide and bands low until studies/datasets are grouped. Report ungrouped counts prominently; this is intended pressure, not a defect.
-4. **Eval before retrieval changes (D44).** Phase 12 step 0 must land first, or phase 17's trigger has no baseline.
-5. **Sparse mechanistic chains (D29).** Claims-only graphs will rarely produce drug → target → region paths; 3-hop results must say how many routes were found and not imply coverage.
-6. **MeSH drift (D37).** A new MeSH year can move tree positions; mappings record their year and a year change produces proposals, not silent rewrites.
+1. **Review load (D37).** Nearly every ontology change is a proposal. Watch pending-proposal count per project; mitigate with batch review and per-project scoping before relaxing auto-apply.
+2. **`associated_with` fallback share (D30).** If it exceeds a threshold you set on real extractions, revise the predicate list with a schema bump rather than accepting a vague graph.
+3. **Study grouping coverage (D40).** Independence ranges stay wide and bands low until studies/datasets are grouped. Report ungrouped counts prominently; this is intended pressure, not a defect.
+4. **Eval before retrieval changes (D43).** Phase 12 step 0 must land first, or phase 17's trigger has no baseline.
+5. **Sparse mechanistic chains (D28).** Claims-only graphs will rarely produce drug → target → region paths; 3-hop results must say how many routes were found and not imply coverage.
+6. **MeSH drift (D36).** A new MeSH year can move tree positions; mappings record their year and a year change produces proposals, not silent rewrites.
 
 ---
 

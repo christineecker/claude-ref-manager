@@ -28,200 +28,165 @@
 
 <header class="page">
   <p class="eyebrow">Tutorial</p>
-  <h1>Four ways to find papers, one way in</h1>
-  <p class="lede">Whatever route surfaces a PMID — a citation you already have, a PICO question, a snowball from a key paper, or a researcher's back-catalog — <code>/ref:add</code> is always the explicit, deliberate step that actually creates a record (D12). What you're holding often isn't a bare PMID, though: a URL, a downloaded PDF, a folder of PDFs, a <code>.bib</code>/<code>.csl.json</code> export, or a DOI. <code>/ref:add-url</code>, <code>/ref:add-pdf</code>, and the source-aware <code>/ref:import</code> resolve those to a PMID first, then call the same underlying add step — so the identity guarantee holds no matter which door you came in. This tutorial walks all four discovery routes plus the intake commands for whatever form the paper takes. Commands used: <code>/ref:add</code>, <code>/ref:add-url</code>, <code>/ref:add-pdf</code>, <code>/ref:add-fetch</code>, <code>/ref:import</code>, <code>/ref:search-pubmed</code>, <code>/ref:update-queries</code>, <code>/ref:related</code>, <code>/ref:person</code>, and <code>/ref:discover</code>.</p>
+  <h1>Paper ingest: shortest paths</h1>
+  <p class="lede">For PICO intake, use <code>/ref:search-add-fetch</code>. It searches, saves, adds, and fetches in one run.</p>
 </header>
 
 <section>
-<h2>The journey</h2>
+<h2>PICO to fetched papers (one command)</h2>
 <figure>
 <div class="svg-wrap">
-<svg viewBox="0 0 940 290" role="img" aria-label="Four routes converge on one step. Known PMID, PICO search via search-pubmed, snowball via related, and portfolio discovery via person and discover all produce a list of candidate PMIDs. Every route still ends at ref:add, the only step that writes papers/pmid/meta.json.">
+<svg viewBox="0 0 980 330" role="img" aria-label="Single-command PICO intake with search-add-fetch: query build, search, save run, add, and fetch.">
   <defs>
-    <marker id="apArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
-    <marker id="apArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+    <marker id="mArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
   </defs>
-  <g font-family="IBM Plex Mono,monospace" font-size="11.5" font-weight="500" fill="currentColor">
-    <rect x="14" y="26" width="200" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
-    <text x="26" y="50">1 KNOWN PMID</text>
-    <text x="26" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">a citation, a colleague's</text>
-    <text x="26" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">list, a reference manager</text>
 
-    <rect x="248" y="26" width="200" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
-    <text x="260" y="50">2 PICO SEARCH</text>
-    <text x="260" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">search-pubmed</text>
-    <text x="260" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">update-queries</text>
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">
+    <rect x="20" y="34" width="180" height="74" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="34" y="58">QUESTION / PICO</text>
+    <text x="34" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">natural language</text>
+    <text x="34" y="95" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">or PubMed query</text>
 
-    <rect x="482" y="26" width="200" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
-    <text x="494" y="50">3 SNOWBALL</text>
-    <text x="494" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">related --direction</text>
-    <text x="494" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">backward | forward</text>
+    <rect x="232" y="34" width="180" height="74" rx="8" fill="none" stroke="currentColor"/>
+    <text x="246" y="58">SEARCH</text>
+    <text x="246" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">search_articles</text>
+    <text x="246" y="95" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">ordered PMIDs</text>
 
-    <rect x="716" y="26" width="210" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
-    <text x="728" y="50">4 PORTFOLIO</text>
-    <text x="728" y="70" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">person + discover</text>
-    <text x="728" y="85" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".7">then confirm</text>
+    <rect x="444" y="34" width="180" height="74" rx="8" fill="none" stroke="currentColor"/>
+    <text x="458" y="58">SAVE RUN</text>
+    <text x="458" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">queries/&lt;slug&gt;.yaml</text>
+    <text x="458" y="95" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">full hit list frozen</text>
+
+    <rect x="656" y="34" width="140" height="74" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="670" y="58">ADD</text>
+    <text x="670" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">first N PMIDs</text>
+    <text x="670" y="95" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">default 20</text>
+
+    <rect x="828" y="34" width="130" height="74" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="842" y="58">FETCH</text>
+    <text x="842" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">PMC, OA, HTML,</text>
+    <text x="842" y="95" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">or abstract-only</text>
   </g>
 
-  <g stroke="currentColor" stroke-width="1.5">
-    <line x1="114" y1="96" x2="114" y2="150"/>
-    <line x1="348" y1="96" x2="348" y2="150"/>
-    <line x1="582" y1="96" x2="582" y2="150"/>
-    <line x1="821" y1="96" x2="821" y2="150"/>
-    <line x1="114" y1="150" x2="821" y2="150"/>
-    <line x1="467" y1="150" x2="467" y2="180" marker-end="url(#apArr)"/>
+  <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".7">
+    <line x1="200" y1="71" x2="232" y2="71" marker-end="url(#mArr)"/>
+    <line x1="412" y1="71" x2="444" y2="71" marker-end="url(#mArr)"/>
+    <line x1="624" y1="71" x2="656" y2="71" marker-end="url(#mArr)"/>
+    <line x1="796" y1="71" x2="828" y2="71" marker-end="url(#mArr)"/>
   </g>
 
-  <rect x="342" y="184" width="250" height="70" rx="8" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.5"/>
-  <text x="356" y="212" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="600" fill="currentColor">/ref:add &lt;pmid...&gt;</text>
-  <text x="356" y="232" font-size="11" fill-opacity=".75">the only step that creates</text>
-  <text x="356" y="246" font-size="11" fill-opacity=".75">papers/&lt;pmid&gt;/meta.json</text>
+  <rect x="20" y="138" width="938" height="156" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <text x="36" y="164" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="600">/ref:search-add-fetch "&lt;PICO or query&gt;" --slug &lt;slug&gt; [--create] [--limit N]</text>
+
+  <g font-family="IBM Plex Sans,sans-serif" font-size="12" fill="currentColor">
+    <text x="36" y="194">stage output:</text>
+    <text x="36" y="216" fill="var(--accent)">search: found X, selected N</text>
+    <text x="36" y="236">save-run: run_id, query, pmids</text>
+    <text x="36" y="256" fill="var(--amber)">add: added | already_present | failed</text>
+    <text x="36" y="276" fill="var(--amber)">fetch: acquired | duplicate_noop | oa_location_found | abstract_only</text>
+  </g>
+
+  <line x1="730" y1="138" x2="730" y2="294" stroke="currentColor" stroke-opacity=".25"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
+    <text x="748" y="168">safety rails</text>
+    <text x="748" y="194">- save full run before limit</text>
+    <text x="748" y="214">- default limit = 20</text>
+    <text x="748" y="234">- confirmation if limit &gt; 100</text>
+    <text x="748" y="254">- one PMID failure does not stop others</text>
+    <text x="748" y="274">- PMID remains identity key</text>
+  </g>
 </svg>
 </div>
-<div class="legend">
-  <span><span class="sw dash"></span>you already hold the PMID</span>
-  <span><span class="sw solid"></span>the plugin helps you find candidate PMIDs</span>
-</div>
-<figcaption>Routes 2–4 only ever <em>surface candidates</em> — a saved search run, a snowball row, a discovery candidate. None of them writes a paper record. <code>/ref:add</code> is the single, explicit gate every PMID passes through (D12), so duplicate detection, citekey allocation and the "metadata-only is not a failure" rule live in exactly one place.</figcaption>
+<figcaption>Default path for PICO ingest.</figcaption>
 </figure>
-<p class="muted">The example PMIDs, <code>99000101</code>…<code>99000108</code>, are placeholders outside PubMed's real range. Blocks labelled <em>output from a scratch library</em> were produced by running the plugin's scripts against a throwaway library, standing in by hand for the PubMed MCP calls. Blocks labelled <em>illustrative output</em> need the network or a live MCP tool and follow the output format in the script source.</p>
 </section>
 
 <section>
-<h2>Route 1 — you already have something to add</h2>
-<p>Most of the time you already know what you want: a citation from a paper you're reading, a list a colleague emailed, an export from another reference manager. <code>/ref:add</code> takes one or more PMIDs directly — this is the base case every other route eventually feeds into.</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000101 99000102 99000103</span>
-<span class="o">99000101: added (citekey=alvarez2023predictive)
-99000102: added (citekey=nakamura2024surface)
-99000103: added (citekey=okoye2022transcriptomic) — no abstract available — metadata-only record, not fabricated (§3a)</span></pre>
-<div class="note"><strong>A file of PMIDs works the same way.</strong> There's no separate flag for it — <code>/ref:add</code> only takes PMIDs as arguments, so if a colleague sent you <code>pmids.txt</code> (one per line), have Claude read the file and pass its contents as the argument list: <code>/ref:add $(cat pmids.txt)</code>, or just paste the list. Every PMID still gets its own independent <code>added</code> / <code>already_present</code> / <code>failed</code> line.</div>
-<div class="note warn"><strong>No abstract is not a failure.</strong> Some records genuinely have none. <code>added</code> with a metadata-only note is the honest outcome — never a silently fabricated abstract.</div>
+<h2>Pick the command by input type</h2>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 980 340" role="img" aria-label="Decision map for paper ingest commands.">
+  <defs>
+    <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
 
-<h3>When what you have isn't a bare PMID</h3>
-<p>PMID is still the identity key everything resolves to, but plenty of what actually lands in front of you isn't a PMID yet — a link, a downloaded PDF, a whole folder of PDFs from a shared drive, a <code>.bib</code>/<code>.csl.json</code> export from another reference manager, or a bare DOI copied off a reference list. Four commands cover these, each resolving a candidate PMID first and then calling the same add step:</p>
-<ul>
-<li><code>/ref:add-url &lt;url...&gt;</code> — extracts PMID/PMCID/DOI clues from PubMed, PMC, DOI, and publisher URLs (locally first, then a page fetch if needed), confirms ambiguous matches, adds the resolved PMIDs, and fetches full text unless <code>--no-fetch</code> is passed.</li>
-<li><code>/ref:add-pdf &lt;path...&gt;</code> — extracts DOI/PMID/PMCID/title clues from local PDFs with <code>pdftotext</code> (no network call), resolves each to a PMID, adds the metadata, then attaches every PDF to its paper.</li>
-<li><code>/ref:add-fetch &lt;pmid...&gt;</code> — for when you already have PMIDs and just want add-then-fetch in one step instead of running <code>/ref:add</code> and <code>/ref:fetch</code> separately.</li>
-<li><code>/ref:import &lt;item...&gt;</code> — the source-aware front door. Hand it a mix of PMIDs, URLs, PDF paths, a folder of PDFs, <code>.bib</code>/<code>.csl.json</code> files, or bare DOIs in one call. It splits the inputs by type, routes URLs and PDFs through the same identification helpers as <code>/ref:add-url</code> and <code>/ref:add-pdf</code>, expands directories to the PDFs they contain, resolves bibliography-file entries and bare DOIs to PMIDs through PubMed MCP (asking for confirmation on anything ambiguous), then adds and — unless <code>--no-fetch</code> is passed — fetches everything that resolved.</li>
-</ul>
-<p><code>/ref:import</code> is the one to reach for whenever the source type is mixed or you don't want to figure out which specific command applies; <code>/ref:add-url</code> and <code>/ref:add-pdf</code> are worth using directly when you already know you only have one type of thing.</p>
-<p class="term-label">illustrative output</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:import 99000109 https://doi.org/10.1038/s41586-026-00001-2 ~/Downloads/nguyen2025striatal.pdf</span>
-<span class="o">identify:
-99000109: manual -> 99000109
-https://doi.org/10.1038/s41586-026-00001-2: doi -> 99000110
-~/Downloads/nguyen2025striatal.pdf: pmid -> 99000111
+  <rect x="344" y="20" width="292" height="62" rx="9" fill="none" stroke="currentColor"/>
+  <text x="360" y="45" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="600">What is your starting input?</text>
+  <text x="360" y="65" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".72">PMID, PICO/question, URL, PDF, DOI, mixed batch</text>
 
-add:
-99000109: added (citekey=singh2024cortical)
-99000110: added (citekey=weber2026striatal)
-99000111: already_present
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">
+    <rect x="24" y="128" width="182" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="36" y="154">PMID list</text>
+    <text x="36" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:add-fetch</text>
 
-fetch:
-99000109: acquired
-99000110: abstract_only
-99000111: duplicate_noop</span></pre>
-<div class="note"><strong>Bibliography files are source material, not authoritative IDs.</strong> A <code>.bib</code> or <code>.csl.json</code> file tells <code>/ref:import</code> what to look for; the entries still have to resolve to a PMID through PubMed MCP before anything is added, the same as a DOI or a title clue would. And as with every route here, one input's failure — an unresolved PDF, an ambiguous DOI, a bad URL — never blocks the rest.</div>
+    <rect x="220" y="128" width="182" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="232" y="154">PICO/question</text>
+    <text x="232" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:search-add-fetch</text>
+
+    <rect x="416" y="128" width="182" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="428" y="154">Article URL</text>
+    <text x="428" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:add-url</text>
+
+    <rect x="612" y="128" width="182" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="624" y="154">Local PDF(s)</text>
+    <text x="624" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:add-pdf</text>
+
+    <rect x="808" y="128" width="148" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="820" y="154">Mixed inputs</text>
+    <text x="820" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:import</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".7">
+    <line x1="490" y1="82" x2="115" y2="126" marker-end="url(#m2)"/>
+    <line x1="490" y1="82" x2="311" y2="126" marker-end="url(#m2)"/>
+    <line x1="490" y1="82" x2="507" y2="126" marker-end="url(#m2)"/>
+    <line x1="490" y1="82" x2="703" y2="126" marker-end="url(#m2)"/>
+    <line x1="490" y1="82" x2="881" y2="126" marker-end="url(#m2)"/>
+  </g>
+
+  <rect x="256" y="240" width="468" height="72" rx="9" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="272" y="266" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="600">All paths converge on the same identity</text>
+  <text x="272" y="286" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".78">PMID key, same dedupe, same citekey behavior.</text>
+  <text x="272" y="302" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".78">Use --no-fetch when you only want metadata.</text>
+</svg>
+</div>
+<figcaption>Use /ref:import only for mixed batches.</figcaption>
+</figure>
 </section>
 
 <section>
-<h2>Route 2 — turn a PICO question into a saved search</h2>
-<p>Give Claude a plain research question. It drafts a PICO-framed boolean PubMed query (MeSH + free text) using its own clinical/scientific judgment, runs it, and freezes the exact expression, source and result PMIDs as an immutable run — <code>/ref:search-pubmed</code> itself never touches PubMed or parses PICO; it only persists what it's handed.</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-pubmed "Does surface-based transcriptomic decoding predict receptor density?" --slug transcriptomic-decoding --create</span>
-<span class="c"># Claude drafts this expression, runs it, then saves the run:</span>
-<span class="o">{
-  "run_id": "run-2a9f0c6be142",
-  "query": "(\"transcriptome\"[MeSH] OR transcriptomic) AND (\"receptors, neurotransmitter\"[MeSH] OR receptor density) AND (predict* OR decod*)",
-  "source": "pubmed",
-  "retrieved_at": "2026-09-16T09:04:11.000000+00:00",
-  "pmids": ["99000104", "99000105", "99000106"]
-}</span></pre>
-<p>The saved run is a list of PMIDs, nothing more — it doesn't add anything to the library by itself. Read the run's PMIDs and hand them to <code>/ref:add</code>:</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000104 99000105 99000106</span>
-<span class="o">99000104: added (citekey=lindqvist2024receptor)
-99000105: added (citekey=chen2025decoding)
-99000106: already_present</span></pre>
-<div class="note"><strong>Re-run it later without re-deriving it.</strong> <code>/ref:update-queries transcriptomic-decoding</code> re-runs the exact stored expression — it never re-derives a new query from your original question — appends a new immutable run, and reports <code>added</code>/<code>removed</code> PMIDs since the last run. Add whatever's new the same way, through <code>/ref:add</code>.</div>
-</section>
+<h2>Minimal recipes</h2>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
+<span class="p">›</span> <span class="cmd">/ref:update-queries asd-tdcs</span>
+<span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 40691132</span>
+<span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/papers/</span></pre>
 
-<section>
-<h2>Route 3 — snowball from a paper you already have</h2>
-<p><code>/ref:related &lt;pmid&gt;</code> follows a known paper two directions: <strong>backward</strong> extracts its reference list from already-committed full text (no network call), and <strong>forward</strong> asks PubMed's <code>find_related_articles</code> for similar papers. Read this carefully before quoting it as a citation graph — see the note below.</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 99000104 --direction backward</span>
-<span class="o">{
-  "available": true,
-  "count": 2,
-  "candidates": [
-    { "candidate": "Smith J, et al. Receptor mapping in cortex. J Neurosci 2021.",
-      "resolved": false, "direction": "backward", "method": "reference_list" },
-    { "candidate": "Diaz R, et al. Transcriptomic gradients revisited. Nat Commun 2020.",
-      "resolved": false, "direction": "backward", "method": "reference_list" }
-  ]
-}</span></pre>
-<p class="term-label">illustrative output</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:related 99000104 --direction forward</span>
-<span class="o">{
-  "count": 2, "zero_results": false, "note": null,
-  "rows": [
-    { "candidate": "99000107", "resolved": true, "direction": "forward",
-      "method": "find_related_articles:pubmed_pubmed", "already_in_library": false },
-    { "candidate": "99000105", "resolved": true, "direction": "forward",
-      "method": "find_related_articles:pubmed_pubmed", "already_in_library": true }
-  ]
-}</span></pre>
-<div class="note warn"><strong><code>pubmed_pubmed</code> is similarity, not "cited by."</strong> The live PubMed MCP tool has no true citation-graph link type — the default is word-weighted title/abstract/MeSH similarity. Every forward row records exactly which <code>link_type</code> produced it, so this is never presented as citation data it isn't. Backward candidates are raw reference-list text, not resolved PMIDs; most don't carry one. Look one up yourself if it's worth the effort — don't auto-resolve an entire reference list.</div>
-<p>Either direction only <em>surfaces</em> candidates — <code>already_in_library: false</code> is the signal to act on:</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000107</span>
-<span class="o">99000107: added (citekey=park2024receptor)</span></pre>
-</section>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 980 240" role="img" aria-label="Saved search lifecycle and reruns.">
+  <defs>
+    <marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+  <rect x="24" y="30" width="286" height="82" rx="9" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  <text x="40" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">1) first run</text>
+  <text x="40" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:search-add-fetch ... --slug S --create</text>
+  <text x="40" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">writes queries/S.yaml + selected papers</text>
 
-<section>
-<h2>Route 4 — a researcher's back-catalog</h2>
-<p>Confirm a person's identity first — name similarity alone never establishes it (§3d). Then <code>/ref:discover</code> builds an author-search query from their name variants and ORCID, runs it, and stores the hits as <em>candidates</em> on that person's record, never as library additions.</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person create ecker-c --name "Ecker, Christine" --orcid 0000-0000-0000-0001</span>
-<span class="o">{ "slug": "ecker-c", "name_variants": ["Ecker, Christine"], "orcid": "0000-0000-0000-0001",
-  "confirmed_publications": [], "candidate_publications": [], "rejected_publications": [] }</span>
-<span class="p">›</span> <span class="cmd">/ref:discover --person ecker-c</span>
-<span class="o">{
-  "slug": "ecker-c",
-  "discovery_runs": [{ "query": "Ecker C[Author] AND 0000-0000-0000-0001[Author - Identifier]",
-                        "retrieved_at": "2026-09-16T09:11:03.000000+00:00", "candidate_count": 2 }],
-  "candidate_publications": [
-    { "pmid": "99000108", "title": "Cortical thickness trajectories in a longitudinal cohort" },
-    { "pmid": "99000105", "title": "Transcriptomic decoding of surface-based imaging phenotypes" }
-  ]
-}</span></pre>
-<p>A candidate isn't this person's confirmed publication until you link a specific author-list position — the evidenced identity match §3c requires:</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:person confirm-publication ecker-c --pmid 99000108 --author-index 3</span>
-<span class="o">{ "slug": "ecker-c", "confirmed_publications": [{ "pmid": "99000108", "author_index": 3 }],
-  "candidate_publications": [ … 99000105 still pending … ] }</span></pre>
-<p>Confirming an identity match still doesn't create a paper record — that's still <code>/ref:add</code>:</p>
-<p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 99000108</span>
-<span class="o">99000108: added (citekey=ecker2026cortical)</span></pre>
-<div class="note"><strong>A rejection sticks.</strong> If a candidate is a false match (a different, same-named author), <code>/ref:person reject-publication ecker-c --pmid &lt;id&gt;</code> records that permanently — rejected PMIDs are never re-suggested by a later <code>/ref:discover</code> run.</div>
-</section>
+  <rect x="346" y="30" width="286" height="82" rx="9" fill="none" stroke="currentColor"/>
+  <text x="362" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">2) rerun later</text>
+  <text x="362" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:update-queries S</text>
+  <text x="362" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">keeps exact stored query expression</text>
 
-<section>
-<h2>What you now have</h2>
-<pre class="tree">&lt;LIBRARY&gt;/
-  papers/99000101/ … 99000108/
-    meta.json                        <span class="c"># every route above ends here, via /ref:add</span>
-  queries/
-    transcriptomic-decoding.yaml     <span class="c"># immutable runs from /ref:search-pubmed + /ref:update-queries</span>
-  papers/99000104/
-    related.json                    <span class="c"># backward + forward candidates, upserted not overwritten</span>
-  people/
-    ecker-c.json                     <span class="c"># confirmed / candidate / rejected publication state</span></pre>
-<p>Once papers are in, get their full text with the <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a> tutorial steps in <a href="systematic-review.html">Systematic review</a>, or jump straight to <a href="thesis-chapter.html">Thesis chapter</a> for the read-screen-extract-synthesize path. Command reference: <a href="../commands/acquire.html#add"><code>/ref:add</code></a>, <a href="../commands/acquire.html#add-url"><code>/ref:add-url</code></a>, <a href="../commands/acquire.html#add-pdf"><code>/ref:add-pdf</code></a>, <a href="../commands/acquire.html#add-fetch"><code>/ref:add-fetch</code></a>, <a href="../commands/acquire.html#import"><code>/ref:import</code></a>, <a href="../commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a>, <a href="../commands/find.html#update-queries"><code>/ref:update-queries</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>, <a href="../commands/people.html#discover"><code>/ref:discover</code></a>.</p>
+  <rect x="668" y="30" width="286" height="82" rx="9" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="684" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">3) ingest changes</text>
+  <text x="684" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">run /ref:add-fetch on newly added PMIDs</text>
+  <text x="684" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">or rerun search-add-fetch with a limit</text>
+
+  <line x1="310" y1="71" x2="346" y2="71" stroke="currentColor" stroke-width="1.5" marker-end="url(#m3)"/>
+  <line x1="632" y1="71" x2="668" y2="71" stroke="currentColor" stroke-width="1.5" marker-end="url(#m3)"/>
+</svg>
+</div>
+</figure>
 </section>
 
 <nav class="pager" aria-label="Tutorial pages">
@@ -232,6 +197,6 @@ fetch:
 </main>
 </div>
 
-<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+<footer class="site">ref-manager documentation covers the implemented phases 0-11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
 </body>
 </html>

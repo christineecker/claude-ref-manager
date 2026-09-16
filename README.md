@@ -81,6 +81,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-16 · [`b004d0d`](https://github.com/christineecker/claude-ref-manager/commit/b004d0d) docs: fix D-number gap in decision tables
 - 2026-09-15 · [`1d587eb`](https://github.com/christineecker/claude-ref-manager/commit/1d587eb) docs: README with install instructions and auto-updating change log; add plugin marketplace manifest
 - 2026-09-15 · [`25fea0e`](https://github.com/christineecker/claude-ref-manager/commit/25fea0e) docs: replace app icon with teal reader mascot; add .nojekyll for GitHub Pages
 - 2026-09-15 · [`c35cdc5`](https://github.com/christineecker/claude-ref-manager/commit/c35cdc5) docs: add HTML documentation site and app icon for phases 0–11
@@ -95,5 +96,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-15 · [`58f724a`](https://github.com/christineecker/claude-ref-manager/commit/58f724a) fix: okf_emit.py concept entries carry tags even with no aliases yet
 - 2026-09-15 · [`f8796d3`](https://github.com/christineecker/claude-ref-manager/commit/f8796d3) Phase 8 (graph half): concept/relation graph, conflict review, stale-edge invalidation
 - 2026-09-15 · [`ad1639a`](https://github.com/christineecker/claude-ref-manager/commit/ad1639a) Phase 8 (OKF/people-graph half): okf_emit.py, graph_people.py, /ref:weave
-- 2026-09-15 · [`cb781fa`](https://github.com/christineecker/claude-ref-manager/commit/cb781fa) Phase 7: /ref:check-citations
 <!-- changelog:end -->

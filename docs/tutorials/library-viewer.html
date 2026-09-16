@@ -33,6 +33,16 @@
 </header>
 
 <section>
+<h2>What these tools touch on disk</h2>
+<p>All three read the same rows out of your library root (set once by <code>/ref:init</code>, resolved through <code>~/.config/ref-manager/config.json</code>) — none of them hold a separate copy of your data that can drift. Only two write paths exist, and both are narrow:</p>
+<pre class="tree">&lt;LIBRARY&gt;/
+  <span class="a">papers/</span>&lt;pmid&gt;/notes.md         <span class="c"># dashboard serve mode's notes composer — via note.py, same path /ref:note uses</span>
+  <span class="a">reports/dashboard/</span>              <span class="c"># /ref:dashboard --static — self-contained snapshot, replaced whole on rebuild</span>
+  <span class="a">maintenance/</span>&lt;UTC-timestamp&gt;.json   <span class="c"># /ref:lint --snapshot — read back by --diff</span></pre>
+<p class="muted">Everything else — <code>/ref:list</code>, live <code>/ref:dashboard</code> browsing, plain <code>/ref:lint</code> — only reads: <code>papers/*/meta.json</code>, <code>index/catalog.sqlite</code>, and prior <code>maintenance/</code> snapshots. See <a href="maintenance.html">the maintenance loop</a> for what writes those in the first place.</p>
+</section>
+
+<section>
 <h2>Three tools, one inventory</h2>
 <figure>
 <div class="svg-wrap">

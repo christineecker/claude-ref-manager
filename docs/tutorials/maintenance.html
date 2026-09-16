@@ -33,6 +33,20 @@
 </header>
 
 <section>
+<h2>Where maintenance state lives</h2>
+<p>Every stage below reads or writes something under your library root (the path from <code>/ref:init</code>, resolved via <code>~/.config/ref-manager/config.json</code>). None of it lives outside the library, and <code>maintenance/</code> is the one folder that exists purely for this loop — nothing else reads it.</p>
+<pre class="tree">&lt;LIBRARY&gt;/
+  <span class="a">papers/</span>&lt;pmid&gt;/
+    meta.json                          <span class="c"># /ref:audit updates retraction_status here</span>
+    citations.json                     <span class="c"># /ref:audit --citations appends dated observations</span>
+  <span class="a">index/</span>
+    catalog.sqlite                     <span class="c"># /ref:index --rebuild; /ref:status and /ref:list read it</span>
+  <span class="a">maintenance/</span>
+    &lt;UTC-timestamp&gt;.json               <span class="c"># /ref:lint --snapshot — one file per snapshot, never overwritten</span>
+    repair-fulltext-state.json         <span class="c"># /ref:repair-fulltext resume bookkeeping</span></pre>
+</section>
+
+<section>
 <h2>Loop</h2>
 <figure>
 <div class="svg-wrap">
@@ -89,6 +103,7 @@
 
 <section>
 <h2>What /ref:lint flags</h2>
+<p>Read-only unless you pass <code>--snapshot</code>. Three bucket groups, each with its own routing suggestion baked into the report — you don't have to memorize which repair command fixes which bucket.</p>
 <figure>
 <div class="svg-wrap">
 <svg viewBox="0 0 960 300" role="img" aria-label="Lint dimensions for paper repository maintenance.">

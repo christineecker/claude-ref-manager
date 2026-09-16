@@ -29,7 +29,7 @@
 <header class="page">
   <p class="eyebrow">Tutorial</p>
   <h1>Paper ingest: shortest paths</h1>
-  <p class="lede">For PICO intake, use <code>/ref:search-add-fetch</code>. It searches, saves, adds, and fetches in one run.</p>
+  <p class="lede">You have a research question, a stack of PDFs, or a Slack link someone sent you at 11pm — and none of them are in your library yet. This tutorial is the fast way in. For PICO intake, use <code>/ref:search-add-fetch</code>: it searches, saves, adds, and fetches full text in one run, so you go from question to readable papers before your coffee gets cold.</p>
 </header>
 
 <section>
@@ -75,7 +75,7 @@
     <line x1="796" y1="71" x2="828" y2="71" marker-end="url(#mArr)"/>
   </g>
 
-  <rect x="20" y="138" width="938" height="156" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
+  <rect x="20" y="138" width="938" height="176" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
   <text x="36" y="164" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="600">/ref:search-add-fetch "&lt;PICO or query&gt;" --slug &lt;slug&gt; [--create] [--limit N]</text>
 
   <g font-family="IBM Plex Sans,sans-serif" font-size="12" fill="currentColor">
@@ -86,14 +86,15 @@
     <text x="36" y="276" fill="var(--amber)">fetch: acquired | duplicate_noop | oa_location_found | abstract_only</text>
   </g>
 
-  <line x1="730" y1="138" x2="730" y2="294" stroke="currentColor" stroke-opacity=".25"/>
+  <line x1="730" y1="138" x2="730" y2="314" stroke="currentColor" stroke-opacity=".25"/>
   <g font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">
     <text x="748" y="168">safety rails</text>
     <text x="748" y="194">- save full run before limit</text>
     <text x="748" y="214">- default limit = 20</text>
     <text x="748" y="234">- confirmation if limit &gt; 100</text>
-    <text x="748" y="254">- one PMID failure does not stop others</text>
-    <text x="748" y="274">- PMID remains identity key</text>
+    <text x="748" y="254">- one PMID failure does not</text>
+    <text x="748" y="270">  stop the others</text>
+    <text x="748" y="294">- PMID remains identity key</text>
   </g>
 </svg>
 </div>
@@ -103,6 +104,7 @@
 
 <section>
 <h2>Pick the command by input type</h2>
+<p>Five commands, one decision: what are you staring at right now?</p>
 <figure>
 <div class="svg-wrap">
 <svg viewBox="0 0 980 340" role="img" aria-label="Decision map for paper ingest commands.">
@@ -155,6 +157,156 @@
 </section>
 
 <section>
+<h2>Where papers actually live</h2>
+<p>All of this lands under the library root you picked when you ran <code>/ref:init &lt;path&gt;</code> — that path is saved once, in <code>~/.config/ref-manager/config.json</code>, so no ingest command ever asks for it again. Every paper gets its own folder keyed by PMID, and that folder is the paper's entire life: metadata, raw bytes, converted text, notes, corrections. Nothing about a paper lives anywhere else.</p>
+<pre class="tree">~/Research/library/              <span class="c"># wherever you ran /ref:init — this is &lt;LIBRARY&gt; below</span>
+  <span class="a">papers/</span>
+    31452104/                    <span class="c"># one folder per PMID — the identity key, forever</span>
+    40665956/
+    &lt;pmid&gt;/                      <span class="c"># every command in this tutorial writes inside here</span></pre>
+<p class="muted">See <a href="../concepts.html#layout">the data model</a> for the full library layout and per-paper anatomy.</p>
+</section>
+
+<section>
+<h2>Every ingest command, one worked example</h2>
+<p>Each command below adds papers a different way. Outputs shown are the real examples from the <a href="../commands/acquire.html">command reference</a> — nothing invented except placeholder PMIDs already marked as fixtures. Trees below are relative to <code>&lt;LIBRARY&gt;/papers/&lt;pmid&gt;/</code> unless noted.</p>
+
+<h3><code>/ref:add &lt;pmid…&gt;</code> — metadata only, no full text</h3>
+<p>The base case everything else builds on: resolve PMIDs through PubMed, write <code>meta.json</code>/<code>authorship.json</code>/<code>funding.json</code>. No fetch stage.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add 31452104 30679568 99999999</span>
+<span class="c"># fixture PMIDs, not real papers</span>
+<span class="o">31452104: added (citekey=rivera2019cortical)</span>
+<span class="o">30679568: added (citekey=chen2019editorial) — no abstract available — metadata-only record, not fabricated</span>
+<span class="w">99999999: failed — no metadata returned for PMID 99999999</span>
+<span class="p">›</span> <span class="cmd">/ref:add 31452104</span>
+<span class="o">31452104: already_present (citekey=rivera2019cortical)</span></pre>
+<div class="note">One failed PMID never blocks the others. A re-add of an existing PMID is a no-op, reported as <code>already_present</code>.</div>
+<pre class="tree"><span class="a">papers/31452104/</span>
+  meta.json                   <span class="c"># bibliographic authority, citekey, extraction_tier</span>
+  authorship.json             <span class="c"># ordered author list</span>
+  funding.json                <span class="c"># funding observations, or state: "not_checked"</span>
+  raw/&lt;sha256&gt;/response.json  <span class="c"># immutable metadata envelope as resolved</span></pre>
+
+<h3>Local files and URLs share one identify → add → attach/fetch shape</h3>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 980 210" role="img" aria-label="Shared flow for add-pdf and add-url: local identify step, dedupe check against the library, add metadata, then attach or fetch.">
+  <defs>
+    <marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+  <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="currentColor">
+    <rect x="16" y="30" width="196" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="30" y="55">IDENTIFY</text>
+    <text x="30" y="77" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">pdf_identify.py /</text>
+    <text x="30" y="91" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">url_identify.py (local)</text>
+
+    <rect x="244" y="30" width="196" height="70" rx="8" fill="none" stroke="currentColor"/>
+    <text x="258" y="55">DEDUPE CHECK</text>
+    <text x="258" y="77" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">lib_intake.py classify</text>
+    <text x="258" y="91" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">already_imported? skip add</text>
+
+    <rect x="472" y="30" width="196" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="486" y="55">/ref:add</text>
+    <text x="486" y="77" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">PubMed MCP resolve</text>
+    <text x="486" y="91" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">+ metadata</text>
+
+    <rect x="700" y="30" width="260" height="70" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+    <text x="714" y="55">ATTACH / FETCH</text>
+    <text x="714" y="77" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">add-pdf → attach.py</text>
+    <text x="714" y="91" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">add-url → fetch ladder</text>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".7">
+    <line x1="212" y1="65" x2="244" y2="65" marker-end="url(#m4)"/>
+    <line x1="440" y1="65" x2="472" y2="65" marker-end="url(#m4)"/>
+    <line x1="668" y1="65" x2="700" y2="65" marker-end="url(#m4)"/>
+  </g>
+  <text x="16" y="150" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".78">DOI/PMID/PMCID/title are resolution clues only — they never merge records. A weak or ambiguous</text>
+  <text x="16" y="168" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".78">match is shown for confirmation, not auto-attached. One item's failure never blocks the rest of a batch.</text>
+</svg>
+</div>
+<figcaption>Both add-pdf and add-url reuse /ref:add underneath — same identity key, same dedupe.</figcaption>
+</figure>
+
+<h3><code>/ref:add-pdf &lt;path…&gt; [--force]</code></h3>
+<p>Already have the PDF on disk — a reviewer sent it, or you grabbed it before your VPN session died? This identifies it from its own bytes (DOI/PMID clues inside the file), runs <code>/ref:add</code> for the metadata, then attaches the PDF as that paper's full text.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-pdf ~/Downloads/luckhardt2025.pdf</span>
+<span class="o">~/Downloads/luckhardt2025.pdf: identified doi=10.1002/aur.70084 → pmid=40665956</span>
+<span class="o">40665956: added (citekey=luckhardt2025transcranial)</span>
+<span class="o">40665956: attached</span></pre>
+<pre class="tree"><span class="a">papers/40665956/</span>
+  meta.json, authorship.json, funding.json    <span class="c"># from the add stage</span>
+  raw/&lt;sha256&gt;/source.pdf                     <span class="c"># your PDF bytes, untouched</span>
+  raw/&lt;sha256&gt;/attachment.json                <span class="c"># provenance of the attach</span>
+  <span class="a">versions/&lt;v&gt;/</span>manifest.json                <span class="c"># + source.md when conversion succeeds</span>
+  current.json                                <span class="c"># atomic pointer → &lt;v&gt;</span></pre>
+
+<h3><code>/ref:add-url &lt;url…&gt; [--no-fetch]</code></h3>
+<p>Paste a DOI link, a PubMed URL, or a journal page. This identifies the PMID from the URL, adds the metadata, then walks the same fetch ladder as <code>/ref:fetch</code> (PMC JATS → open-access PDF → abstract-only) to pull full text.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-url https://doi.org/10.1002/aur.70084</span>
+<span class="o">identify:
+https://doi.org/10.1002/aur.70084: doi -> 40665956
+
+add:
+40665956: added (citekey=luckhardt2025transcranial)
+
+fetch:
+40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
+<pre class="tree"><span class="a">papers/40665956/</span>
+  meta.json, authorship.json, funding.json    <span class="c"># from the add stage</span>
+  raw/&lt;sha256&gt;/source.jats                    <span class="c"># immutable, whichever source won the ladder</span>
+  <span class="a">versions/&lt;v&gt;/</span>source.md, figures.json, manifest.json   <span class="c"># converted text + figure locators</span>
+  current.json                                <span class="c"># atomic pointer → &lt;v&gt;</span></pre>
+
+<h3><code>/ref:add-fetch &lt;pmid…&gt;</code> — add + fetch, orchestration only</h3>
+<p>Already have PMIDs (from a search, a colleague, a reference list) and just want full text? This is <code>/ref:add</code> then <code>/ref:fetch</code> chained — no new logic of its own, so it writes exactly the files each of those would write on its own.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 99999999</span>
+<span class="o">add:</span>
+<span class="o">40665956: added (citekey=luckhardt2025transcranial)</span>
+<span class="w">99999999: failed — no metadata returned for PMID 99999999</span>
+
+<span class="o">fetch:</span>
+<span class="o">40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
+<div class="note">A PMID that failed to add is skipped at the fetch stage instead of producing a second, predictable failure.</div>
+
+<h3><code>/ref:import &lt;item…&gt; [--no-fetch]</code> — mixed batches</h3>
+<p>Inherited a supervisor's Zotero export, a folder of PDFs, and three DOIs typed into a Slack thread? Dump it all in. One resolver (<code>lib_intake.py classify</code>) sorts every input into <code>pmid</code>, <code>doi</code>, <code>url</code>, <code>pdf</code>, <code>bib_entry</code>, <code>csl_entry</code>, or <code>unknown</code> — including expanding a folder of PDFs or parsing a <code>.bib</code>/<code>.csl.json</code> file into one entry per record.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/luckhardt2025.pdf</span>
+<span class="o">classify:
+40665956: pmid -> already imported as 40665956
+https://doi.org/10.1002/aur.70084: doi -> already imported as 40665956
+~/Downloads/luckhardt2025.pdf: pdf(doi=10.1002/aur.70084) -> 40665956
+
+add:
+40665956: already_present (citekey=luckhardt2025transcranial)
+
+fetch:
+40665956: duplicate_noop</span></pre>
+<pre class="tree"><span class="a">papers/40665956/</span>   <span class="c"># unchanged by this run — already written by an earlier add-pdf/add-url</span>
+  meta.json, authorship.json, funding.json
+  raw/&lt;sha256&gt;/source.pdf, attachment.json
+  <span class="a">versions/&lt;v&gt;/</span>source.md, manifest.json
+  current.json</pre>
+<div class="note">All three inputs here resolve to the same PMID — <code>duplicate_in_batch</code> is reported when that happens within one call, <code>already_imported</code> when it already matches a library paper. Neither is an error.</div>
+
+<h3><code>/ref:update-queries &lt;slug&gt;</code> — rerun a saved search unchanged</h3>
+<p>For a running literature search you revisit weekly. This re-runs the exact query frozen in <code>queries/&lt;slug&gt;.yaml</code> and diffs the new hit list against the last saved run — it does not touch <code>papers/</code> at all, only reports what changed.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-queries asd-cortex</span>
+<span class="o">{
+  "run": {
+    "run_id": "run-47456189b1d6",
+    "query": "(\"Autism Spectrum Disorder\"[MeSH]) AND cortical thickness[tiab]",
+    "source": "pubmed",
+    "retrieved_at": "2026-09-15T10:14:34.789920+00:00",
+    "pmids": ["31000001", "31000002", "39999992"]
+  },
+  "added": ["39999992"],
+  "removed": ["39999991"]
+}</span></pre>
+<pre class="tree"><span class="a">queries/asd-cortex.yaml</span>   <span class="c"># saved query expression + immutable runs[] history, appended to on rerun</span></pre>
+<div class="note">The stored query expression is reused exactly — this is not a new search, just the same one run again. Pair with <code>/ref:add-fetch</code> on the <code>added</code> PMIDs to pull in full text.</div>
+</section>
+
+<section>
 <h2>No starting PMID? Two more routes</h2>
 <p>The decision map above assumes you already have a PMID, PICO question, URL, PDF, or mixed batch. Two other cases feed candidates in rather than an ID you already hold.</p>
 
@@ -166,21 +318,25 @@
     { "candidate": "31000002", "resolved": true, "direction": "forward",
       "method": "find_related_articles:pubmed_pubmed", "already_in_library": false } ] }</span>
 <span class="p">›</span> <span class="cmd">/ref:add-fetch 31000002</span></pre>
+<pre class="tree"><span class="a">papers/31000001/</span>
+  related.json   <span class="c"># candidates only — nothing added to the library yet</span></pre>
 <div class="note warn"><strong><code>pubmed_pubmed</code> is similarity, not "cited by."</strong> There is no true citation-graph link type in the live MCP tool — record the exact <code>link_type</code>, don't call it a citation.</div>
 
 <h3>A researcher's back-catalog</h3>
-<p>Confirm identity first, then let <code>/ref:discover</code> build the author query. Name similarity alone never creates a confirmed link.</p>
+<p>Stalking a PI's publication history for a lit review? Confirm identity first, then let <code>/ref:discover</code> build the author query. Name similarity alone never creates a confirmed link — no accidental namesake papers sneaking into your bibliography.</p>
 <p class="term-label">illustrative output</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:person create moreau-c --name "Moreau, Claire" --orcid 0000-0002-1825-0097</span>
 <span class="p">›</span> <span class="cmd">/ref:discover --person moreau-c</span>
 <span class="o">{ "candidate_publications": [{ "pmid": "31000003", "title": "..." }] }</span>
 <span class="p">›</span> <span class="cmd">/ref:person confirm-publication moreau-c --pmid 31000003 --author-index 2</span>
 <span class="p">›</span> <span class="cmd">/ref:add-fetch 31000003</span></pre>
+<pre class="tree"><span class="a">people/moreau-c.json</span>   <span class="c"># name variants, ORCID, confirmed/candidate/rejected publication matches</span></pre>
 <div class="note">Confirming identity still doesn't create a paper record — that's <code>/ref:add</code> (or <code>/ref:add-fetch</code>). A rejected candidate via <code>/ref:person reject-publication</code> is never re-suggested.</div>
 </section>
 
 <section>
 <h2>Minimal recipes</h2>
+<p>Copy, paste, adjust the slug. Done.</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
 <span class="p">›</span> <span class="cmd">/ref:update-queries asd-tdcs</span>
 <span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 40691132</span>

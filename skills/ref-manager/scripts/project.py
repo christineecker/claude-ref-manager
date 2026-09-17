@@ -28,6 +28,21 @@ from lib_schema import validate_project, SchemaError
 
 READING_STATES = ("to_screen", "to_read", "reading", "read")
 
+# Reason chips the Triage tab offers per decision (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md
+# P3). A project overrides a decision's list with `screening_reasons` in
+# project.yaml; decisions it doesn't mention keep these defaults. The
+# excluded list follows common PRISMA 2020 full-text exclusion categories.
+DEFAULT_SCREENING_REASONS = {
+    "excluded": [
+        "wrong population", "wrong intervention or exposure", "wrong comparator", "wrong outcome",
+        "wrong study design", "not primary research", "not peer reviewed", "duplicate",
+    ],
+    "pending": ["needs full text", "unclear eligibility"],
+    "included": [],
+}
+MAX_REASON_CHARS = 120
+MAX_REASONS_PER_DECISION = 20
+
 # Starter templates (UX_BACKLOG.md "Project starter templates") -- each
 # `next_steps` entry is copied verbatim from that command's own doc
 # (docs/tutorials/systematic-review.html, docs/tutorials/thesis-chapter.html),
@@ -162,7 +177,51 @@ def add_paper(
     return membership
 
 
-def _linked_triages(library_root: Path, slug: str) -> list[str]:
+def screening_reasons(library_root: Path, slug: str | None) -> dict[str, list[str]]:
+    """Effective reason chips: the project's overrides on top of the defaults.
+    `slug=None` (a triage with no project) or a missing project gives the
+    defaults."""
+    out = {k: list(v) for k, v in DEFAULT_SCREENING_REASONS.items()}
+    if slug:
+        project_path = _project_dir(library_root, slug) / "project.yaml"
+        if project_path.exists():
+            custom = json.loads(project_path.read_text()).get("screening_reasons") or {}
+            for decision, items in custom.items():
+                if decision in out and isinstance(items, list):
+                    out[decision] = [i for i in items if isinstance(i, str)]
+    return out
+
+
+def set_reasons(library_root: Path, slug: str, decision: str, reasons: list[str] | None) -> dict:
+    """Replace one decision's reason chips for a project; `reasons=None`
+    drops the override so the defaults apply again."""
+    project_path = _project_dir(library_root, slug) / "project.yaml"
+    if not project_path.exists():
+        raise SlugError(f"project {slug!r} does not exist")
+    if decision not in DEFAULT_SCREENING_REASONS:
+        raise SchemaError(f"decision must be one of {sorted(DEFAULT_SCREENING_REASONS)}")
+    project = json.loads(project_path.read_text())
+    custom = dict(project.get("screening_reasons") or {})
+    if reasons is None:
+        custom.pop(decision, None)
+    else:
+        clean = list(dict.fromkeys(" ".join(r.split()) for r in reasons if r and r.strip()))
+        if len(clean) > MAX_REASONS_PER_DECISION:
+            raise SchemaError(f"at most {MAX_REASONS_PER_DECISION} reasons per decision")
+        too_long = [r for r in clean if len(r) > MAX_REASON_CHARS]
+        if too_long:
+            raise SchemaError(f"reason longer than {MAX_REASON_CHARS} characters: {too_long[0]!r}")
+        custom[decision] = clean
+    if custom:
+        project["screening_reasons"] = custom
+    else:
+        project.pop("screening_reasons", None)
+    validate_project(project)
+    atomic_write_json(project_path, project)
+    return {"slug": slug, "screening_reasons": screening_reasons(library_root, slug)}
+
+
+def linked_triages(library_root: Path, slug: str) -> list[str]:
     """Saved-search triages linked to this project. Derived from
     triage/*/triage.json -- project.yaml has no triage field
     (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §4.1)."""
@@ -195,7 +254,8 @@ def show(library_root: Path, slug: str) -> dict:
     return {
         "project": json.loads(project_path.read_text()),
         "papers": papers_doc,
-        "triages": _linked_triages(library_root, slug),
+        "triages": linked_triages(library_root, slug),
+        "screening_reasons": screening_reasons(library_root, slug),
         "summary": {
             "paper_count": len(papers),
             "reading": reading,
@@ -235,7 +295,7 @@ def list_projects(library_root: Path) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["create", "add-question", "add-paper", "show", "list", "templates"])
+    ap.add_argument("action", choices=["create", "add-question", "add-paper", "show", "list", "templates", "set-reasons"])
     ap.add_argument("--repo")
     ap.add_argument("--slug")
     ap.add_argument("--scope")
@@ -246,6 +306,9 @@ def main() -> int:
     ap.add_argument("--relevance")
     ap.add_argument("--priority", type=int)
     ap.add_argument("--reading-status")
+    ap.add_argument("--decision", choices=sorted(DEFAULT_SCREENING_REASONS), help="set-reasons: which decision's chips")
+    ap.add_argument("--reason", action="append", help="set-reasons: one chip; repeatable, in display order")
+    ap.add_argument("--reset", action="store_true", help="set-reasons: go back to the default chips")
     args = ap.parse_args()
 
     if args.action == "templates":
@@ -278,6 +341,11 @@ def main() -> int:
             result = add_paper(library_root, args.slug, args.pmid, args.relevance, args.priority, args.reading_status)
         elif args.action == "show":
             result = show(library_root, args.slug)
+        elif args.action == "set-reasons":
+            if not args.decision or (args.reset == bool(args.reason)):
+                print("error: set-reasons needs --decision and either --reason ... or --reset", file=sys.stderr)
+                return 1
+            result = set_reasons(library_root, args.slug, args.decision, None if args.reset else args.reason)
         else:
             result = list_projects(library_root)
     except (SlugError, SchemaError) as e:

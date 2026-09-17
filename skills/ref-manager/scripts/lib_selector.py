@@ -8,7 +8,8 @@
 Not a standalone command; other scripts import `resolve()`. Implements the
 subset of §5c available before full-text/graph phases:
   <pmid...>, --project [--question], --screened, --read/--queue,
-  --query [--run], --search, --from-file, refined by --tier / --exclude.
+  --query [--run], --triage [--screened], --search, --from-file, refined by
+  --tier / --exclude.
 `--study`/`--concept` are phase 5/8 selectors — they raise a named
 NotAvailableError here rather than silently matching nothing, so callers get
 an explicit "not yet available" instead of a false empty result.
@@ -81,6 +82,27 @@ def _query_run_pmids(library_root: Path, slug: str, run_id: str | None) -> tuple
     return list(run.get("pmids", [])), run["run_id"]
 
 
+def _triage_pmids(library_root: Path, slug: str, decision: str) -> list[str]:
+    """Library papers whose newest decision in saved-search triage `slug` is
+    `decision` (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3). Undecided or
+    excluded PMIDs that were never added have no paper record, so they are
+    left out rather than reported as missing."""
+    # local import: triage.py pulls in add/eutils, which other selectors never need
+    import triage as triage_mod
+    from lib_ids import SlugError, validate_slug
+
+    try:
+        validate_slug(slug)
+    except SlugError as e:
+        raise SelectorError(f"--triage {slug!r}: {e}") from e
+    if not triage_mod.exists(library_root, slug):
+        raise SelectorError(f"--triage {slug!r}: no such triage")
+    return sorted(
+        pmid for pmid, rec in triage_mod.latest_decisions(library_root, slug).items()
+        if rec["decision"] == decision and (library_root / "papers" / pmid / "meta.json").exists()
+    )
+
+
 def _study_pmids(library_root: Path, study_id: str) -> list[str]:
     # local import: study.py is phase 5, avoid a hard dependency for callers
     # that never use --study (matches the --search/search.py precedent above)
@@ -125,6 +147,7 @@ def resolve(
     queue_state: str | None = None,
     query: str | None = None,
     run: str | None = None,
+    triage: str | None = None,
     search: str | None = None,
     from_file: str | None = None,
     study: str | None = None,
@@ -136,8 +159,10 @@ def resolve(
         raise NotAvailableError("--concept is not available until phase 8 (concept graph)")
     if tier not in ("abstract", "full", "any"):
         raise SelectorError(f"--tier must be abstract|full|any, got {tier!r}")
-    if (screened or read or queue_state) and not project:
-        raise SelectorError("--screened/--read/--queue require --project (state is project-scoped, §3b)")
+    if (read or queue_state) and not project:
+        raise SelectorError("--read/--queue require --project (state is project-scoped, §3b)")
+    if screened and not (project or triage):
+        raise SelectorError("--screened requires --project or --triage (screening state is scoped, §3b)")
 
     sources_used = 0
     base: list[str]
@@ -156,6 +181,9 @@ def resolve(
     elif query:
         base, _run_id = _query_run_pmids(library_root, query, run)
         sources_used += 1
+    elif triage:
+        base = _triage_pmids(library_root, triage, screened or "included")
+        sources_used += 1
     elif study:
         base = _study_pmids(library_root, study)
         sources_used += 1
@@ -164,11 +192,11 @@ def resolve(
         sources_used += 1
     else:
         raise SelectorError(
-            "no selector given: pass <pmid...>, --project, --query, --study, --search, or --from-file"
+            "no selector given: pass <pmid...>, --project, --query, --triage, --study, --search, or --from-file"
         )
 
     # AND-narrow by project-scoped state (only meaningful in combination with --project)
-    if project and (question or screened or read or queue_state):
+    if project and (question or (screened and not triage) or read or queue_state):
         members_by_pmid = {m["pmid"]: m for m in _project_membership(library_root, project)}
         narrowed = []
         for pmid in base:
@@ -196,7 +224,7 @@ def resolve(
     expr = selector_expression(
         pmid=" ".join(pmids) if pmids else None,
         project=project, question=question, screened=screened,
-        read=read or None, queue=queue_state, query=query, run=run,
+        read=read or None, queue=queue_state, query=query, run=run, triage=triage,
         search=search, from_file=from_file, tier=tier if tier != "any" else None,
         exclude=" ".join(exclude) if exclude else None,
     )
@@ -245,6 +273,7 @@ def add_selector_args(ap) -> None:
     ap.add_argument("--queue")
     ap.add_argument("--query")
     ap.add_argument("--run")
+    ap.add_argument("--triage", help="papers decided in this saved-search triage (included unless --screened says otherwise)")
     ap.add_argument("--search")
     ap.add_argument("--from-file")
     ap.add_argument("--study")
@@ -264,6 +293,7 @@ def resolve_from_args(library_root: Path, args) -> dict:
         queue_state=args.queue,
         query=args.query,
         run=args.run,
+        triage=getattr(args, "triage", None),
         search=args.search,
         from_file=args.from_file,
         study=args.study,

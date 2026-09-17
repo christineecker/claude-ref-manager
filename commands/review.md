@@ -12,9 +12,9 @@ Parse `$ARGUMENTS` for:
 - `--query <slug>` — the saved query (PLAN.md §5c/§5a) whose run history feeds this
   project's "identified" count. Repeatable. Optionally `--query <slug>:<run_id>` to
   pin one run rather than using the query's latest; omit `:run_id` to use the latest
-  run. **PLAN.md does not specify how a project associates its saved queries** —
-  `project.yaml` has no such field — so this command takes them explicitly on each
-  invocation rather than assuming an implicit link. If you omit `--query` entirely,
+  run. If you omit `--query`, the saved searches whose triage is linked to the
+  project (`/ref:triage <slug> --project <project>`) are used, and the output's
+  `query_source` says `linked_triages`. With no `--query` and no linked triage,
   the identified/duplicates-removed counts are reported as `"unknown"`, not zero —
   every other section (screening, sought/retrieved, included) still renders from
   what's committed.

@@ -1,6 +1,5 @@
 Parse a research question into a PubMed search, save the run immutably (D15),
-and open the Triage tab so you can screen the results
-(PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §3).
+and open the Triage tab so you can screen the results.
 
 Parse `$ARGUMENTS` for:
 - `<question text>` or an explicit PubMed query expression.

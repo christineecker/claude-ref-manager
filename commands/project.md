@@ -13,6 +13,11 @@ Parse `$ARGUMENTS` for a subcommand:
   — a paper can belong to multiple projects; each project's membership record (relevance,
   priority, reading state) is independent of every other project's (§3b).
 - `show <slug>`
+- `set-reasons <slug> --decision excluded|pending|included --reason "<text>" [--reason ...]`
+  — the reason chips the Triage tab offers for that decision, in order (keys 1-9
+  pick the first nine exclusion reasons). `--reset` instead of `--reason` goes
+  back to the defaults (common PRISMA exclusion reasons). Reasons land in the
+  screening log and in `/ref:review --prisma`'s excluded-by-reason counts.
 - `list`
 - `templates` — list the available `--template` names with a one-line description each.
 
@@ -30,6 +35,7 @@ Steps:
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/project.py" add-question --repo <library_root> --slug <slug> --question-id <qid> --text "<text>"
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/project.py" add-paper --repo <library_root> --slug <slug> --pmid <pmid> [--relevance "<text>"] [--priority N] [--reading-status <state>]
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/project.py" show --repo <library_root> --slug <slug>
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/project.py" set-reasons --repo <library_root> --slug <slug> --decision <decision> (--reason "<text>" ... | --reset)
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/project.py" list --repo <library_root>
    ```
 
@@ -42,7 +48,7 @@ Steps:
    to fill in.
 
 `show` includes a summary with paper count, question count, reading-state
-breakdown, and source/completeness counts, plus the project's linked triages
+breakdown, source/completeness counts, the effective screening reason chips, plus the project's linked triages
 (saved PubMed searches screened with `/ref:triage`). `list` includes each project's paper
 count, reading-state breakdown, and source/completeness counts so it can double
 as a quick project dashboard.

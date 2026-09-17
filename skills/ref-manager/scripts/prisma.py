@@ -8,11 +8,12 @@
 Every count is a query over already-committed state, never a re-derivation:
   - identified   <- queries/<slug>.yaml immutable run histories (explicit
                      --query <slug> args select which saved queries feed
-                     this project; PLAN.md doesn't specify how a project
-                     associates its queries, and project.yaml/papers.yaml
-                     have no such field yet, so this command takes them
-                     explicitly rather than extending shared schema -- a
-                     flagged, documented assumption)
+                     this project. Without --query, the saved searches
+                     whose triage is linked to the project
+                     (triage/<slug>/triage.json "project") are used --
+                     a triage's slug is its saved query's slug
+                     (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3). With neither,
+                     identified stays "unknown")
   - duplicates    <- identified count minus the deduplicated PMID set
                      (every paper is PMID-keyed at ingest, D11)
   - screened /
@@ -42,6 +43,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, atomic_write_text
 from lib_ids import gen_opaque_id
+from project import linked_triages
 
 
 def _project_dir(library_root: Path, slug: str) -> Path:
@@ -307,6 +309,11 @@ def run_prisma(library_root: Path, project_slug: str, query_specs: list[tuple[st
         manifest = json.loads((sdir / "manifest.json").read_text())
         return {"status": "reused_frozen_snapshot", "snapshot_id": latest_id, "manifest": manifest}
 
+    query_source = "explicit"
+    if not query_specs:
+        query_specs = [(slug, None) for slug in linked_triages(library_root, project_slug)]
+        query_source = "linked_triages" if query_specs else "none"
+
     flow = build_flow(library_root, project_slug, query_specs)
     snapshot_id = gen_opaque_id("prisma-")
     sdir = _snapshot_dir(library_root, project_slug, snapshot_id)
@@ -316,6 +323,7 @@ def run_prisma(library_root: Path, project_slug: str, query_specs: list[tuple[st
         "snapshot_id": snapshot_id,
         "project": project_slug,
         "query_specs": [{"query": s, "run": r} for s, r in query_specs],
+        "query_source": query_source,
         "data_cutoff": flow["data_cutoff"],
         "flow": flow,
     }

@@ -50,6 +50,15 @@ def validate_project(obj: dict) -> None:
         if q["id"] in ids:
             raise SchemaError(f"duplicate question id {q['id']!r} within project {obj['slug']!r}")
         ids.add(q["id"])
+    reasons = obj.get("screening_reasons")
+    if reasons is not None:
+        if not isinstance(reasons, dict):
+            raise SchemaError("screening_reasons must be an object keyed by decision")
+        for decision, items in reasons.items():
+            if decision not in ("included", "excluded", "pending"):
+                raise SchemaError(f"screening_reasons: unexpected decision {decision!r}")
+            if not isinstance(items, list) or not all(isinstance(i, str) and i.strip() for i in items):
+                raise SchemaError(f"screening_reasons.{decision} must be a list of non-empty strings")
 
 
 def validate_screening_record(obj: dict) -> None:

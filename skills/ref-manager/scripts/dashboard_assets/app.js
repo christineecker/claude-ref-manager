@@ -2897,7 +2897,10 @@
           on: { click: function () { triDecide([p.pmid], dec === d ? "cleared" : d); } },
         }));
       });
-      tr.appendChild(el("td", {}, [decWrap]));
+      var decKids = [decWrap];
+      var why = p.decision && p.decision.reason;
+      if (why && why !== "triage:" + tri.slug) decKids.push(el("small", { className: "tri-why", text: why }));
+      tr.appendChild(el("td", {}, decKids));
       tbody.appendChild(tr);
 
       if (tri.open.has(p.pmid)) {
@@ -3010,9 +3013,34 @@
     bar.querySelectorAll("button[data-tdec],button[data-tjob]").forEach(function (b) {
       b.disabled = tri.busy || n === 0;
     });
+    renderTriReasons(n);
   }
 
-  function triDecide(pmids, decision) {
+  // P3 reason chips: the linked project's `screening_reasons` (defaults when
+  // unlinked or unset -- /ref:project set-reasons). One click decides the
+  // selection with that reason; keys 1-9 pick the first nine exclusion reasons.
+  function triReasons() {
+    return (tri.view && tri.view.reasons) || {};
+  }
+
+  function renderTriReasons(n) {
+    var wrap = document.getElementById("t-reasons");
+    clear(wrap);
+    [["excluded", "Exclude:"], ["pending", "Maybe:"], ["included", "Include:"]].forEach(function (g) {
+      var list = triReasons()[g[0]] || [];
+      if (!list.length) return;
+      wrap.appendChild(el("span", { className: "lbl", text: g[1] }));
+      list.forEach(function (reason, i) {
+        wrap.appendChild(el("button", {
+          className: "chip " + g[0], text: reason,
+          attrs: { type: "button", disabled: (tri.busy || !n) ? "disabled" : null, title: g[0] === "excluded" && i < 9 ? "key " + (i + 1) : null },
+          on: { click: function () { triDecide(Array.from(tri.selected), g[0], reason); } },
+        }, g[0] === "excluded" && i < 9 ? [el("kbd", { text: String(i + 1) })] : []));
+      });
+    });
+  }
+
+  function triDecide(pmids, decision, reason) {
     if (!pmids.length || tri.busy) return;
     tri.busy = true;
     triStatus((decision === "included" ? "Including and adding " : "Saving ") + pmids.length + "…");
@@ -3025,7 +3053,9 @@
     chunks.reduce(function (prev, chunk, idx) {
       return prev.then(function () {
         if (chunks.length > 1) triStatus("Saving " + (idx * 500 + chunk.length) + " / " + pmids.length + "…");
-        return postJSON(url, { pmids: chunk, decision: decision }).then(function (res) { all = all.concat(res.results || []); });
+        var body = { pmids: chunk, decision: decision };
+        if (reason) body.reason = reason;
+        return postJSON(url, body).then(function (res) { all = all.concat(res.results || []); });
       });
     }, Promise.resolve())
       .then(function () {
@@ -3034,6 +3064,7 @@
         var added = (res.results || []).filter(function (r) { return r.add === "added"; }).length;
         var msg = decision === "cleared" ? "Cleared " : "Marked ";
         msg += (pmids.length - failed.length) + (decision === "cleared" ? "" : " as " + (TRI_DEC_LABEL[decision] || decision).toLowerCase());
+        if (reason) msg += " (" + reason + ")";
         if (added) msg += " · added " + added + " to library";
         if (failed.length) msg += " · " + failed.length + " failed: " + failed[0].pmid + " " + (failed[0].error || "");
         triStatus(msg);
@@ -3142,6 +3173,10 @@
     else if (e.key === "i") { e.preventDefault(); triDecide(targets, "included"); }
     else if (e.key === "m") { e.preventDefault(); triDecide(targets, "pending"); }
     else if (e.key === "x") { e.preventDefault(); triDecide(targets, "excluded"); }
+    else if (/^[1-9]$/.test(e.key) && (triReasons().excluded || [])[+e.key - 1]) {
+      e.preventDefault();
+      triDecide(targets, "excluded", triReasons().excluded[+e.key - 1]);
+    }
     else if (e.key === " " && current) {
       e.preventDefault();
       if (tri.selected.has(current.pmid)) tri.selected.delete(current.pmid); else tri.selected.add(current.pmid);
@@ -3213,6 +3248,12 @@
     if (dec) { triDecide(Array.from(tri.selected), dec.dataset.tdec); return; }
     var job = e.target.closest("button[data-tjob]");
     if (job) triStartJob(job.dataset.tjob);
+  });
+  document.getElementById("t-export").addEventListener("click", function () {
+    if (!tri.slug) return;
+    var n = tri.view ? tri.view.counts.decisions.included : 0;
+    copyText("/ref:export-papers --triage " + tri.slug);
+    if (!n) flash("copied -- no papers are included in this search yet");
   });
   document.getElementById("t-clearsel").addEventListener("click", function () {
     tri.selected = new Set();

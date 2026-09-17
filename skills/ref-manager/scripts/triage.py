@@ -37,6 +37,7 @@ from pathlib import Path
 import add as add_module
 import lib_eutils
 import lib_inventory
+import project as project_module
 import screen as screen_module
 from lib_atomic import atomic_write_json, triage_lock
 from lib_ids import SlugError, validate_slug
@@ -539,6 +540,7 @@ def view(library_root: Path, slug: str, rows: list[dict] | None = None) -> dict:
         "unsynced_runs": [r["run_id"] for r in runs if r["run_id"] not in set(tri.get("synced_run_ids", []))],
         "counts": counts,
         "remaining": len([p for p in order if p not in records and p not in missing]),
+        "reasons": project_module.screening_reasons(library_root, tri.get("project")),
         "papers": papers,
     }
 

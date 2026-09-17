@@ -458,3 +458,9 @@ pre.synth{white-space:pre-wrap;font-family:"IBM Plex Mono",monospace;font-size:.
 .ins-body .sub{font-weight:400;color:var(--muted);margin:0}
 .ins-detail .sub,.clcard .sub{margin:0}
 .nextbody code,.actionbar code{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.tri-reasons{display:inline-flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.tri-reasons .lbl{font-size:.74rem;opacity:.7;margin-left:4px}
+.actionbar .tri-reasons .chip{border-radius:99px;padding:2px 9px;font-size:.74rem}
+.actionbar .tri-reasons .chip.excluded{border-color:color-mix(in srgb,var(--crit) 60%,transparent)}
+.actionbar .tri-reasons .chip:disabled{opacity:.45;cursor:default}
+.tri-why{display:block;font-size:.7rem;color:var(--muted);margin-top:3px;max-width:22ch}

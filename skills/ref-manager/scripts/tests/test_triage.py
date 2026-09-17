@@ -346,5 +346,100 @@ class TestAcquisition(TriageFixture):
         self.assertEqual((out["cleared"], out["remaining"]), ([PMIDS[0]], [PMIDS[1]]))
 
 
+class TestP3FollowUps(TriageFixture):
+    """PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3: PRISMA defaults to linked
+    triages, --triage selector (export), per-project reason chips."""
+
+    def test_prisma_defaults_to_linked_triages(self):
+        import prisma
+
+        self.init_loaded("proj-a")
+        triage.decide(self.root, "asd-ct", [PMIDS[0]], "included")
+        triage.decide(self.root, "asd-ct", [PMIDS[1]], "excluded", "wrong population")
+        result = prisma.run_prisma(self.root, "proj-a", [], refresh=False)
+        manifest = result["manifest"]
+        self.assertEqual(manifest["query_source"], "linked_triages")
+        self.assertEqual(manifest["query_specs"], [{"query": "asd-ct", "run": None}])
+        flow = manifest["flow"]
+        self.assertEqual(flow["identified"]["total_raw"], 5)
+        self.assertEqual(flow["excluded"]["by_reason"], {"wrong population": 1})
+
+    def test_prisma_explicit_query_wins_and_no_link_stays_unknown(self):
+        import prisma
+
+        project.create(self.root, "proj-b", None)
+        self.init_loaded("proj-a")
+        manifest = prisma.run_prisma(self.root, "proj-b", [], refresh=False)["manifest"]
+        self.assertEqual(manifest["query_source"], "none")
+        manifest = prisma.run_prisma(self.root, "proj-a", [("asd-ct", None)], refresh=True)["manifest"]
+        self.assertEqual(manifest["query_source"], "explicit")
+
+    def test_triage_selector(self):
+        import lib_selector
+
+        self.init_loaded()
+        triage.decide(self.root, "asd-ct", PMIDS[:2], "included")
+        triage.decide(self.root, "asd-ct", [PMIDS[2]], "excluded")  # never added -> not a library paper
+        triage.decide(self.root, "asd-ct", [PMIDS[1]], "excluded")  # included then excluded: stays in library
+        res = lib_selector.resolve(self.root, triage="asd-ct")
+        self.assertEqual(res["pmids"], [PMIDS[0]])
+        self.assertIn("--triage asd-ct", res["selector_expression"])
+        res = lib_selector.resolve(self.root, triage="asd-ct", screened="excluded")
+        self.assertEqual(res["pmids"], [PMIDS[1]])
+        with self.assertRaises(lib_selector.SelectorError):
+            lib_selector.resolve(self.root, triage="nope")
+        with self.assertRaises(lib_selector.SelectorError):
+            lib_selector.resolve(self.root, triage="asd-ct", screened="pending")  # matches nothing
+        with self.assertRaises(lib_selector.SelectorError):
+            lib_selector.resolve(self.root, pmids=[PMIDS[0]], screened="included")  # still needs a scope
+
+    def test_export_papers_cli_accepts_triage(self):
+        import subprocess
+
+        self.init_loaded()
+        triage.decide(self.root, "asd-ct", PMIDS[:2], "included")
+        proc = subprocess.run(
+            [sys.executable, str(SCRIPTS / "export_papers.py"), "--triage", "asd-ct", "--repo", str(self.root),
+             "--dry-run", "--pdfs", "none"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(sorted(json.loads(proc.stdout)["manifest"]["pmids"]), sorted(PMIDS[:2]))
+
+    def test_reason_chips_default_and_per_project(self):
+        self.init_loaded()
+        self.assertEqual(triage.view(self.root, "asd-ct")["reasons"], project.DEFAULT_SCREENING_REASONS)
+        triage.link(self.root, "asd-ct", "proj-a")
+        out = project.set_reasons(self.root, "proj-a", "excluded", ["  adult  sample only", "no MRI", "no MRI"])
+        self.assertEqual(out["screening_reasons"]["excluded"], ["adult sample only", "no MRI"])
+        reasons = triage.view(self.root, "asd-ct")["reasons"]
+        self.assertEqual(reasons["excluded"], ["adult sample only", "no MRI"])
+        self.assertEqual(reasons["pending"], project.DEFAULT_SCREENING_REASONS["pending"])
+        triage.decide(self.root, "asd-ct", [PMIDS[0]], "excluded", "no MRI")
+        self.assertEqual(self.screening_lines()[-1]["reason"], "no MRI")
+        self.assertEqual(triage.view(self.root, "asd-ct")["papers"][0]["decision"]["reason"], "no MRI")
+
+        project.set_reasons(self.root, "proj-a", "excluded", None)
+        self.assertNotIn("screening_reasons", json.loads((self.root / "projects" / "proj-a" / "project.yaml").read_text()))
+        with self.assertRaises(project.SchemaError):
+            project.set_reasons(self.root, "proj-a", "maybe", ["x"])
+        with self.assertRaises(project.SchemaError):
+            project.set_reasons(self.root, "proj-a", "excluded", ["x" * 121])
+        with self.assertRaises(project.SlugError):
+            project.set_reasons(self.root, "missing", "excluded", ["x"])
+
+    def test_set_reasons_cli(self):
+        import subprocess
+
+        script = str(SCRIPTS / "project.py")
+        base = [sys.executable, script, "set-reasons", "--repo", str(self.root), "--slug", "proj-a", "--decision", "excluded"]
+        proc = subprocess.run(base + ["--reason", "wrong age", "--reason", "animal study"], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout)["screening_reasons"]["excluded"], ["wrong age", "animal study"])
+        self.assertNotEqual(subprocess.run(base, capture_output=True, text=True).returncode, 0)
+        proc = subprocess.run(base + ["--reset"], capture_output=True, text=True)
+        self.assertEqual(json.loads(proc.stdout)["screening_reasons"]["excluded"], project.DEFAULT_SCREENING_REASONS["excluded"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

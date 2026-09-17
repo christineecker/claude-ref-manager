@@ -410,6 +410,13 @@ class TestDashboardImprovementsWiring(DashboardFixture):
         self.assertIn('body.needs === "force"', self.app_js)
         self.assertIn("function pdfDropZone(row)", self.app_js)
 
+    def test_triage_reason_chips_and_export(self):  # PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3
+        self.assertIn('id="t-reasons"', self.index_html)
+        self.assertIn('id="t-export"', self.index_html)
+        self.assertIn("function renderTriReasons(n)", self.app_js)
+        self.assertIn("if (reason) body.reason = reason;", self.app_js)
+        self.assertIn('"/ref:export-papers --triage "', self.app_js)
+
     def test_insight_views(self):  # FR-09..FR-17
         self.assertIn('id="tab-insights"', self.index_html)
         for fn in ("renderEvidenceMap", "renderGaps", "renderTimeline", "renderGraph", "renderClusters", "renderSynthesis"):

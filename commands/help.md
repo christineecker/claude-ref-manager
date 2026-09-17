@@ -97,7 +97,7 @@ Steps:
 - `/ref:pull-annotations <pmid>` — import your Papers highlights and margin notes, read-only
 
 Commands that work on a set of papers share one selector grammar (`<pmid...>`,
-`--project`, `--query`, `--study`, `--search`, `--from-file`, refined by
+`--project`, `--query`, `--triage`, `--study`, `--search`, `--from-file`, refined by
 `--tier`/`--exclude`) — see `docs/commands/find.html#selectors` for the full
 grammar, or `/ref:help <any-selector-command>` for one command's own arg list.
 

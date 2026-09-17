@@ -1,14 +1,19 @@
 # /ref:triage
 
 Screen a saved PubMed search: open its Triage tab, link it to a project, load
-more metadata, or hand pending full-text work to Claude
-(PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md). One triage per saved search; re-runs
+more metadata, or hand pending full-text work to Claude. One triage per saved search; re-runs
 from `/ref:update-queries` merge into it.
 
 In the Triage tab, **Include** adds the paper to the library immediately.
 **Exclude** never removes anything from the library. With a linked project,
 every decision is also recorded in that project's screening log
-(`/ref:screen`, feeding `/ref:review --prisma`).
+(`/ref:screen`, feeding `/ref:review --prisma`, which uses linked triages as
+its saved queries when `--query` is omitted).
+
+With papers selected, reason chips in the action bar decide them with a
+reason (keys 1-9 = the first nine exclusion reasons). Chips come from the
+linked project (`/ref:project set-reasons`), or the defaults. **Copy export
+command** gives `/ref:export-papers --triage <slug>` for the included papers.
 
 Parse `$ARGUMENTS` for one form:
 

@@ -1,8 +1,13 @@
 Export selected papers into a folder Papers.app imports from (PLAN.md §7a, D28).
 One-way, file-based handoff — never writes the live Papers database.
 
+`--triage <slug>` exports the papers included while screening that saved search
+(`--triage <slug> --screened excluded|pending` for the other decisions; only
+papers that are in the library). The Triage tab's **Copy export command** button
+gives this command.
+
 Parse `$ARGUMENTS` for the §5c selector (`<pmid...>`, `--project`, `--question`,
-`--screened`, `--read`/`--queue`, `--query`/`--run`, `--search`, `--from-file`,
+`--screened`, `--read`/`--queue`, `--query`/`--run`, `--triage`, `--search`, `--from-file`,
 `--tier`, `--exclude`) plus:
 - `--to <dir>` — destination; defaults to `papers_export_dir` in
   `~/.config/ref-manager/config.json`, else a self-contained

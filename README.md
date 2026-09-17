@@ -85,6 +85,8 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-17 · [`57dd57d`](https://github.com/christineecker/claude-ref-manager/commit/57dd57d) Add dashboard planning and graph visualization docs
+- 2026-09-17 · [`cd76d6c`](https://github.com/christineecker/claude-ref-manager/commit/cd76d6c) feat(dashboard): fold coverage matrix into Papers table; docked ReadCube-style paper panel
 - 2026-09-17 · [`8d0427d`](https://github.com/christineecker/claude-ref-manager/commit/8d0427d) docs: document the dashboard Insights graph features
 - 2026-09-17 · [`0012be6`](https://github.com/christineecker/claude-ref-manager/commit/0012be6) docs: align plugin version (0.4.0) across docs; remove implemented plan
 - 2026-09-17 · [`5947cc7`](https://github.com/christineecker/claude-ref-manager/commit/5947cc7) ci: pin setup-uv to v10.1.0
@@ -98,6 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-16 · [`0912d26`](https://github.com/christineecker/claude-ref-manager/commit/0912d26) feat: PubMed search triage tab with batch metadata loading
 - 2026-09-16 · [`39b1a8c`](https://github.com/christineecker/claude-ref-manager/commit/39b1a8c) feat: full-screen PDF reader with text-layer highlighting and export
 - 2026-09-16 · [`9e51278`](https://github.com/christineecker/claude-ref-manager/commit/9e51278) fix: library-viewer drawer hidden-attribute override; rename plugin ref-manager -> ref
-- 2026-09-16 · [`6ed94ae`](https://github.com/christineecker/claude-ref-manager/commit/6ed94ae) docs: remove plan docs
-- 2026-09-16 · [`b004d0d`](https://github.com/christineecker/claude-ref-manager/commit/b004d0d) docs: fix D-number gap in decision tables
 <!-- changelog:end -->

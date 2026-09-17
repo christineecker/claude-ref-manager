@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Evidence insights · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Explore the evidence in the dashboard</h1>
+  <p class="lede">The dashboard's <strong>Insights</strong> tab turns extracted claims, the concept graph and appraisal batches into interactive views: what is notable, how a paper or concept connects, where recorded relations disagree, which population × outcome cells have no evidence, which topics are growing, and how mature the evidence for each intervention is. Everything is read-only and deterministic; every action it suggests is a command you copy and run.</p>
+</header>
+
+<section>
+<h2>What the views read</h2>
+<p>The tab is computed in your browser from one payload, <code>/api/knowledge</code> in serve mode or the same data embedded in a <code>--static</code> build, so both modes show the same views. It only has what earlier commands committed, and each view says which command fills it when it is empty:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Data</th><th>Comes from</th><th>Feeds</th></tr></thead>
+  <tbody>
+    <tr><td>Active claims (population, intervention, comparator, outcome, timepoint, direction, extraction tier, design)</td><td><a href="../commands/acquire.html"><code>/ref:add</code></a> (abstract tier), <code>/ref:extract</code> (full tier)</td><td>evidence map, gaps, claim network, neighbourhood, maturity, synthesis</td></tr>
+    <tr><td>Concepts and their aliases</td><td><a href="../commands/graph.html#concept"><code>/ref:concept</code></a>, <a href="../commands/graph.html#weave"><code>/ref:weave</code></a></td><td>neighbourhood, gap grid, maturity; claim values and MeSH terms that match a name or alias count as that concept</td></tr>
+    <tr><td>Relations with review state and rationale</td><td><a href="../commands/graph.html#weave"><code>/ref:weave</code></a> (propose, create, review)</td><td>claim network, neighbourhood, open-conflict counts</td></tr>
+    <tr><td>MeSH terms, authors, note excerpts</td><td><code>/ref:add</code>, <code>/ref:note</code></td><td>topic timeline, concepts graph, papers &amp; authors, clusters</td></tr>
+    <tr><td>Appraisal batches (GRADE, RoB&nbsp;2 / Newcastle-Ottawa / AMSTAR&nbsp;2)</td><td><a href="systematic-review.html"><code>/ref:review --batch</code></a></td><td>maturity's appraisal overlay, paper panels in the graph</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>Scope.</strong> With <em>follow the Papers filters</em> ticked (the default), the tab covers only the papers the Papers tab currently shows: search, project, issue and source filters. Add a year range next to it to narrow further. The line above the views counts the papers and active claims in scope.</p>
+</section>
+
+<section>
+<h2>Open it</h2>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --open</span>
+<span class="o">dashboard serving: http://127.0.0.1:53211/?token=9f2c...  (Ctrl-C to stop)</span></pre>
+<p>Pick <strong>Insights</strong>, then one of the views across the top. The view you are on, and a neighbourhood's centre and hop count, live in the URL. <em>Copy link</em> gives a link to this exact screen; <em>Copy as command</em> gives a command that reopens it on a later run:</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --open --view 'tab=insights&amp;insight=graph&amp;center=c:tdcs&amp;hops=2'</span></pre>
+<p class="muted"><code>center</code> is <code>p:&lt;pmid&gt;</code> for a paper or <code>c:&lt;concept-id&gt;</code> for a concept.</p>
+</section>
+
+<section>
+<h2>The views at a glance</h2>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>View</th><th>Shows</th><th>Use it to</th></tr></thead>
+  <tbody>
+    <tr><td>Notable cards <span class="muted">(above every view)</span></td><td>Best-connected paper, open conflicts, single-study findings, papers with no claims, growing and fading topics</td><td>Jump straight to what needs attention</td></tr>
+    <tr><td>Evidence map</td><td>A grid of any two claim fields (e.g. population × outcome), coloured by effect direction, extraction tier or paper count</td><td>See where claims cluster and which well-studied pairs were never studied together</td></tr>
+    <tr><td>Gaps</td><td><em>Population × outcome</em> grid per intervention concept (the <code>/ref:gaps</code> rule), <em>Sparse pairs (heuristic)</em>, single-study findings, unresolved conflicts</td><td>Plan the next search</td></tr>
+    <tr><td>Topic timeline</td><td>Up to 8 topics as papers per year or share of each year's papers</td><td>Compare how topics rose and fell</td></tr>
+    <tr><td>Knowledge graph</td><td>Four modes: <em>Concepts</em>, <em>Papers &amp; authors</em>, <em>Claim network</em>, <em>Neighborhood</em>, each with a table view</td><td>Follow connections, read relations, review conflicts</td></tr>
+    <tr><td>Clusters</td><td>Topic clusters as cards (with trend), a map of how clusters overlap, or a table</td><td>Find the literature's sub-topics and which are growing</td></tr>
+    <tr><td>Maturity</td><td>Per intervention concept: papers, outcome breadth, coverage, full-text share, open conflicts, plus appraisal batches</td><td>Judge how settled the evidence for each intervention is</td></tr>
+    <tr><td>Synthesis draft</td><td>A Markdown roll-up of themes, findings, contradictions and open questions</td><td>Copy or download a starting outline (use <code>/ref:brief</code> for a grounded narrative)</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>Steps</h2>
+<ol class="steps">
+
+<li>
+<h3>Start from the notable cards</h3>
+<p>The row of cards at the top is computed only from the loaded data and changes with the scope. Each card is a shortcut:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Card</th><th>Counts</th><th>Click to</th></tr></thead>
+  <tbody>
+    <tr><td>links on the best-connected paper</td><td>Registry concepts the paper mentions plus other papers that share one of its authors. Claims don't count, so heavily extracted papers don't win on claim count alone.</td><td>Open that paper's neighbourhood</td></tr>
+    <tr><td>open conflicts</td><td>Unreviewed <code>potential_conflict</code> relations plus <code>contradicts</code> relations that went stale, touching papers in scope</td><td>Filter the Papers tab to those papers</td></tr>
+    <tr><td>single-study findings</td><td>Intervention → outcome pairs backed by one paper</td><td>Filter the Papers tab to those papers</td></tr>
+    <tr><td>papers with no active claims</td><td>Papers in scope that <code>/ref:extract</code> hasn't reached</td><td>Filter the Papers tab to them</td></tr>
+    <tr><td>growing topic / fading topic</td><td>The cluster with the largest / smallest trend ratio (step 6)</td><td>Open Clusters filtered to that topic</td></tr>
+  </tbody>
+</table>
+</div>
+</li>
+
+<li>
+<h3>Centre the graph on one paper or concept</h3>
+<p>Open <em>Knowledge graph → Neighborhood</em> and choose a concept or paper in <em>Center on…</em>. You can also press <em>Center here</em> on any selected graph node, or <em>Show in graph</em> in a paper's side panel. The centre sits in the middle; its direct links form the first ring, and <em>2 hops</em> adds a second ring of what those link to.</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 300" role="img" aria-label="Neighbourhood layout: the centre concept in the middle, a first ring with papers, claims and related concepts, and a second ring with authors, other papers and further concepts. Node shapes: concept is a filled circle sized by papers, paper a small circle, author a ring, claim a diamond.">
+  <g fill="none" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="3 4">
+    <ellipse cx="300" cy="150" rx="120" ry="72"/>
+    <ellipse cx="300" cy="150" rx="240" ry="130"/>
+  </g>
+  <g stroke="currentColor" stroke-opacity=".35" stroke-width="1.2">
+    <line x1="300" y1="150" x2="300" y2="78"/><line x1="300" y1="150" x2="410" y2="120"/><line x1="300" y1="150" x2="410" y2="180"/>
+    <line x1="300" y1="150" x2="190" y2="120"/><line x1="300" y1="150" x2="190" y2="182"/><line x1="300" y1="150" x2="300" y2="222"/>
+    <line x1="300" y1="78" x2="300" y2="20"/><line x1="410" y1="120" x2="530" y2="120"/><line x1="410" y1="180" x2="520" y2="210"/>
+    <line x1="190" y1="120" x2="70" y2="110"/><line x1="190" y1="182" x2="90" y2="230"/>
+  </g>
+  <line x1="300" y1="150" x2="410" y2="180" stroke="var(--amber)" stroke-width="2.4" stroke-dasharray="6 4"/>
+  <circle cx="300" cy="150" r="17" fill="var(--accent)" stroke="currentColor" stroke-width="2.5"/>
+  <circle cx="410" cy="180" r="11" fill="var(--accent)"/>
+  <circle cx="190" cy="120" r="6" fill="var(--amber)"/><circle cx="410" cy="120" r="6" fill="var(--amber)"/><circle cx="300" cy="222" r="6" fill="var(--amber)"/>
+  <polygon points="300,69 309,78 300,87 291,78" fill="#7A5AA6"/><polygon points="190,173 199,182 190,191 181,182" fill="#7A5AA6"/>
+  <circle cx="300" cy="20" r="6" fill="none" stroke="#B5577E" stroke-width="2.5"/><circle cx="530" cy="120" r="6" fill="none" stroke="#B5577E" stroke-width="2.5"/>
+  <circle cx="520" cy="210" r="8" fill="var(--accent)"/><circle cx="70" cy="110" r="6" fill="var(--amber)"/><circle cx="90" cy="230" r="9" fill="var(--accent)"/>
+  <g font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill="currentColor">
+    <text x="322" y="154">centre (hop 0)</text>
+    <text x="426" y="184">related concept</text>
+    <text x="540" y="214" fill-opacity=".7">hop 2</text>
+  </g>
+  <g font-family="IBM Plex Sans,sans-serif" font-size="12" fill="currentColor">
+    <circle cx="600" cy="60" r="9" fill="var(--accent)"/><text x="620" y="64">concept: filled circle, size = papers</text>
+    <circle cx="600" cy="100" r="6" fill="var(--amber)"/><text x="620" y="104">paper: small circle</text>
+    <circle cx="600" cy="140" r="6" fill="none" stroke="#B5577E" stroke-width="2.5"/><text x="620" y="144">author: ring</text>
+    <polygon points="600,171 609,180 600,189 591,180" fill="#7A5AA6"/><text x="620" y="184">claim: diamond ("tDCS → WM ↑")</text>
+    <text x="590" y="228" fill-opacity=".7">rings = hops from the centre</text>
+    <text x="590" y="248" fill-opacity=".7">first ring labelled; outer on selection</text>
+  </g>
+</svg>
+</div>
+<figcaption>A neighbourhood is capped at 100 nodes. When a ring has more candidates, the most-linked are kept and a note says how many were left out. Outer-ring nodes sit next to the first-ring nodes they connect through, so spokes rarely cross.</figcaption>
+</figure>
+<p>Links in a neighbourhood are: a paper <em>mentions</em> a concept (MeSH term, title or claim field matching a name or alias), an author <em>authored</em> a paper, a paper <em>reports</em> a claim, a claim is <em>about</em> a concept, a claim is a <em>supporting claim</em> of a relation, and recorded <em>relations</em> between concepts. Concepts are always registry concepts, never guessed from free text.</p>
+<p>Click a node, or press Enter or Space on it, to select it. The side panel lists its papers, findings, relations and connections, with <em>Open paper</em> and <em>Center here</em>. For a paper that belongs to a <code>/ref:review</code> batch, it also shows the batch's GRADE certainty and the paper's risk-of-bias result. While a node is selected, the arrow keys step through its neighbours.</p>
+<div class="note">A paper with no concept, author or claim links shows an empty state with the fix to copy: <code>/ref:extract &lt;pmid&gt;</code> for claims, then <code>/ref:weave</code> to map them to concepts.</div>
+</li>
+
+<li>
+<h3>Read the claim network</h3>
+<p><em>Claim network</em> draws interventions, outcomes and populations from the claims in scope. An intervention → outcome line is coloured by the direction most claims report. Recorded relations are overlaid, each type with its own line and a glyph badge, so the difference is readable without colour:</p>
+<figure>
+<div class="svg-wrap">
+<svg viewBox="0 0 940 250" role="img" aria-label="Relation encoding. supports: solid green line with a plus badge. replicates: double green line with an equals badge. extends: solid blue line with a double-arrow badge. potential conflict, unreviewed: dashed amber line with a question-mark badge in a dashed circle. contradicts, reviewed: thick solid red line with a cross badge. A stale relation is drawn faded with a stale tag. Mixed direction, inferred from claims rather than recorded: dotted pink line.">
+  <g font-family="IBM Plex Sans,sans-serif" font-size="12.5" fill="currentColor">
+    <g transform="translate(20,30)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="#2F7D4F" stroke-width="2"/>
+      <circle cx="85" cy="0" r="8" fill="var(--ground)" stroke="#2F7D4F" stroke-width="1.4"/><text x="85" y="4" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">+</text>
+      <text x="190" y="4">supports</text>
+    </g>
+    <g transform="translate(20,72)">
+      <line x1="0" y1="-2" x2="170" y2="-2" stroke="#2F7D4F" stroke-width="1.4"/><line x1="0" y1="2" x2="170" y2="2" stroke="#2F7D4F" stroke-width="1.4"/>
+      <circle cx="85" cy="0" r="8" fill="var(--ground)" stroke="#2F7D4F" stroke-width="1.4"/><text x="85" y="4" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">=</text>
+      <text x="190" y="4">replicates</text>
+    </g>
+    <g transform="translate(20,114)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="#4A7FB5" stroke-width="2"/>
+      <circle cx="85" cy="0" r="8" fill="var(--ground)" stroke="#4A7FB5" stroke-width="1.4"/><text x="85" y="4" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">»</text>
+      <text x="190" y="4">extends</text>
+    </g>
+    <g transform="translate(20,156)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="var(--amber)" stroke-width="2.2" stroke-dasharray="6 4"/>
+      <circle cx="85" cy="0" r="8" fill="var(--ground)" stroke="var(--amber)" stroke-width="1.4" stroke-dasharray="2 1.5"/><text x="85" y="4" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">?</text>
+      <text x="190" y="4">potential conflict — unreviewed</text>
+    </g>
+    <g transform="translate(20,198)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="#B3412E" stroke-width="2.8"/>
+      <circle cx="85" cy="0" r="8" fill="var(--ground)" stroke="#B3412E" stroke-width="1.4"/><text x="85" y="4" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600">✕</text>
+      <text x="190" y="4">contradicts — reviewed</text>
+    </g>
+    <g transform="translate(450,30)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="#2F7D4F" stroke-width="2" stroke-opacity=".35"/>
+      <circle cx="85" cy="0" r="8" fill="var(--ground)" stroke="#2F7D4F" stroke-width="1.4" stroke-opacity=".35"/><text x="85" y="4" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-weight="600" fill-opacity=".5">+</text>
+      <text x="96" y="-10" font-size="10" fill-opacity=".6">stale</text>
+      <text x="190" y="4">stale (any type): faded</text>
+      <text x="190" y="22" font-size="11" fill-opacity=".7">a supporting claim changed</text>
+    </g>
+    <g transform="translate(450,114)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="#B5577E" stroke-width="2.5" stroke-dasharray="1 4"/>
+      <text x="190" y="4">↑↓ mixed direction</text>
+      <text x="190" y="22" font-size="11" fill-opacity=".7">inferred from claims, not recorded</text>
+    </g>
+    <g transform="translate(450,176)">
+      <line x1="0" y1="0" x2="170" y2="0" stroke="#0E7C7B" stroke-width="3" stroke-opacity=".7"/>
+      <text x="190" y="4">intervention → outcome</text>
+      <text x="190" y="22" font-size="11" fill-opacity=".7">colour = main direction, width = papers</text>
+    </g>
+  </g>
+</svg>
+</div>
+<figcaption>An unreviewed potential conflict is never drawn or labelled as a contradiction. Only a <code>/ref:weave review</code> with a rationale produces the solid ✕ edge.</figcaption>
+</figure>
+<p>Under the graph, the legend doubles as a filter. Click a relation type to hide or show it, tick <em>reviewed only</em> to hide unreviewed relations, and set <em>Extraction</em> to <em>full text only</em> to ignore abstract-tier claims. Hidden relations also stop pulling nodes into a neighbourhood. The side panel lists <em>Recorded relations</em>, with open ones first, and <em>Mixed direction</em> pairs. Mixed direction means the claims disagree; it is not a reviewed judgement.</p>
+</li>
+
+<li>
+<h3>Review a potential conflict</h3>
+<p>Click a relation's line or badge, or its entry in any list, to open its detail panel:</p>
+<ul>
+  <li><strong>Type and review state</strong>, the reviewed date, the <strong>rationale</strong> (or "none recorded"), and a stale warning if a supporting claim changed.</li>
+  <li><strong>Supporting claims</strong>, one block per claim, with direction, population, comparator, timepoint and effect measure. Any field that differs between the claims, or is missing from one, is marked <strong>≠</strong>. These are the fields that decide whether two opposite findings are really comparable.</li>
+  <li>The papers behind the relation, and a <em>Papers</em> button that filters the Papers tab to them.</li>
+  <li>For unreviewed or stale relations, the review command to copy.</li>
+</ul>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave review rel-de5834755e5b contradicts --rationale "Same population, comparator and 12-week timepoint; opposite directions in two adequately powered samples"</span>
+<span class="o">{ "relation_id": "rel-de5834755e5b", "type": "contradicts", "review_state": "reviewed", … }</span></pre>
+<p>Press the dashboard's refresh button (↻). It re-fetches <code>/api/knowledge</code>, bypassing the server's cache, and the dashed <code>?</code> edge becomes a solid <code>✕</code> with your rationale in the panel. If none of the ≠ fields hold up on reading the papers, review the relation as another type instead. The <a href="graph-discovery.html">graph discovery tutorial</a> explains review in depth.</p>
+</li>
+
+<li>
+<h3>Find the uncovered population × outcome cells</h3>
+<p><em>Gaps</em> opens on the <em>Population × outcome</em> grid. Choose an intervention concept (each option shows its claims and gaps). Rows are the populations and columns the outcomes of that intervention's own claims. A filled cell shows how many papers cover it, coloured by effect direction; a hatched cell marked <strong>gap</strong> has no claim.</p>
+<p>This is exactly the rule <a href="../commands/graph.html#gaps"><code>/ref:gaps … --intervention-concept</code></a> applies, so the two always agree:</p>
+<ul>
+  <li>A claim belongs to the intervention when its intervention matches the concept's name or an alias (ignoring case).</li>
+  <li>A population or outcome that matches <em>any</em> concept's name or alias counts as that concept. Once "SBP" is an alias of <em>systolic blood pressure</em>, both land in one column. Other values stay as written, and nothing is fuzzy-matched.</li>
+  <li>Placeholder values ("unknown", "not reported", "n/a", …) are not a population or outcome.</li>
+</ul>
+<p>Click a gap cell to see the claims that establish its population and its outcome (<code>population_evidenced_by</code>, <code>outcome_evidenced_by</code>). The panel also offers <em>Copy PubMed query</em>, <em>Copy /ref:search-pubmed</em>, <em>Candidate papers</em>, and the matching <code>/ref:gaps</code> command.</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps --project tdcs-review --intervention-concept tdcs --types population_outcome_gap</span>
+<span class="o">{ "gaps": { "population_outcome_gap": [ { "missing_population": "older adults", "missing_outcome": "working memory", "population_evidenced_by": [ … ], "outcome_evidenced_by": [ … ] } ] } }</span></pre>
+<div class="note"><em>Sparse pairs (heuristic)</em> is the other Gaps view. It ranks any two claim fields that rarely appear together by <em>papers on each side ÷ (1 + papers together)</em>. It is a prompt for ideas, not a <code>/ref:gaps</code> finding, and is labelled that way. Both views also list single-study findings and unresolved conflicts; a conflict's name opens it in the claim network.</div>
+<div class="note warn">A gap means <em>this library</em> has no claim for that combination. It is not evidence that the literature lacks one; search before concluding anything.</div>
+</li>
+
+<li>
+<h3>See which topics are growing</h3>
+<p><em>Clusters</em> groups topic terms (MeSH headings, concepts, claim populations, interventions and outcomes) that appear in at least two papers. Two terms are linked only when they share papers <strong>at least 1.5× as often as chance</strong> would give. Terms that appear in most papers co-occur with everything, so plain counts would merge every topic into one cluster. Scopes under 20 papers use plain counts.</p>
+<p>Each <strong>card</strong> shows the cluster's terms, papers, year span, a papers-per-year sparkline (last five years shaded) and a trend:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Trend</th><th>Rule</th></tr></thead>
+  <tbody>
+    <tr><td>↑ growing</td><td>papers in the last five years ≥ 1.25 × papers in the five before</td></tr>
+    <tr><td>↓ fading</td><td>≤ 0.8 ×</td></tr>
+    <tr><td>→ stable</td><td>in between</td></tr>
+    <tr><td>no label</td><td>either window has fewer than 3 papers; the counts are still shown</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="muted">The windows end at the newest publication year in the library, not today's date, so a static snapshot reads the same next year. Each card shows both counts and the ratio.</p>
+<p><strong>Map</strong> draws clusters as circles, sized by papers and coloured like their cards, joined when two clusters share at least 2 papers. Click a cluster to see its trend, the clusters it overlaps with, and its terms. <strong>Table</strong> lists the same clusters and overlaps as text.</p>
+</li>
+
+<li>
+<h3>Judge how mature the evidence is</h3>
+<p><em>Maturity</em> gives one row per intervention concept with claims in scope. The five measures sit side by side, each with its counts and a bar, and are never blended into one score:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Measure</th><th>Definition</th></tr></thead>
+  <tbody>
+    <tr><td>Papers</td><td>papers with an active claim whose intervention is this concept (name or alias)</td></tr>
+    <tr><td>Outcome breadth</td><td>its distinct outcomes ÷ outcomes studied for any intervention in scope</td></tr>
+    <tr><td>Coverage</td><td>population × outcome cells with a claim ÷ all cells (step 5's grid)</td></tr>
+    <tr><td>Full-text share</td><td>its claims extracted from full text ÷ all its claims</td></tr>
+    <tr><td>Open conflicts</td><td>unreviewed potential conflicts plus stale contradictions on relations touching the concept; click the number to open the first one</td></tr>
+  </tbody>
+</table>
+</div>
+<p>The <em>Appraisal</em> column and the panel below it show your <code>/ref:review</code> batches that include papers in scope. For each batch you see:</p>
+<ul>
+  <li>its <strong>GRADE certainty</strong> (high, moderate, low, very low), baseline and number of downgrades</li>
+  <li>the five GRADE factors, each marked <em>downgraded</em>, <em>no downgrade</em> or <em>not assessed</em>, with the reason</li>
+  <li>each paper's checklist (RoB&nbsp;2, Newcastle-Ottawa, AMSTAR&nbsp;2) with its result: <em>high risk</em>, <em>assessed, no high-risk domain</em>, <em>insufficient information</em> or <em>no checklist</em>, and whether any domain is human-reviewed</li>
+</ul>
+<div class="note"><strong>GRADE is per batch, not per outcome.</strong> <code>/ref:review</code> records one certainty for a batch's whole set of papers, and the dashboard shows it that way. Reviews recorded after a batch was frozen (with <code>verify.py review-appraisal</code>) are included without a <code>--refresh</code>. With no batches, the panel offers <code>/ref:review --project &lt;slug&gt; --batch &lt;label&gt;</code> to copy; see <a href="systematic-review.html">the systematic review tutorial</a>.</div>
+<p>Each row links to that concept's <em>Gap grid</em> and <em>Neighborhood</em>.</p>
+</li>
+
+<li>
+<h3>Rearrange the graph, or read it as a table</h3>
+<p>The knowledge graph (all four modes) and the cluster map are interactive:</p>
+<div class="tbl-wrap">
+<table class="sel">
+  <thead><tr><th>Do</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Drag a node</td><td>It moves and its lines follow. It stays where you drop it until you press <em>Re-layout</em> or the data changes. A press that barely moves still counts as a click.</td></tr>
+    <tr><td>Drag the background</td><td>Pans the view (with a mouse or pen; on touch screens the page scrolls as usual)</td></tr>
+    <tr><td>⌘ / Ctrl + scroll, or pinch</td><td>Zooms around the pointer; plain scrolling still scrolls the page. The − / + / ⤢ buttons zoom and reset too.</td></tr>
+    <tr><td>Shift + arrow keys</td><td>Move the focused node without a mouse</td></tr>
+    <tr><td><em>Re-layout</em></td><td>Discards dragged positions and lays the graph out again</td></tr>
+    <tr><td><em>Table</em></td><td>Lists every node (type, papers, links, and hop in a neighbourhood; sortable) and every edge (kind and papers). Relation entries open their detail panel.</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="muted">In global modes, <em>Nodes ≤</em> (20–200) caps how many nodes are drawn. Lower it on large libraries, raise it for detail. Neighbourhoods use their fixed 100-node cap instead.</p>
+</li>
+
+</ol>
+</section>
+
+<section>
+<h2>Freshness and large libraries</h2>
+<ul>
+  <li><strong>Serve mode</strong> caches the knowledge payload and rebuilds it when claims, notes, authorship, appraisal corrections, concepts, relations or review batches change on disk. The refresh button (↻) always rebuilds it.</li>
+  <li><strong>Static mode</strong> is a snapshot: rebuild with <code>/ref:dashboard --static</code> after running <code>/ref:extract</code>, <code>/ref:weave</code> or <code>/ref:review</code>.</li>
+  <li>Views are recomputed when the scope changes, not while you hover or drag. On a 1,200-paper library most views redraw in under 20&nbsp;ms, and a scope change that rebuilds the graph index takes well under 100&nbsp;ms.</li>
+</ul>
+</section>
+
+<section>
+<h2>Putting it together</h2>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 38000101 38000102 38000103</span>          <span class="c"># claims for the views</span>
+<span class="p">›</span> <span class="cmd">/ref:weave --project tdcs-review</span>                 <span class="c"># concepts + proposed relations</span>
+<span class="p">›</span> <span class="cmd">/ref:review --project tdcs-review --batch wm</span>     <span class="c"># optional: GRADE + risk of bias for Maturity</span>
+<span class="p">›</span> <span class="cmd">/ref:dashboard --open --view 'tab=insights&amp;insight=maturity&amp;project=tdcs-review'</span>
+<span class="c"># Maturity → open conflicts → claim network → relation panel → copy the review command</span>
+<span class="p">›</span> <span class="cmd">/ref:weave review rel-… contradicts --rationale "…"</span>
+<span class="c"># ↻ refresh → Gaps → Population × outcome → gap cell → copy /ref:search-pubmed</span>
+<span class="p">›</span> <span class="cmd">/ref:search-pubmed '("tdcs") AND ("older adults") AND ("working memory")' --slug gap-tdcs-older-adults --create</span></pre>
+<p>Command reference: <a href="../commands/maintain.html#dashboard"><code>/ref:dashboard</code></a>, <a href="../commands/graph.html#gaps"><code>/ref:gaps</code></a>, <a href="../commands/graph.html#weave"><code>/ref:weave</code></a>, <a href="../commands/graph.html#concept"><code>/ref:concept</code></a>. Related tutorials: <a href="library-viewer.html">Library viewer</a>, <a href="graph-discovery.html">Graph discovery</a>, <a href="systematic-review.html">Systematic review</a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="graph-discovery.html"><small>Previous</small>Graph discovery</a>
+  <a href="../commands/index.html" style="text-align:right"><small>Next</small>Command reference</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

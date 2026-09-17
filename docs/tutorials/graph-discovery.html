@@ -263,6 +263,7 @@
   "stale": false,
   …
 }</span></pre>
+<div class="note"><strong>See it in the dashboard.</strong> In <code>/ref:dashboard</code> → Insights → Knowledge graph → <em>Claim network</em> or <em>Neighborhood</em>, an unreviewed potential conflict is a dashed <code>?</code> edge and a reviewed contradiction a solid <code>✕</code> edge. Clicking one lists its supporting claims with the comparability fields that differ marked ≠, and copies this exact review command. <a href="dashboard-insights.html">Evidence insights tutorial</a>.</div>
 <div class="note"><strong>Relation review vs <code>/ref:verify</code>.</strong> <code>/ref:verify</code> covers claims, grant links, author contributions and identity matches. Relations are reviewed with <code>/ref:weave review</code>. If a supporting claim changes later, the reviewed edge keeps its rationale but is marked <code>stale</code> until you review it again.</div>
 <p>To inspect one concept's neighbourhood:</p>
 <p class="term-label">output from a scratch library (trimmed)</p>
@@ -298,6 +299,7 @@
   }
 }</span></pre>
 <p class="muted">The empty lists here only mean the scratch library has no extracted claim registries. They don't mean the evidence is robust.</p>
+<p>The dashboard shows the same findings interactively. Insights → Gaps → <em>Population × outcome</em> draws the <code>population_outcome_gap</code> query as a grid for any intervention concept, with each uncovered cell hatched and its evidencing claims one click away. Its <em>Unresolved conflicts</em> and <em>Single-study findings</em> lists mirror the other two queries. See <a href="dashboard-insights.html">Evidence insights</a>.</p>
 <div class="note warn"><strong><code>--concept</code> as a selector currently fails.</strong> The shared selector code still has an early-phase guard. <code>/ref:gaps --concept tdcs</code> raises <code>NotAvailableError: --concept is not available until phase 8 (concept graph)</code>, even though the graph exists. Use <code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--search</code> or <code>--from-file</code> instead.</div>
 </li>
 
@@ -427,12 +429,12 @@
   papers/38000101/
     related.json                <span class="c"># forward/backward candidates, upserted by (direction, method, candidate)</span>
 <span class="c"># /ref:gaps and /ref:hypothesize write nothing: their output is the report in your session</span></pre>
-<p>Command reference: <a href="../commands/graph.html#weave"><code>/ref:weave</code></a>, <a href="../commands/graph.html#concept"><code>/ref:concept</code></a>, <a href="../commands/graph.html#gaps"><code>/ref:gaps</code></a>, <a href="../commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>.</p>
+<p>Command reference: <a href="../commands/graph.html#weave"><code>/ref:weave</code></a>, <a href="../commands/graph.html#concept"><code>/ref:concept</code></a>, <a href="../commands/graph.html#gaps"><code>/ref:gaps</code></a>, <a href="../commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a>, <a href="../commands/find.html#related"><code>/ref:related</code></a>. To explore the graph interactively, continue with <a href="dashboard-insights.html">Evidence insights</a>.</p>
 </section>
 
 <nav class="pager" aria-label="Tutorial pages">
   <a href="papers-handoff.html"><small>Previous</small>Papers handoff</a>
-  <a href="../commands/index.html"><small>Next</small>Command reference</a>
+  <a href="dashboard-insights.html" style="text-align:right"><small>Next</small>Evidence insights</a>
 </nav>
 
 </main>

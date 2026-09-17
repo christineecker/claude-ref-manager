@@ -353,21 +353,34 @@ required.
 <!-- ================= dashboard ================= -->
 <article class="cmd" id="dashboard">
   <div class="cmd-head"><h3>/ref:dashboard</h3><div class="chips"><span class="tag phase">library viewer</span><span class="tag ro">read-only except notes</span></div></div>
-  <p class="summary">Dashboard over the paper library: health state, source coverage, pipeline funnel, papers-by-year, lint trend, a searchable/sortable paper table, a coverage matrix, per-project reading progress, maintenance sparklines, a paper panel, and a PDF viewer. Built on the same <code>lib_inventory.rows()</code>/<code>detail()</code> every other view uses.</p>
-  <div class="synopsis">/ref:dashboard [--port &lt;n&gt;] [--open]
+  <p class="summary">Dashboard over the paper library: health state, source coverage, pipeline funnel, papers-by-year, lint trend, a searchable/sortable paper table, a coverage matrix, per-project reading progress, an Insights tab of interactive evidence views (knowledge graph, gap grid, topic clusters, evidence maturity), maintenance sparklines, a paper panel, and a PDF viewer. Built on the same <code>lib_inventory.rows()</code>/<code>detail()</code> every other view uses.</p>
+  <div class="synopsis">/ref:dashboard [--port &lt;n&gt;] [--open] [--view '&lt;query&gt;']
 /ref:dashboard --static [--open]</div>
   <h4>Arguments</h4>
   <dl class="args">
     <dt>--static</dt><dd>Build the static self-contained HTML dashboard instead of serving (also triggered by the literal word <code>build</code>).</dd>
     <dt>--port &lt;n&gt;</dt><dd>Serve mode only. Fixed port instead of an OS-assigned one.</dd>
     <dt>--open</dt><dd>Open the dashboard in the default browser once ready.</dd>
+    <dt>--view '&lt;query&gt;'</dt><dd>Serve mode only. Reopen a shared view: the query a <em>Copy as command</em> button produced, e.g. <code>tab=insights&amp;insight=graph&amp;center=c:tdcs&amp;hops=2</code>. Accepted keys: <code>tab</code>, <code>q</code>, <code>project</code>, <code>issue</code>, <code>source</code>, <code>sort</code>, <code>insight</code>, <code>center</code> (<code>p:&lt;pmid&gt;</code> or <code>c:&lt;concept-id&gt;</code>), <code>hops</code>; anything else, such as a token, is refused.</dd>
   </dl>
   <h4>What happens</h4>
   <p><strong>Default (serve):</strong> a local HTTP server on <code>127.0.0.1</code> with a live API, an in-page pdf.js viewer (thumbnails, zoom, fit-width, page jump, find-in-PDF), and notes that save immediately through <code>note.py append</code> — the same file/format as <a href="organize.html#note"><code>/ref:note</code></a>. Binds <code>127.0.0.1</code> only, with a random per-run token required on every request and checked against <code>Host</code>/<code>Origin</code> — not reachable from other machines or other browser tabs without the token in the URL. Blocks until interrupted (Ctrl-C).</p>
   <p><strong><code>--static</code>:</strong> writes atomically to <code>reports/dashboard/</code> (template + inline rows/lint JSON, one <code>details/&lt;pmid&gt;.js</code> per paper loaded on demand). No server; the PDF tab opens in a new browser tab instead of in-page. The notes composer only writes a browser-local draft with a "Copy <code>/ref:note</code>" button — committed notes still come from <code>/ref:note</code>.</p>
   <p>Both modes: selecting rows in the Papers tab builds ready-to-copy <code>/ref:fetch</code> / <code>/ref:extract</code> commands for papers that still need them.</p>
+  <p><strong>Insights tab (both modes):</strong> views computed in the browser from active claims, <code>graph/concepts.jsonl</code>, <code>graph/relations.jsonl</code>, MeSH terms and <code>/ref:review</code> batches, scoped to the Papers filters plus a year range.</p>
+  <ul>
+    <li><strong>Notable cards:</strong> best-connected paper, open conflicts, single-study findings, papers with no claims, growing and fading topics.</li>
+    <li><strong>Evidence map:</strong> any two claim fields as a grid, coloured by direction, extraction tier or paper count.</li>
+    <li><strong>Gaps:</strong> a population × outcome grid per intervention concept using the same rule as <a href="graph.html#gaps"><code>/ref:gaps</code></a>, heuristic sparse pairs, single-study findings and unresolved conflicts.</li>
+    <li><strong>Topic timeline.</strong></li>
+    <li><strong>Knowledge graph:</strong> <em>Concepts</em>, <em>Papers &amp; authors</em>, <em>Claim network</em>, and a 1–2 hop <em>Neighborhood</em> around a paper or concept. Each relation type and review state has its own line and glyph (<code>+ = » ? ✕</code>, stale faded), and the relation detail panel lists supporting claims with differing comparability fields marked ≠ and a <code>/ref:weave review</code> command to copy. Nodes drag, the background pans, ⌘/Ctrl + scroll zooms, Shift + arrows move a node, and every mode has a Table view.</li>
+    <li><strong>Clusters:</strong> cards with a papers-per-year sparkline and a growing / stable / fading label (last five years vs the five before), or a map of clusters sharing papers.</li>
+    <li><strong>Maturity:</strong> per intervention concept, papers, outcome breadth, coverage, full-text share and open conflicts shown separately, with GRADE and risk-of-bias batches overlaid per batch.</li>
+    <li><strong>Synthesis draft</strong> in Markdown.</li>
+  </ul>
+  <p>Read-only; walkthrough in <a href="../tutorials/dashboard-insights.html">Evidence insights</a>.</p>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads the same inventory/lint data as <code>/ref:list</code> and <code>/ref:lint</code>. Serve mode's notes composer is the only thing that writes to the library, via <code>note.py append</code>. Static mode writes only <code>reports/dashboard/</code>; a failed build never touches the previous snapshot.</p>
+  <p class="writes">Reads the same inventory/lint data as <code>/ref:list</code> and <code>/ref:lint</code>; the Insights tab also reads claim registries, <code>graph/concepts.jsonl</code>, <code>graph/relations.jsonl</code>, raw PubMed responses, and <code>reviews/&lt;batch&gt;/</code> / <code>projects/&lt;slug&gt;/reviews/&lt;batch&gt;/</code>. Serve mode caches that payload and rebuilds it when those files change (the refresh button always rebuilds). Serve mode's notes composer is the only thing that writes to the library, via <code>note.py append</code>. Static mode writes only <code>reports/dashboard/</code>; a failed build never touches the previous snapshot.</p>
   <h4>Example</h4>
   <p class="term-label">illustrative output</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:dashboard --open</span>
@@ -377,7 +390,7 @@ required.
   <h4>Under the hood</h4>
   <p class="writes"><code>dashboard.py serve --repo &lt;library_root&gt; [--port N] [--open]</code>, or <code>dashboard.py build --repo &lt;library_root&gt; [--open]</code> for <code>--static</code>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#list"><code>/ref:list</code></a> · <a href="#lint"><code>/ref:lint</code></a> · <a href="organize.html#note"><code>/ref:note</code></a> · <a href="../tutorials/library-viewer.html">Library viewer tutorial</a></p>
+  <p class="writes"><a href="#list"><code>/ref:list</code></a> · <a href="#lint"><code>/ref:lint</code></a> · <a href="organize.html#note"><code>/ref:note</code></a> · <a href="graph.html#gaps"><code>/ref:gaps</code></a> · <a href="../tutorials/library-viewer.html">Library viewer tutorial</a> · <a href="../tutorials/dashboard-insights.html">Evidence insights tutorial</a></p>
 </article>
 
 <!-- ================= audit ================= -->

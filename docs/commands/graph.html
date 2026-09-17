@@ -236,7 +236,7 @@
   <dl class="args">
     <dt>&lt;pmid…&gt; | selector</dt><dd>The papers whose claims to weave. With nothing given, the command skips to regeneration.</dd>
     <dt>--regenerate-only</dt><dd>Skip claim comparison and only rebuild derived views. Useful after <code>/ref:verify</code> or an <code>/ref:extract</code> rerun changes data without adding claims.</dd>
-    <dt>review &lt;id&gt; &lt;type&gt;</dt><dd>Promote or demote a relation, e.g. <code>potential_conflict</code> → <code>contradicts</code>. <code>contradicts</code> is refused without a non-empty <code>--rationale</code>. A review also clears <code>stale</code>.</dd>
+    <dt>review &lt;id&gt; &lt;type&gt;</dt><dd>Promote or demote a relation, e.g. <code>potential_conflict</code> → <code>contradicts</code>. <code>contradicts</code> is refused without a non-empty <code>--rationale</code>. A review also clears <code>stale</code>. The dashboard's relation detail panel (Insights → Knowledge graph) shows the supporting claims side by side and copies this command for unreviewed or stale relations.</dd>
     <dt>neighbors &lt;slug&gt;</dt><dd>Every relation touching a concept, split into <code>outgoing</code> and <code>incoming</code>, with the supporting-claim trail.</dd>
   </dl>
   <h4>What happens</h4>
@@ -358,7 +358,7 @@
     <li><strong>single_study_fragile</strong>: an active claim is fragile unless its paper is in a study group with ≥2 PMIDs, or it shares a <code>supports</code>/<code>extends</code>/<code>replicates</code> edge with a claim from another PMID.</li>
     <li><strong>unresolved_conflicts</strong>: unreviewed <code>potential_conflict</code> edges, plus <code>contradicts</code> edges that have gone stale, touching the selected PMIDs.</li>
     <li><strong>co_mentioned_ungrouped</strong>: two concepts whose names or aliases both appear in one claim's <code>evidence_span</code> with no edge between them.</li>
-    <li><strong>population_outcome_gap</strong>: for the intervention concept, a population × outcome combination with no claim while sibling combinations have one.</li>
+    <li><strong>population_outcome_gap</strong>: for the intervention concept, a population × outcome combination with no claim while sibling combinations have one. A population or outcome that exactly matches (ignoring case) any concept's name or alias is grouped under that concept's name; other values are kept as written. Placeholder values such as <code>unknown</code> or <code>not reported</code> are ignored. The dashboard's Insights → Gaps grid applies the same rule, so both report the same cells.</li>
   </ol>
   <p class="writes">No LLM judgment. Missing edges describe this library's coverage, not an established gap in the literature, and results should be presented that way.</p>
   <h4>Reads &amp; writes</h4>
@@ -395,7 +395,7 @@
   <h4>Under the hood</h4>
   <p class="writes"><code>gaps.py --repo &lt;root&gt; &lt;selector…&gt; [--intervention-concept &lt;slug&gt;] [--types …]</code>. Note: the shared <code>--concept</code> selector still raises "not available until phase 8" in <code>lib_selector.py</code>, so select by PMIDs, project, study or search instead.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#weave">/ref:weave</a> · <a href="#hypothesize">/ref:hypothesize</a> · <a href="organize.html#study">/ref:study</a> · <a href="find.html#related">/ref:related</a></p>
+  <p class="writes"><a href="#weave">/ref:weave</a> · <a href="#hypothesize">/ref:hypothesize</a> · <a href="organize.html#study">/ref:study</a> · <a href="find.html#related">/ref:related</a> · <a href="../tutorials/dashboard-insights.html">Evidence insights (gap grid)</a></p>
 </article>
 
 <article class="cmd" id="hypothesize">

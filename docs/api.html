@@ -1399,32 +1399,50 @@ options:
 <!-- ============================================================ -->
 <section id="testing">
 <h2>Testing</h2>
-<p>The phase suites are plain <code>unittest</code> files that build temporary libraries. Run one:</p>
+<p>The suites are plain <code>unittest</code> files that build temporary libraries. Run one:</p>
 <pre class="term"><span class="p">$</span> <span class="cmd">python3 skills/ref-manager/scripts/tests/test_phase0.py</span></pre>
-<p>Or run all of them, with <code>HOME</code> pointed at a scratch directory so your real <code>~/.config</code> is never touched:</p>
-<pre class="term"><span class="p">$</span> <span class="cmd">for t in skills/ref-manager/scripts/tests/test_phase*.py; do HOME=$(mktemp -d) python3 "$t" || echo "FAILED: $t"; done</span></pre>
-<p>Results at time of writing (2026-09-15, Python 3.14): all 17 suites pass, <strong>220 tests</strong>.</p>
+<p>Or run all of them, the way CI does, with <code>HOME</code> pointed at a scratch directory so your real <code>~/.config</code> is never touched:</p>
+<pre class="term"><span class="p">$</span> <span class="cmd">cd skills/ref-manager/scripts &amp;&amp; HOME=$(mktemp -d) REF_REQUIRE_NODE=1 python3 -m unittest discover -s tests -p "test_*.py"</span></pre>
+<p>Some suites need tools beyond Python:</p>
+<ul>
+  <li><strong>node:</strong> the dashboard's JavaScript tests (neighbourhood, layout, clusters, maturity) and the JS/Python gap-rule parity check in <code>test_phase9_gaps.py</code> run the real dashboard functions under node. Without node they are skipped. <code>REF_REQUIRE_NODE=1</code> makes a missing node fail instead.</li>
+  <li><strong>pandoc</strong> and <strong>uv:</strong> the conversion tests in <code>test_phase3_acquire.py</code> call the real JATS and HTML converters.</li>
+</ul>
+<p>The <code>Tests</code> GitHub Actions workflow (<code>.github/workflows/tests.yml</code>) runs the full suite on every push to <code>main</code> and on pull requests, on Python 3.11 and 3.12 with node 24, pandoc and uv installed, after syntax-checking <code>dashboard_assets/app.js</code> and <code>insights.js</code>.</p>
+<p>Results at time of writing (2026-09-17, Python 3.14): all 29 files pass, <strong>571 tests</strong>.</p>
 <div class="tbl-wrap">
 <table class="sel">
   <thead><tr><th>Suite</th><th>Tests</th><th>Result</th></tr></thead>
   <tbody>
-    <tr><td>test_phase0.py</td><td>13</td><td>OK</td></tr>
-    <tr><td>test_phase1.py</td><td>12</td><td>OK</td></tr>
-    <tr><td>test_phase2.py</td><td>10</td><td>OK</td></tr>
-    <tr><td>test_phase3_acquire.py</td><td>20</td><td>OK</td></tr>
+    <tr><td>test_catalog_freshness.py</td><td>12</td><td>OK</td></tr>
+    <tr><td>test_dashboard.py</td><td>49</td><td>OK</td></tr>
+    <tr><td>test_dashboard_serve.py</td><td>63</td><td>OK</td></tr>
+    <tr><td>test_inventory.py</td><td>26</td><td>OK</td></tr>
+    <tr><td>test_lib_bibparse.py</td><td>21</td><td>OK</td></tr>
+    <tr><td>test_lib_intake.py</td><td>34</td><td>OK</td></tr>
+    <tr><td>test_lint.py</td><td>14</td><td>OK</td></tr>
+    <tr><td>test_list.py</td><td>36</td><td>OK</td></tr>
+    <tr><td>test_phase0.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_phase1.py</td><td>14</td><td>OK</td></tr>
+    <tr><td>test_phase10_summarize_review.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_phase11_audit.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_phase2.py</td><td>20</td><td>OK</td></tr>
+    <tr><td>test_phase3_acquire.py</td><td>41</td><td>OK</td></tr>
     <tr><td>test_phase3_papers.py</td><td>9</td><td>OK</td></tr>
-    <tr><td>test_phase4_annotate.py</td><td>13</td><td>OK</td></tr>
+    <tr><td>test_phase4_annotate.py</td><td>14</td><td>OK</td></tr>
     <tr><td>test_phase4_extract.py</td><td>18</td><td>OK</td></tr>
-    <tr><td>test_phase5_compare.py</td><td>18</td><td>OK</td></tr>
+    <tr><td>test_phase5_compare.py</td><td>19</td><td>OK</td></tr>
     <tr><td>test_phase5_prisma.py</td><td>7</td><td>OK</td></tr>
-    <tr><td>test_phase6_ask.py</td><td>13</td><td>OK</td></tr>
+    <tr><td>test_phase6_ask.py</td><td>16</td><td>OK</td></tr>
     <tr><td>test_phase7_checkcitations.py</td><td>12</td><td>OK</td></tr>
     <tr><td>test_phase8_graph.py</td><td>17</td><td>OK</td></tr>
     <tr><td>test_phase8_okf.py</td><td>7</td><td>OK</td></tr>
-    <tr><td>test_phase9_gaps.py</td><td>14</td><td>OK</td></tr>
+    <tr><td>test_phase9_gaps.py</td><td>15</td><td>OK</td></tr>
     <tr><td>test_phase9_related.py</td><td>7</td><td>OK</td></tr>
-    <tr><td>test_phase10_summarize_review.py</td><td>15</td><td>OK</td></tr>
-    <tr><td>test_phase11_audit.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_project_templates.py</td><td>9</td><td>OK</td></tr>
+    <tr><td>test_repair_state.py</td><td>7</td><td>OK</td></tr>
+    <tr><td>test_status_verbosity.py</td><td>5</td><td>OK</td></tr>
+    <tr><td>test_triage.py</td><td>34</td><td>OK</td></tr>
   </tbody>
 </table>
 </div>

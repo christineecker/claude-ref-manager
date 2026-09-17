@@ -27,7 +27,7 @@
     try {
       var params = new URLSearchParams(location.search);
       var paper = params.get("paper");
-      return paper ? { pmid: paper, tab: params.get("tab") === "details" ? "details" : "pdf" } : null;
+      return paper ? { pmid: paper, tab: params.get("tab") === "details" ? "overview" : "pdf" } : null;
     } catch (e) { return null; }
   })();
 
@@ -92,14 +92,30 @@
   // Live mode has no build-time lint report / coverage matrix embedded in
   // DATA (§7 gap fixed here) -- LINT/MATRIX_COLUMNS/MATRIX_ROWS are filled
   // from DATA at static-build time and refetched via /api/lint + /api/matrix
-  // on load and on refresh in live mode; renderHealth()/renderCoverageMatrix()
-  // read these variables either way so the two modes share one code path.
+  // on load and on refresh in live mode; renderHealth()/the Papers table's
+  // coverage strip read these variables either way so the two modes share
+  // one code path.
   var LINT = DATA.lint || {};
   // /api/summary (or the build-time copy): drives the Next actions panel so
   // its ranking is computed once, in dashboard_insights.next_actions().
   var SUMMARY = DATA.summary || null;
-  var MATRIX_COLUMNS_LIVE = DATA.matrix_columns || [];
-  var MATRIX_ROWS_LIVE = DATA.matrix || [];
+  var MATRIX_COLUMNS_LIVE = [];
+  var MATRIX_ROWS_LIVE = [];
+  var MATRIX_BY_PMID = {}; // pmid -> matrix row; the Papers table's coverage strip reads this
+  // Short labels for the strip's column headers (list.py MATRIX_COLUMNS order).
+  var MATRIX_SHORT = { meta: "me", abstract: "ab", fulltext: "fu", pdf: "pd", figures: "fg", claims: "cl", indexed: "ix", retraction: "rt" };
+  function setMatrix(payload) {
+    MATRIX_COLUMNS_LIVE = (payload && payload.columns) || [];
+    MATRIX_ROWS_LIVE = (payload && payload.rows) || [];
+    MATRIX_BY_PMID = {};
+    MATRIX_ROWS_LIVE.forEach(function (m) { MATRIX_BY_PMID[m.pmid] = m; });
+  }
+  setMatrix({ columns: DATA.matrix_columns, rows: DATA.matrix });
+  function coverageCount(r) {
+    var m = MATRIX_BY_PMID[r.pmid];
+    if (!m) return 0;
+    return MATRIX_COLUMNS_LIVE.reduce(function (n, c) { return n + (m[c] ? 1 : 0); }, 0);
+  }
 
   // §6.1's project summaries, computed from rows() the same way
   // dashboard.py's `_project_summaries()` does at build time -- this lets
@@ -470,7 +486,7 @@
 
   // -------------------------------------------------------------- tabs
 
-  var TABS = ["papers", "coverage", "projects", "insights", "maint", "triage"];
+  var TABS = ["papers", "projects", "insights", "maint", "triage"];
   var activeTab = "papers";
   function selectTab(name) {
     if (TABS.indexOf(name) < 0) return;
@@ -482,7 +498,6 @@
     syncUrl();
   }
   function renderTabContent(name) {
-    if (name === "coverage") renderCoverageMatrix();
     if (name === "projects") renderProjects();
     if (name === "maint") renderMaintenance();
     if (name === "triage") renderTriageTab();
@@ -490,7 +505,7 @@
   }
   // P0.1: whichever tab is on screen when a manual refresh lands must be
   // redrawn from the fresh data immediately -- not just next time it's
-  // clicked -- so maintenance/coverage/projects never show stale snapshots.
+  // clicked -- so maintenance/projects never show stale snapshots.
   function rerenderActiveTab() {
     renderTabContent(activeTab);
   }
@@ -508,8 +523,16 @@
     project: "all",
     chips: [], // {id, label, pred}
     sort: null, // {field, dir}
+    missing: null, // a coverage-matrix column name: show only papers lacking it
     selected: new Set(),
   };
+
+  function setMissingFilter(col) {
+    state.missing = (col && MATRIX_COLUMNS_LIVE.indexOf(col) >= 0) ? col : null;
+    currentPage = 0;
+    renderChips();
+    renderTable();
+  }
 
   function applyIssueFilter(bucket, label) {
     state.chips = state.chips.filter(function (c) { return c.id !== "issue:" + bucket; });
@@ -534,6 +557,15 @@
         }),
       ]));
     });
+    if (state.missing) {
+      wrap.appendChild(el("span", { className: "fchip" }, [
+        el("span", { text: "missing: " + state.missing }),
+        el("button", {
+          className: "x", text: "×", attrs: { type: "button", "aria-label": "remove filter missing " + state.missing },
+          on: { click: function () { setMissingFilter(null); } },
+        }),
+      ]));
+    }
     if (sourceFilterSet) {
       wrap.appendChild(el("span", { className: "fchip" }, [
         el("span", { text: "source: " + Array.from(sourceFilterSet).join(", ") }),
@@ -559,8 +591,12 @@
         else if (slugs.indexOf(state.project) < 0) return false;
       }
       for (var i = 0; i < state.chips.length; i++) if (!state.chips[i].pred(r)) return false;
+      if (state.missing) {
+        var m = MATRIX_BY_PMID[r.pmid];
+        if (m && m[state.missing]) return false;
+      }
       if (q) {
-        var hay = [r.title, r.citekey, r.journal, r.pmid].filter(Boolean).join(" ").toLowerCase();
+        var hay = [r.title, r.citekey, r.journal, r.pmid, r.authors_short, r.last_author].filter(Boolean).join(" ").toLowerCase();
         if (hay.indexOf(q) < 0) return false;
       }
       return true;
@@ -574,6 +610,8 @@
     copy.sort(function (a, b) {
       var av = a[field], bv = b[field];
       if (field === "project") { av = projectLabel(a); bv = projectLabel(b); }
+      else if (field === "coverage") { av = coverageCount(a); bv = coverageCount(b); }
+      else if (field === "has_pdf") { av = a.has_pdf ? 1 : 0; bv = b.has_pdf ? 1 : 0; }
       if (av === null || av === undefined) av = "";
       if (bv === null || bv === undefined) bv = "";
       if (av < bv) return dir === "asc" ? -1 : 1;
@@ -614,9 +652,60 @@
     if (currentPage >= pages) currentPage = 0;
     document.getElementById("result").textContent = rows.length + " of " + ROWS.length + " papers";
     document.getElementById("c-papers").textContent = String(ROWS.length);
+    renderCoverageHeader();
     renderTableRows();
     syncUrl();
     if (document.getElementById("next-scope").checked) scheduleNextActions();
+  }
+
+  // The coverage matrix (list.py --matrix) lives in the Papers table as one
+  // strip per row; the header shows each column's short label, the share
+  // of the whole library that has it, and toggles the `missing:` filter.
+  function renderCoverageHeader() {
+    var head = document.getElementById("covhead");
+    if (!head) return;
+    clear(head);
+    var total = MATRIX_ROWS_LIVE.length || 1;
+    MATRIX_COLUMNS_LIVE.forEach(function (c) {
+      var n = 0;
+      MATRIX_ROWS_LIVE.forEach(function (m) { if (m[c]) n++; });
+      var pct = Math.round(n / total * 100);
+      var btn = el("button", {
+        text: MATRIX_SHORT[c] || c.slice(0, 2),
+        attrs: { type: "button", "aria-pressed": String(state.missing === c), title: c + ": " + pct + "% of papers -- click to show papers missing it" },
+        on: { click: function () { setMissingFilter(state.missing === c ? null : c); } },
+      });
+      head.appendChild(el("div", {}, [btn, el("small", { text: String(pct) })]));
+    });
+    var legend = document.getElementById("covlegend-cols");
+    if (legend) legend.textContent = MATRIX_COLUMNS_LIVE.map(function (c) { return (MATRIX_SHORT[c] || c) + "=" + c; }).join(" · ");
+  }
+
+  // The matrix's `retraction` cell means "retraction status checked"; the
+  // red variant is reserved for a status that actually flags the paper.
+  var RETRACTION_OK = ["unknown", "none", "active", "no_pmcid", "check_failed"];
+  function retractionFlagged(r) {
+    return !!(r && r.retraction_status && RETRACTION_OK.indexOf(r.retraction_status) < 0);
+  }
+
+  function coverageStrip(r) {
+    var m = MATRIX_BY_PMID[r.pmid];
+    return el("div", { className: "covstrip" }, MATRIX_COLUMNS_LIVE.map(function (c) {
+      var on = !!(m && m[c]);
+      var cls = on ? (c === "retraction" && retractionFlagged(r) ? "ret" : "on") : "";
+      return el("i", { className: cls, attrs: { title: c + ": " + (on ? "yes" : "no") } });
+    }));
+  }
+
+  function isToRead(r) {
+    return (r.projects || []).some(function (p) { return p.reading_status === "to_read"; });
+  }
+
+  function markOpenRow() {
+    var tbody = document.getElementById("rows");
+    Array.prototype.forEach.call(tbody.children, function (tr) {
+      tr.classList.toggle("open", !!drawerState.pmid && tr.dataset.pmid === drawerState.pmid);
+    });
   }
 
   function renderTableRows() {
@@ -628,7 +717,14 @@
     clear(tbody);
     currentPageRows.forEach(function (r) {
       var tr = el("tr", { attrs: { "data-pmid": r.pmid } });
-      if (state.selected.has(r.pmid)) tr.className = "sel";
+      function syncRowClass() {
+        tr.className = [
+          state.selected.has(r.pmid) ? "sel" : "",
+          isToRead(r) ? "toread" : "",
+          drawerState.pmid === r.pmid ? "open" : "",
+        ].filter(Boolean).join(" ");
+      }
+      syncRowClass();
 
       var cb = el("input", { attrs: { type: "checkbox", "aria-label": "Select " + (r.title || r.pmid) } });
       cb.checked = state.selected.has(r.pmid);
@@ -636,41 +732,26 @@
       cb.addEventListener("change", function () {
         if (cb.checked) state.selected.add(r.pmid); else state.selected.delete(r.pmid);
         renderActionBar();
-        tr.className = cb.checked ? "sel" : "";
+        syncRowClass();
       });
-      tr.appendChild(el("td", { attrs: { "data-label": "Select" } }, [cb]));
+      tr.appendChild(el("td", { className: "sel", attrs: { "data-label": "Select" } }, [cb]));
 
-      var badge = r.source_badge || "none";
-      tr.appendChild(el("td", { attrs: { "data-label": "Source" } }, [
-        el("span", { className: "badge", attrs: { style: "--c:" + SOURCE_COLOR[badge] } }, [
-          el("i"), el("span", { text: badge === "none" ? "no meta" : badge }),
-        ]),
-      ]));
+      var clip = el("td", { className: "clip" + (r.has_pdf ? " has" : ""), attrs: { "data-label": "PDF" } });
+      if (r.has_pdf) {
+        var icon = svgEl("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "aria-label": "PDF attached" });
+        icon.appendChild(svgEl("path", { d: "M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8" }));
+        clip.appendChild(icon);
+      }
+      tr.appendChild(clip);
 
-      var availSteps = [
-        { label: "abs", ok: r.source_badge && r.source_badge !== "metadata-only" },
-        { label: "full", ok: r.has_fulltext },
-        { label: "pdf", ok: r.has_pdf },
-      ];
-      var titleCell = el("td", { attrs: { "data-label": "Paper" } }, [
-        el("div", { className: "t-title", text: r.title || "(untitled)" }),
-        el("div", { className: "t-meta" }, [
-          el("span", { className: "t-key", text: (r.citekey || r.pmid) }),
-          el("span", { className: "t-avail" }, availSteps.map(function (s) {
-            return el("span", { className: "step-mini " + (s.ok ? "ok" : "bad"), text: s.label });
-          })),
-        ]),
-      ]);
-      tr.appendChild(titleCell);
-
+      tr.appendChild(el("td", { className: "au", attrs: { "data-label": "Authors", title: r.authors_short || "" }, text: r.authors_short || "" }));
+      tr.appendChild(el("td", { className: "la", attrs: { "data-label": "Last author", title: r.last_author || "" }, text: r.last_author || "" }));
+      tr.appendChild(el("td", { className: "title", attrs: { "data-label": "Title", title: (r.title || "") + (r.citekey ? " · " + r.citekey : "") }, text: r.title || "(untitled)" }));
+      tr.appendChild(el("td", { className: "journal", attrs: { "data-label": "Journal", title: r.journal || "" }, text: r.journal || "" }));
       tr.appendChild(el("td", { className: "num", attrs: { "data-label": "Year" }, text: r.year || "" }));
-      tr.appendChild(el("td", { attrs: { "data-label": "Journal" }, text: r.journal || "" }));
-      tr.appendChild(el("td", { className: "proj", attrs: { "data-label": "Project" }, text: projectLabel(r) }));
-      tr.appendChild(el("td", { className: "num", attrs: { "data-label": "Claims" }, text: r.claims_active }));
-      var ageCell = el("td", { className: "num", attrs: { "data-label": "Last check" } }, [
-        el("span", { className: "age" + (r.stale_check ? " stale" : ""), text: fmtDays(r.days_since_check) }),
-      ]);
-      tr.appendChild(ageCell);
+      tr.appendChild(el("td", { className: "cov", attrs: { "data-label": "Coverage" } }, [coverageStrip(r)]));
+      tr.appendChild(el("td", { className: "num" + (r.notes_count ? "" : " zero"), attrs: { "data-label": "Notes" }, text: r.notes_count ? String(r.notes_count) : "" }));
+      tr.appendChild(el("td", { className: "num" + (r.claims_active ? "" : " zero"), attrs: { "data-label": "Claims" }, text: r.claims_active ? String(r.claims_active) : "" }));
 
       tr.addEventListener("click", function () { openDrawer(r.pmid); });
       if (LIVE) {
@@ -912,6 +993,7 @@
         return { bucket: c.id.slice("issue:".length), label: c.label.replace(/^issue: /, "") };
       }),
       source: sourceFilterSet ? Array.from(sourceFilterSet) : null,
+      missing: state.missing,
     };
   }
 
@@ -933,6 +1015,7 @@
       };
     });
     sourceFilterSet = v.source && v.source.length ? new Set(v.source) : null;
+    state.missing = (v.missing && MATRIX_COLUMNS_LIVE.indexOf(v.missing) >= 0) ? v.missing : null;
     renderSourceCoverage();
     renderChips();
     renderTable();
@@ -958,8 +1041,9 @@
   // (the live token, a ?paper= deep link) and the #triage/ hash are kept.
   // Set-of-PMIDs chips from the Insights tab are deliberately not encoded.
 
-  var VIEW_PARAM_KEYS = ["tab", "q", "project", "issue", "source", "sort", "insight", "center", "hops"];
-  var SORT_FIELDS = ["source_badge", "title", "year", "journal", "project", "claims_active", "days_since_check"];
+  var VIEW_PARAM_KEYS = ["tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops"];
+  var SORT_FIELDS = ["source_badge", "title", "year", "journal", "project", "claims_active", "days_since_check",
+    "has_pdf", "authors_short", "last_author", "coverage", "notes_count"];
   var urlSyncEnabled = false;
 
   function encodeViewState() {
@@ -969,6 +1053,7 @@
     if (state.project !== "all") p.set("project", state.project);
     state.chips.forEach(function (c) { if (c.id.indexOf("issue:") === 0) p.append("issue", c.id.slice(6)); });
     if (sourceFilterSet) p.set("source", Array.from(sourceFilterSet).join(","));
+    if (state.missing) p.set("missing", state.missing);
     if (state.sort) p.set("sort", state.sort.field + ":" + state.sort.dir);
     var ins = INSIGHTS.ins;
     if (activeTab === "insights" && ins.view !== "evidence") p.set("insight", ins.view);
@@ -998,6 +1083,7 @@
       project: p.get("project") || "all",
       sort: sort,
       source: source.length ? source : null,
+      missing: /^[a-z_]+$/.test(p.get("missing") || "") ? p.get("missing") : null,
       issues: p.getAll("issue").filter(function (b) { return LINT_BUCKET_LABELS.hasOwnProperty(b); })
         .map(function (b) { return { bucket: b, label: LINT_BUCKET_LABELS[b] }; }),
     };
@@ -1104,58 +1190,6 @@
     sel.appendChild(el("option", { attrs: { value: "none" }, text: "No project" }));
     if (Array.prototype.some.call(sel.options, function (o) { return o.value === current; })) sel.value = current;
     document.getElementById("c-projects").textContent = String(projects.length);
-  }
-
-  // ---------------------------------------------------------- coverage
-
-  var coverageRendered = false;
-  var MATRIX_PAGE_SIZE = 200; // P2.2: windowed rendering so opening the tab stays instant on large libraries
-  var matrixPage = 0;
-
-  function renderCoverageMatrix() {
-    if (coverageRendered) return;
-    coverageRendered = true;
-    matrixPage = 0;
-    renderCoverageMatrixRows();
-  }
-
-  function renderCoverageMatrixRows() {
-    var cols = MATRIX_COLUMNS_LIVE;
-    var table = document.getElementById("heat");
-    clear(table);
-    var thead = el("tr", {}, [el("th", { className: "rowlbl", text: "pmid" })].concat(
-      cols.map(function (c) { return el("th", { className: "col", text: c }); })
-    ));
-    table.appendChild(thead);
-    var start = matrixPage * MATRIX_PAGE_SIZE;
-    var pageRows = MATRIX_ROWS_LIVE.slice(start, start + MATRIX_PAGE_SIZE);
-    pageRows.forEach(function (row) {
-      var tr = el("tr", {}, [el("td", { className: "rowlbl", text: row.pmid })].concat(
-        cols.map(function (c) {
-          return el("td", {}, [el("div", { className: "cell" + (row[c] ? " on" : ""), attrs: { title: c + ": " + (row[c] ? "yes" : "no") } })]);
-        })
-      ));
-      table.appendChild(tr);
-    });
-    renderMatrixPager();
-  }
-
-  function renderMatrixPager() {
-    var wrap = document.getElementById("matrix-pager");
-    if (!wrap) return;
-    clear(wrap);
-    var total = MATRIX_ROWS_LIVE.length;
-    var pages = Math.max(1, Math.ceil(total / MATRIX_PAGE_SIZE));
-    if (pages <= 1) return;
-    wrap.appendChild(el("button", {
-      text: "‹ Prev", attrs: { type: "button", disabled: matrixPage <= 0 ? "disabled" : null },
-      on: { click: function () { if (matrixPage > 0) { matrixPage--; renderCoverageMatrixRows(); } } },
-    }));
-    wrap.appendChild(el("span", { className: "pageinfo", text: "page " + (matrixPage + 1) + " / " + pages + " · " + total + " papers" }));
-    wrap.appendChild(el("button", {
-      text: "Next ›", attrs: { type: "button", disabled: matrixPage >= pages - 1 ? "disabled" : null },
-      on: { click: function () { if (matrixPage < pages - 1) { matrixPage++; renderCoverageMatrixRows(); } } },
-    }));
   }
 
   // ---------------------------------------------------------- projects
@@ -1468,7 +1502,10 @@
 
   // -------------------------------------------------------------- drawer
 
-  var drawerState = { pmid: null, mode: "details" };
+  // `mode` is the panel's sub-view (the icon tablist): overview, notes,
+  // claims, figures, files, or the pdf.js viewer.
+  var DRAWER_VIEWS = ["overview", "notes", "claims", "figures", "files", "pdf"];
+  var drawerState = { pmid: null, mode: "overview", wide: false, autoWide: false, cmds: false };
   var loadedDetails = {};
 
   function loadDetail(pmid, cb) {
@@ -1504,50 +1541,47 @@
     );
   }
 
+  // The panel is docked (not modal): clicking another table row swaps its
+  // content in place, the page shrinks to make room (body.pane-open), and
+  // focus moves into it only when it was closed before -- a row click while
+  // it is already open keeps focus on the table so j/k browsing continues.
   function openDrawer(pmid) {
-    lastFocusedBeforeDrawer = document.activeElement;
+    var wasOpen = !document.getElementById("drawer").hidden;
+    if (!wasOpen) lastFocusedBeforeDrawer = document.activeElement;
+    var samePaper = drawerState.pmid === pmid;
     drawerState.pmid = pmid;
-    drawerState.mode = "details";
-    document.getElementById("scrim").hidden = false;
+    if (!samePaper && drawerState.mode === "pdf") drawerState.mode = "overview";
     document.getElementById("drawer").hidden = false;
-    // P2.4: hide the (still visible, but now non-interactive) background
-    // content from assistive tech while the drawer is modal -- the drawer
-    // itself is a sibling of .wrap, not inside it, so this never hides the
-    // drawer.
-    var wrap = document.querySelector(".wrap");
-    if (wrap) wrap.setAttribute("aria-hidden", "true");
-    setDrawerMode("details");
+    document.body.classList.add("pane-open");
+    setDrawerMode(drawerState.mode);
     renderDrawerHeader();
-    loadDetail(pmid, function (detail) { renderDrawerBody(detail); });
-    var focusables = drawerFocusables();
-    if (focusables.length) focusables[0].focus();
+    loadDetail(pmid, function (detail) { if (drawerState.pmid === pmid) renderDrawerBody(detail); });
+    markOpenRow();
+    if (!wasOpen) {
+      var focusables = drawerFocusables();
+      if (focusables.length) focusables[0].focus();
+    }
   }
 
   function closeDrawer() {
-    document.getElementById("scrim").hidden = true;
     document.getElementById("drawer").hidden = true;
+    document.body.classList.remove("pane-open");
     drawerState.pmid = null;
-    var wrap = document.querySelector(".wrap");
-    if (wrap) wrap.removeAttribute("aria-hidden");
+    markOpenRow();
     if (lastFocusedBeforeDrawer && document.contains(lastFocusedBeforeDrawer)) lastFocusedBeforeDrawer.focus();
     lastFocusedBeforeDrawer = null;
   }
 
-  document.getElementById("d-close").addEventListener("click", closeDrawer);
-  document.getElementById("scrim").addEventListener("click", closeDrawer);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !document.getElementById("drawer").hidden) closeDrawer(); });
+  function setDrawerWide(wide) {
+    drawerState.wide = !!wide;
+    document.getElementById("drawer").classList.toggle("wide", drawerState.wide);
+    document.body.classList.toggle("pane-wide", drawerState.wide);
+    document.getElementById("d-wide").setAttribute("aria-pressed", String(drawerState.wide));
+  }
 
-  // Focus trap (P0.4): Tab/Shift+Tab cycles within the drawer's focusable
-  // elements while it's open, so keyboard focus never escapes to the
-  // (visually dimmed, non-interactive) background content.
-  document.getElementById("drawer").addEventListener("keydown", function (e) {
-    if (e.key !== "Tab") return;
-    var focusables = drawerFocusables();
-    if (!focusables.length) return;
-    var first = focusables[0], last = focusables[focusables.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  });
+  document.getElementById("d-close").addEventListener("click", closeDrawer);
+  document.getElementById("d-wide").addEventListener("click", function () { setDrawerWide(!drawerState.wide); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !document.getElementById("drawer").hidden) closeDrawer(); });
 
   document.getElementById("d-prev").addEventListener("click", function () { stepDrawer(-1); });
   document.getElementById("d-next").addEventListener("click", function () { stepDrawer(1); });
@@ -1560,16 +1594,33 @@
     openDrawer(currentVisible[next].pmid);
   }
 
-  document.getElementById("m-details").addEventListener("click", function () { setDrawerMode("details"); });
-  document.getElementById("m-pdf").addEventListener("click", function () { setDrawerMode("pdf"); });
+  document.getElementById("d-views").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-view]");
+    if (btn) setDrawerMode(btn.dataset.view);
+  });
+  document.getElementById("d-cmds").addEventListener("click", function () {
+    drawerState.cmds = !drawerState.cmds;
+    document.getElementById("d-cmds").setAttribute("aria-pressed", String(drawerState.cmds));
+    document.getElementById("d-foot").hidden = !drawerState.cmds;
+  });
 
   function setDrawerMode(mode) {
+    if (DRAWER_VIEWS.indexOf(mode) < 0) mode = "overview";
+    var changed = drawerState.mode !== mode;
     drawerState.mode = mode;
-    document.getElementById("m-details").setAttribute("aria-pressed", String(mode === "details"));
-    document.getElementById("m-pdf").setAttribute("aria-pressed", String(mode === "pdf"));
-    document.getElementById("d-body").hidden = mode !== "details";
-    document.getElementById("d-sections").hidden = mode !== "details";
+    document.querySelectorAll("#d-views button[data-view]").forEach(function (b) {
+      b.setAttribute("aria-selected", String(b.dataset.view === mode));
+    });
+    document.getElementById("d-body").hidden = mode === "pdf";
     document.getElementById("d-pdf").hidden = mode !== "pdf";
+    if (changed && mode !== "pdf" && drawerState.pmid && loadedDetails[drawerState.pmid]) {
+      renderDrawerBody(loadedDetails[drawerState.pmid]);
+    }
+    // The pdf.js viewer needs room: widen the panel for it and give the
+    // space back when the user returns to details (unless they widened it
+    // themselves).
+    if (mode === "pdf") { drawerState.autoWide = !drawerState.wide; setDrawerWide(true); }
+    else if (drawerState.autoWide) { drawerState.autoWide = false; setDrawerWide(false); }
     if (mode === "pdf") renderPdfTab();
   }
 
@@ -1581,34 +1632,31 @@
     document.getElementById("d-prev").disabled = idx <= 0;
     document.getElementById("d-next").disabled = idx < 0 || idx >= currentVisible.length - 1;
 
+    var eyebrow = document.getElementById("d-eyebrow");
+    clear(eyebrow);
+    var eb = [row.journal, row.year].filter(Boolean).join(" ");
+    if (eb) eyebrow.appendChild(el("span", { text: eb }));
+    eyebrow.appendChild(el("span", { className: "ck", text: row.citekey || row.pmid }));
+
     var badges = document.getElementById("d-badges");
     clear(badges);
     var badge = row.source_badge || "none";
     badges.appendChild(el("span", { className: "badge", attrs: { style: "--c:" + SOURCE_COLOR[badge] } }, [
       el("i"), el("span", { text: badge === "none" ? "no meta" : badge }),
     ]));
-    if (row.retraction_status && row.retraction_status !== "unknown") {
+    if (retractionFlagged(row)) {
       badges.appendChild(el("span", { className: "flag crit", text: row.retraction_status }));
     }
     if (row.stale_check) badges.appendChild(el("span", { className: "flag", text: "stale check" }));
 
     document.getElementById("d-title").textContent = row.title || "(untitled)";
-    var byline = [row.journal, row.year, row.authors_count ? row.authors_count + " authors" : null]
-      .filter(Boolean).join(" · ");
-    document.getElementById("d-byline").textContent = byline;
   }
 
-  var SECTIONS = ["overview", "notes", "authors", "abstract", "funding", "figures", "claims", "files"];
-  var SECTION_LABELS = {
-    overview: "Overview", notes: "Notes", authors: "Authors", abstract: "Abstract",
-    funding: "Funding & acknowledgements", figures: "Figures", claims: "Claims", files: "Files",
-  };
-
+  // One sub-view at a time (the header tablist); the commands footer is
+  // rebuilt on every render and shown by the terminal button.
   function renderDrawerBody(detail) {
     var body = document.getElementById("d-body");
     clear(body);
-    var navWrap = document.getElementById("d-sections");
-    clear(navWrap);
     var footWrap = document.getElementById("d-foot");
     clear(footWrap);
     var row = BY_PMID[drawerState.pmid];
@@ -1618,23 +1666,13 @@
       return;
     }
 
-    SECTIONS.forEach(function (sec) {
-      var btn = el("button", { text: SECTION_LABELS[sec], attrs: { type: "button" } });
-      btn.addEventListener("click", function () {
-        var target = document.getElementById("sec-" + sec);
-        if (target) target.scrollIntoView({ block: "start" });
-      });
-      navWrap.appendChild(btn);
-    });
-
-    body.appendChild(sectionOverview(row, detail));
-    body.appendChild(sectionNotes(row, detail));
-    body.appendChild(sectionAuthors(detail));
-    body.appendChild(sectionAbstract(detail));
-    body.appendChild(sectionFunding(detail));
-    body.appendChild(sectionFigures(detail));
-    body.appendChild(sectionClaims(detail));
-    body.appendChild(sectionFiles(detail));
+    var view = drawerState.mode === "pdf" ? "overview" : drawerState.mode;
+    if (view === "overview") body.appendChild(sectionOverview(row, detail));
+    else if (view === "notes") body.appendChild(sectionNotes(row, detail));
+    else if (view === "claims") body.appendChild(sectionClaims(detail));
+    else if (view === "figures") body.appendChild(sectionFigures(detail));
+    else if (view === "files") body.appendChild(sectionFiles(detail));
+    body.scrollTop = 0;
 
     if (needsFetch(row)) {
       footWrap.appendChild(el("button", {
@@ -1664,28 +1702,163 @@
     ].concat(kids));
   }
 
+  function idChip(label, value) {
+    var chip = el("button", {
+      className: "idchip", attrs: { type: "button", title: "Copy " + value },
+      on: { click: function () { copyText(value); } },
+    }, [el("span", { text: label + ": " + value }), el("span", { text: "⧉", attrs: { "aria-hidden": "true" } })]);
+    return chip;
+  }
+
+  var READING_STATES = ["to_screen", "to_read", "reading", "read"];
+
+  // Overview (the ⓘ view): authors line with a full-list toggle, clamped
+  // abstract, the paper's coverage-matrix row as a checklist (same cells as
+  // the table strip), a key/value block (projects, reading status, claims,
+  // copyable identifiers), the PDF card (page-1 thumbnail in live mode --
+  // clicking it opens the viewer), and funding tucked away at the bottom.
   function sectionOverview(row, detail) {
-    var steps = [
-      { label: "metadata", ok: !!row.source_badge },
-      { label: "abstract", ok: row.source_badge && row.source_badge !== "metadata-only" },
-      { label: "full text", ok: row.has_fulltext },
-      { label: "pdf", ok: row.has_pdf },
-      { label: "claims", ok: row.claims_active > 0 },
-      { label: "indexed", ok: row.in_catalog },
-    ];
-    var stepsWrap = el("div", { className: "steps" }, steps.map(function (s) {
-      return el("span", { className: "step " + (s.ok ? "ok" : "bad"), text: s.label });
+    var kids = [];
+
+    // authors: "Smith, Jones, Patel … Weber, Anna" + more -> every author
+    var authorsFull = (detail.authors || []).map(function (a) {
+      return [a.last, a.first].filter(Boolean).join(", ") || a.raw || "";
+    }).filter(Boolean);
+    var short = row.authors_short || "";
+    if (row.last_author && short.indexOf("…") >= 0) short = short.replace(/, …$/, "") + " … " + row.last_author;
+    var byline = el("div", { className: "d-byline" });
+    var bylineText = el("span", { text: short || (authorsFull.length ? authorsFull.join("; ") : "no author list yet") });
+    byline.appendChild(bylineText);
+    if (authorsFull.length > 1 && short) {
+      var open = false;
+      var toggle = el("button", { className: "d-more", text: "more", attrs: { type: "button", "aria-expanded": "false" } });
+      toggle.addEventListener("click", function () {
+        open = !open;
+        bylineText.textContent = open ? authorsFull.join("; ") : short;
+        toggle.textContent = open ? "less" : "more";
+        toggle.setAttribute("aria-expanded", String(open));
+      });
+      byline.appendChild(toggle);
+    }
+    kids.push(byline);
+
+    if (detail.abstract) {
+      var p = el("p", { className: "prose d-abstract", text: detail.abstract });
+      var more = el("button", { className: "d-more", text: "more", attrs: { type: "button", "aria-expanded": "false" } });
+      more.addEventListener("click", function () {
+        var isOpen = p.classList.toggle("open");
+        more.textContent = isOpen ? "less" : "more";
+        more.setAttribute("aria-expanded", String(isOpen));
+      });
+      kids.push(el("div", { className: "d-abswrap" }, [p, detail.abstract.length < 320 ? null : more]));
+    } else {
+      kids.push(el("div", { className: "empty", text: "no abstract on file" }));
+    }
+
+    var m = MATRIX_BY_PMID[row.pmid] || {};
+    kids.push(el("div", { className: "covgrid" }, MATRIX_COLUMNS_LIVE.map(function (c) {
+      var on = !!m[c];
+      return el("span", { className: (on ? "on" : "") + (on && c === "retraction" && retractionFlagged(row) ? " ret" : ""), attrs: { title: c + ": " + (on ? "yes" : "no") } }, [el("i"), el("span", { text: c })]);
+    })));
+
+    // key/value block
+    var kv = el("div", { className: "kv" });
+    var projChips = el("div", { className: "idchips" }, (row.projects || []).map(function (pr) {
+      return el("span", { className: "idchip static", attrs: { title: pr.reading_status ? "reading: " + pr.reading_status.replace("_", " ") : "" } }, [el("span", { text: pr.slug })]);
     }));
-    var facts = el("dl", { className: "facts" }, [
-      el("dt", { text: "PMID" }), el("dd", { text: row.pmid }),
-      el("dt", { text: "citekey" }), el("dd", { text: row.citekey || "" }),
-      el("dt", { text: "DOI" }), el("dd", { text: row.doi || "" }),
-      el("dt", { text: "PMCID" }), el("dd", { text: row.pmcid || "" }),
-      el("dt", { text: "extraction tier" }), el("dd", { text: row.extraction_tier || "" }),
-      el("dt", { text: "checked" }), el("dd", { text: row.checked_at || "" }),
-      el("dt", { text: "projects" }), el("dd", { text: projectLabel(row) || "(none)" }),
-    ]);
-    return sec("overview", "Overview & pipeline", [stepsWrap, facts]);
+    projChips.appendChild(el("button", {
+      className: "idchip", text: "+", attrs: { type: "button", title: "Copy a /ref:project add-paper command for this paper" },
+      on: { click: function () { copyText("/ref:project add-paper <slug> " + row.pmid); flash("command copied -- replace <slug>", 2600); } },
+    }));
+    kv.appendChild(el("span", { className: "k", text: "Projects" }));
+    kv.appendChild(projChips);
+
+    var reading = el("select", { attrs: { "aria-label": "Reading status" } });
+    var cur = (row.projects || []).map(function (pr) { return pr.reading_status; }).filter(Boolean)[0] || "";
+    reading.appendChild(el("option", { attrs: { value: "" }, text: cur ? cur.replace("_", " ") : "(unset)" }));
+    READING_STATES.forEach(function (s) { if (s !== cur) reading.appendChild(el("option", { attrs: { value: s }, text: s.replace("_", " ") })); });
+    var slug = (row.projects || []).length === 1 ? row.projects[0].slug : "<slug>";
+    reading.addEventListener("change", function () {
+      if (!reading.value) return;
+      copyText("/ref:project add-paper " + slug + " " + row.pmid + " --reading-status " + reading.value);
+      flash(slug === "<slug>" ? "command copied -- replace <slug>" : "command copied -- run it to change the status", 2600);
+      reading.value = "";
+    });
+    kv.appendChild(el("span", { className: "k", text: "Reading" }));
+    kv.appendChild(el("span", {}, [reading]));
+
+    kv.appendChild(el("span", { className: "k", text: "Claims" }));
+    kv.appendChild(el("span", { className: "mono", text: (row.claims_active || 0) + " active" + (row.extraction_tier ? " · tier " + row.extraction_tier : "") }));
+
+    var ids = el("div", { className: "idchips" });
+    if (row.doi) ids.appendChild(idChip("doi", row.doi));
+    ids.appendChild(idChip("pmid", row.pmid));
+    if (row.pmcid) ids.appendChild(idChip("pmcid", row.pmcid));
+    kv.appendChild(el("span", { className: "k", text: "Identifiers" }));
+    kv.appendChild(ids);
+
+    kv.appendChild(el("span", { className: "k", text: "Checked" }));
+    kv.appendChild(el("span", { className: "mono", text: [row.checked_at ? row.checked_at.slice(0, 10) : "never", row.stale_check ? "(stale)" : null].filter(Boolean).join(" ") }));
+    kids.push(kv);
+
+    kids.push(pdfCard(row));
+
+    var funding = detail.funding || {};
+    if ((funding.observations || []).length || funding.state) {
+      kids.push(el("details", { className: "d-fold" }, [
+        el("summary", { text: "Funding & acknowledgements" + (funding.state ? " · " + funding.state : "") }),
+        sectionFunding(detail),
+      ]));
+    }
+    return el("div", { className: "d-overview" }, kids);
+  }
+
+  function pdfCard(row) {
+    var paths = row.pdf_paths || [];
+    var thumb = el("div", { className: "pdfthumb", attrs: { role: "button", tabindex: "0", "aria-label": paths.length ? "Open PDF" : "No PDF attached" } });
+    function openPdf() { setDrawerMode("pdf"); }
+    thumb.addEventListener("click", openPdf);
+    thumb.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPdf(); } });
+    var btns = el("div", { className: "btns" });
+    if (paths.length) {
+      thumb.textContent = "PDF";
+      if (LIVE) renderPdfThumb(row, paths[0], thumb);
+      btns.appendChild(el("button", { className: "cmdbtn primary", text: "View PDF", attrs: { type: "button" }, on: { click: openPdf } }));
+    } else {
+      thumb.textContent = "no PDF";
+      if (LIVE) btns.appendChild(pdfDropZone(row));
+      else btns.appendChild(el("button", { className: "cmdbtn", text: "/ref:fetch-pdf " + row.pmid, attrs: { type: "button" }, on: { click: function () { copyText("/ref:fetch-pdf " + row.pmid); } } }));
+    }
+    return el("div", { className: "pdfcard" }, [thumb, btns]);
+  }
+
+  var thumbCache = {}; // pmid/path -> data URL of page 1, so re-opening a paper is instant
+  function renderPdfThumb(row, path, thumb) {
+    var key = row.pmid + "/" + path;
+    function show(url) {
+      clear(thumb);
+      var img = el("img", { attrs: { src: url, alt: "First page of the PDF" } });
+      img.style.width = "100%";
+      img.style.display = "block";
+      thumb.appendChild(img);
+    }
+    if (thumbCache[key]) { show(thumbCache[key]); return; }
+    loadPdfJs().then(function (pdfjsLib) {
+      return apiFetch("/files/" + encodeURIComponent(row.pmid) + "/" + path.split("/").map(encodeURIComponent).join("/"))
+        .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.arrayBuffer(); })
+        .then(function (buf) { return pdfjsLib.getDocument({ data: buf }).promise; })
+        .then(function (doc) { return doc.getPage(1); })
+        .then(function (page) {
+          var vp = page.getViewport({ scale: 1 });
+          var scale = 300 / vp.width; // 2x the 150px card for crisp text on retina screens
+          var viewport = page.getViewport({ scale: scale });
+          var canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          return page.render({ canvasContext: canvas.getContext("2d"), viewport: viewport }).promise.then(function () { return canvas.toDataURL("image/png"); });
+        })
+        .then(function (url) { thumbCache[key] = url; if (thumb.isConnected) show(url); });
+    }).catch(function () { /* the card's "PDF" label stays; the viewer still opens on click */ });
   }
 
   var PAGE_NOTE_RE = /^p\.\s*(\d+):\s*/;
@@ -1702,6 +1875,7 @@
     });
 
     var list = el("ul", { className: "notelist" });
+    var noteFilter = "", noteOrder = "newest";
     function noteListItem(n) {
       var li = el("li", { className: "note" }, [
         el("div", { className: "nm" }, [el("span", { text: n.at || "" })]),
@@ -1718,10 +1892,23 @@
     }
     function renderNoteList(notes) {
       clear(list);
-      (notes || []).forEach(function (n) { list.appendChild(noteListItem(n)); });
+      var q = noteFilter.trim().toLowerCase();
+      var shown = (notes || []).filter(function (n) { return !q || ((n.text || "") + " " + (n.at || "")).toLowerCase().indexOf(q) >= 0; });
+      if (noteOrder === "newest") shown = shown.slice().reverse();
+      shown.forEach(function (n) { list.appendChild(noteListItem(n)); });
       if (!(notes || []).length) list.appendChild(el("li", { className: "empty", text: "no committed notes yet" }));
+      else if (!shown.length) list.appendChild(el("li", { className: "empty", text: "no notes match the filter" }));
     }
     renderNoteList(detail.notes);
+
+    var filterInput = el("input", { attrs: { type: "search", placeholder: "Filter notes…", "aria-label": "Filter notes" } });
+    filterInput.addEventListener("input", function () { noteFilter = filterInput.value; renderNoteList(detail.notes); });
+    var orderSel = el("select", { attrs: { "aria-label": "Order notes" } }, [
+      el("option", { attrs: { value: "newest" }, text: "Newest first" }),
+      el("option", { attrs: { value: "oldest" }, text: "Oldest first" }),
+    ]);
+    orderSel.addEventListener("change", function () { noteOrder = orderSel.value; renderNoteList(detail.notes); });
+    var noteTools = el("div", { className: "notetools" }, [filterInput, orderSel]);
 
     function showSaveError() {
       var toast = document.getElementById("toast");
@@ -1791,25 +1978,12 @@
       },
     }));
 
+    textarea.setAttribute("placeholder", LIVE ? "Write your note here…" : "Write your note here… (kept only in this browser until you run /ref:note)");
     var composer = el("div", { className: "composer" }, [textarea, el("div", { className: "row" }, rowKids)]);
     wrap.appendChild(composer);
+    wrap.appendChild(noteTools);
     wrap.appendChild(list);
-    return sec("notes", "Notes", [wrap]);
-  }
-
-  function sectionAuthors(detail) {
-    var list = el("ul", { className: "authors" });
-    (detail.authors || []).forEach(function (a) {
-      var name = [a.first, a.last].filter(Boolean).join(" ") || a.raw || "";
-      list.appendChild(el("li", { text: name }));
-    });
-    if (!(detail.authors || []).length) return sec("authors", "Authors", [el("div", { className: "empty", text: "no author list yet" })]);
-    return sec("authors", "Authors", [list]);
-  }
-
-  function sectionAbstract(detail) {
-    if (!detail.abstract) return sec("abstract", "Abstract", [el("div", { className: "empty", text: "no abstract on file" })]);
-    return sec("abstract", "Abstract", [el("p", { className: "prose", text: detail.abstract })]);
+    return wrap;
   }
 
   function sectionFunding(detail) {
@@ -3289,7 +3463,7 @@
   // reads the page through this context.
 
   function filtersActive() {
-    return !!(state.query || state.project !== "all" || state.chips.length || sourceFilterSet);
+    return !!(state.query || state.project !== "all" || state.chips.length || sourceFilterSet || state.missing);
   }
 
   // Apply an ad-hoc paper set (a map cell, a gap, a topic-year point...) as a
@@ -3356,16 +3530,12 @@
             else if (key === "snapshots") SNAPSHOTS = res.value || [];
             else if (key === "lint") LINT = res.value || {};
             else if (key === "summary") SUMMARY = res.value || SUMMARY;
-            else if (key === "matrix" && res.value) {
-              MATRIX_COLUMNS_LIVE = res.value.columns || [];
-              MATRIX_ROWS_LIVE = res.value.rows || [];
-            }
+            else if (key === "matrix" && res.value) setMatrix(res.value);
           } else {
             failed.push(describeFetchError(res.reason));
           }
         });
         loadedDetails = {};
-        coverageRendered = false;
         maintRendered = false;
         INSIGHTS.invalidate();
         renderAll();
@@ -3401,10 +3571,7 @@
       setRows(results[0]);
       SNAPSHOTS = results[1] || [];
       LINT = results[2] || {};
-      if (results[3]) {
-        MATRIX_COLUMNS_LIVE = results[3].columns || [];
-        MATRIX_ROWS_LIVE = results[3].rows || [];
-      }
+      if (results[3]) setMatrix(results[3]);
       SUMMARY = results[4];
       clearError();
       renderAll();

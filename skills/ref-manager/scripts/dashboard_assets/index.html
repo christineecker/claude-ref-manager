@@ -64,7 +64,6 @@
 
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" id="tab-papers" data-tab="papers" aria-selected="true">Papers<span class="count" id="c-papers"></span></button>
-    <button role="tab" id="tab-coverage" data-tab="coverage" aria-selected="false">Coverage matrix</button>
     <button role="tab" id="tab-projects" data-tab="projects" aria-selected="false">Projects<span class="count" id="c-projects"></span></button>
     <button role="tab" id="tab-insights" data-tab="insights" aria-selected="false">Insights</button>
     <button role="tab" id="tab-maint" data-tab="maint" aria-selected="false">Maintenance</button>
@@ -73,7 +72,7 @@
 
   <section id="p-papers" class="grid" style="gap:10px">
     <div class="toolbar">
-      <input type="search" id="q" placeholder="Search title, citekey, journal, PMID" aria-label="Search papers">
+      <input type="search" id="q" placeholder="Search title, authors, citekey, journal, PMID" aria-label="Search papers">
       <select id="proj" aria-label="Project">
         <option value="all">All projects</option>
       </select>
@@ -90,21 +89,33 @@
       <span class="result" id="result" role="status" aria-live="polite"></span>
     </div>
     <div class="tablewrap">
-      <table>
+      <table class="papers">
         <thead><tr>
-          <th style="width:32px"><input type="checkbox" id="selall" aria-label="Select all visible"></th>
-          <th><button data-sort="source_badge">Source</button></th>
-          <th><button data-sort="title">Paper</button></th>
+          <th class="sel"><input type="checkbox" id="selall" aria-label="Select all visible"></th>
+          <th class="clip" title="PDF attached"><button data-sort="has_pdf" aria-label="Sort by PDF attached"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8"/></svg></button></th>
+          <th class="au"><button data-sort="authors_short">Authors</button></th>
+          <th class="la"><button data-sort="last_author">Last author</button></th>
+          <th><button data-sort="title">Title</button></th>
+          <th class="journal"><button data-sort="journal">Journal</button></th>
           <th class="num"><button data-sort="year">Year</button></th>
-          <th><button data-sort="journal">Journal</button></th>
-          <th><button data-sort="project">Project</button></th>
+          <th class="cov">
+            <button data-sort="coverage">Coverage</button>
+            <div class="covhead" id="covhead" role="group" aria-label="Coverage columns -- click one to show papers missing it"></div>
+          </th>
+          <th class="num" title="Notes"><button data-sort="notes_count" aria-label="Sort by notes">N</button></th>
           <th class="num"><button data-sort="claims_active">Claims</button></th>
-          <th class="num"><button data-sort="days_since_check">Last check</button></th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
     <div class="pager" id="pager"></div>
+    <div class="covlegend">
+      <span><b>bold</b> = to read</span>
+      <span><i class="on"></i> present</span>
+      <span><i class="off"></i> missing</span>
+      <span><i class="ret"></i> retracted</span>
+      <span class="mono" id="covlegend-cols"></span>
+    </div>
     <div class="actionbar" id="actionbar" hidden>
       <span><span class="n" id="seln"></span> selected</span>
       <span class="selsummary" id="selsummary"></span>
@@ -120,11 +131,6 @@
       <code id="cmd-audit"></code><button data-copy="cmd-audit">Copy</button>
       <button id="clearsel">Clear</button>
     </div>
-  </section>
-
-  <section id="p-coverage" hidden>
-    <div class="heat"><table id="heat"></table></div>
-    <div class="pager" id="matrix-pager"></div>
   </section>
 
   <section id="p-projects" class="projgrid" hidden></section>
@@ -243,27 +249,31 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden>Copied</div>
 
-<div class="scrim" id="scrim" hidden></div>
-<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title" hidden>
+<aside class="drawer" id="drawer" role="complementary" aria-labelledby="d-title" hidden>
   <div class="d-head">
     <div class="d-nav">
-      <div class="d-mode" role="group" aria-label="View">
-        <button data-mode="details" id="m-details" aria-pressed="true">Details</button>
-        <button data-mode="pdf" id="m-pdf" aria-pressed="false">PDF</button>
+      <div class="d-views" role="tablist" aria-label="Panel view" id="d-views">
+        <button role="tab" data-view="overview" aria-selected="true" aria-label="Overview" title="Overview"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
+        <button role="tab" data-view="notes" aria-selected="false" aria-label="Notes" title="Notes"><svg viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4zM13 7l4 4"/></svg></button>
+        <button role="tab" data-view="claims" aria-selected="false" aria-label="Claims" title="Claims"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></button>
+        <button role="tab" data-view="figures" aria-selected="false" aria-label="Figures" title="Figures"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg></button>
+        <button role="tab" data-view="files" aria-selected="false" aria-label="Files" title="Files"><svg viewBox="0 0 24 24"><path d="M6 2h8l6 6v14H6z"/><path d="M14 2v6h6"/></svg></button>
+        <button role="tab" data-view="pdf" aria-selected="false" aria-label="PDF viewer" title="PDF viewer"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <span class="pos" id="d-pos"></span>
-      <button class="iconbtn" id="d-prev" aria-label="Previous paper">&uarr;</button>
-      <button class="iconbtn" id="d-next" aria-label="Next paper">&darr;</button>
+      <button class="iconbtn" id="d-prev" aria-label="Previous paper" title="Previous paper (p)">&uarr;</button>
+      <button class="iconbtn" id="d-next" aria-label="Next paper" title="Next paper (n)">&darr;</button>
+      <button class="iconbtn" id="d-cmds" aria-label="Commands" aria-pressed="false" title="Copyable /ref commands for this paper"><svg viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></svg></button>
+      <button class="iconbtn" id="d-wide" aria-label="Widen panel" aria-pressed="false" title="Widen panel">&#x2922;</button>
       <button class="iconbtn" id="d-close" aria-label="Close details">&times;</button>
     </div>
-    <div class="d-badges" id="d-badges"></div>
+    <div class="d-eyebrow" id="d-eyebrow"></div>
     <h2 class="d-title" id="d-title"></h2>
-    <div class="d-byline" id="d-byline"></div>
-    <nav class="d-sections" id="d-sections" aria-label="Sections" hidden></nav>
+    <div class="d-badges" id="d-badges"></div>
   </div>
   <div class="d-body" id="d-body"></div>
   <div class="pdfv" id="d-pdf" hidden></div>
-  <div class="d-foot" id="d-foot"></div>
+  <div class="d-foot" id="d-foot" hidden></div>
 </aside>
 
 <script id="dashboard-data" type="application/json">

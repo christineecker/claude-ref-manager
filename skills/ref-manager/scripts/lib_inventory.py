@@ -196,6 +196,30 @@ def _authors(pdir: Path) -> list[dict]:
     return [a for a in authors if isinstance(a, dict)]
 
 
+def _author_surname(a: dict) -> str:
+    return (a.get("last") or a.get("raw") or "").strip()
+
+
+def _author_display(a: dict | None) -> str | None:
+    """`Last, First` for the dashboard's Last-author column; None if unknown."""
+    if not a:
+        return None
+    last, first = (a.get("last") or "").strip(), (a.get("first") or "").strip()
+    if last and first:
+        return f"{last}, {first}"
+    return last or first or (a.get("raw") or "").strip() or None
+
+
+def _authors_short(authors: list[dict], limit: int = 3) -> str | None:
+    """`Smith, Jones, Patel, …` -- the first `limit` surnames, with an
+    ellipsis when the list is longer (the dashboard's Authors column)."""
+    names = [n for n in (_author_surname(a) for a in authors) if n]
+    if not names:
+        return None
+    head = ", ".join(names[:limit])
+    return head + ", …" if len(names) > limit else head
+
+
 def _project_index(library_root: Path) -> dict[str, list[dict]]:
     """pmid -> [{slug, reading_status, added_at}], scanned once (§4.2)."""
     index: dict[str, list[dict]] = {}
@@ -262,6 +286,7 @@ def rows(library_root: Path, *, stale_days: int = STALE_DAYS_DEFAULT) -> list[di
                 "projects": project_index.get(pmid, []),
                 "notes_count": _notes_count(pdir),
                 "authors_count": len(_authors(pdir)), "first_author": None,
+                "last_author": None, "authors_short": None,
                 "in_catalog": bool(catalog_pmids and pmid in catalog_pmids),
                 "lint_flags": flags,
             })
@@ -300,6 +325,8 @@ def rows(library_root: Path, *, stale_days: int = STALE_DAYS_DEFAULT) -> list[di
             "notes_count": _notes_count(pdir),
             "authors_count": len(authors),
             "first_author": authors[0] if authors else None,
+            "last_author": _author_display(authors[-1]) if len(authors) > 1 else None,
+            "authors_short": _authors_short(authors),
             "in_catalog": bool(catalog_pmids and pmid in catalog_pmids),
             "lint_flags": flags,
         })

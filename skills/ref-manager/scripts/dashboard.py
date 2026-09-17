@@ -102,7 +102,7 @@ MAX_PDF_BYTES = 64 * 1024 * 1024
 MAX_UPLOAD_NAME = 200
 
 # Keys a shared view link may carry (§1); `serve --view` accepts only these.
-VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "sort", "insight", "center", "hops")
+VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops")
 
 
 def _valid_pmid(pmid: str) -> bool:

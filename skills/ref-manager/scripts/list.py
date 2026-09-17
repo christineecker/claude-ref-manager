@@ -50,7 +50,7 @@ ALL_COLUMNS = (
     "extraction_tier", "checked_at", "source_badge", "has_pdf", "has_fulltext",
     "version_id", "figures_total", "figures_with_image", "claims_active",
     "retraction_status", "days_since_check", "stale_check", "notes_count",
-    "authors_count", "first_author", "in_catalog", "lint_flags", "projects",
+    "authors_count", "first_author", "last_author", "authors_short", "in_catalog", "lint_flags", "projects",
 )
 
 

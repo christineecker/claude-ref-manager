@@ -1,9 +1,10 @@
 # /ref:dashboard
 
 Dashboard over the paper library: health state, source coverage, pipeline
-funnel, papers-by-year, lint trend, a searchable/sortable paper table, a
-coverage matrix, per-project reading progress, maintenance sparklines, a
-paper panel (details + notes), and a PDF viewer
+funnel, papers-by-year, lint trend, a searchable/sortable paper table with
+the coverage matrix folded in as a per-row strip (click a column header to
+filter to papers missing it), per-project reading progress, maintenance
+sparklines, a docked paper panel (details + notes), and a PDF viewer
 (LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md §6-§7). Read-only except notes, built
 on the same `lib_inventory.rows()`/`detail()` every other view uses.
 
@@ -21,8 +22,8 @@ Parse `$ARGUMENTS` for:
   (built index.html for `--static`; the served URL for `serve`).
 - `--view '<query>'` — serve mode only. Reopen a shared view: the string a
   "Copy as command" button produced (e.g. `tab=insights&project=foo`). Only
-  `tab`, `q`, `project`, `issue`, `source`, `sort`, `insight`, `center`, `hops`
-  are accepted.
+  `tab`, `q`, `project`, `issue`, `source`, `missing`, `sort`, `insight`,
+  `center`, `hops` are accepted.
 
 Steps:
 

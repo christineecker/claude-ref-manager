@@ -15,6 +15,7 @@
       <span class="path" id="lib-path"></span>
     </div>
     <span class="spacer"></span>
+    <button class="hpill" id="api-health" type="button" hidden aria-controls="health-details"><i></i><span></span></button>
     <button class="iconbtn" id="btn-refresh" type="button" hidden title="Re-fetch rows from the live server">&#x21bb;</button>
     <span class="meta-line" id="generated-line"></span>
   </header>
@@ -40,6 +41,16 @@
     </section>
   </div>
 
+  <section class="panel nextpanel" aria-labelledby="h-next">
+    <h2 id="h-next">Next actions <span id="next-caption"></span></h2>
+    <div class="nexttools">
+      <label><input type="checkbox" id="next-scope"> limit to the current Papers filters</label>
+      <span class="hint">score = weight &times; papers &times; project boost</span>
+    </div>
+    <ol class="nextlist" id="next-actions"></ol>
+    <div class="healthdetails" id="health-details" hidden></div>
+  </section>
+
   <div class="grid g2">
     <section class="panel" aria-labelledby="h-year">
       <h2 id="h-year">Papers by year <span>stacked by source state</span></h2>
@@ -55,6 +66,7 @@
     <button role="tab" id="tab-papers" data-tab="papers" aria-selected="true">Papers<span class="count" id="c-papers"></span></button>
     <button role="tab" id="tab-coverage" data-tab="coverage" aria-selected="false">Coverage matrix</button>
     <button role="tab" id="tab-projects" data-tab="projects" aria-selected="false">Projects<span class="count" id="c-projects"></span></button>
+    <button role="tab" id="tab-insights" data-tab="insights" aria-selected="false">Insights</button>
     <button role="tab" id="tab-maint" data-tab="maint" aria-selected="false">Maintenance</button>
     <button role="tab" id="tab-triage" data-tab="triage" aria-selected="false" hidden>Triage<span class="count" id="c-triage"></span></button>
   </nav>
@@ -72,6 +84,8 @@
         <button id="view-save" type="button">Save current…</button>
         <button id="view-rename" type="button">Rename</button>
         <button id="view-delete" type="button">Delete</button>
+        <button id="view-link" type="button" title="Copy a link that reopens these filters">Copy link</button>
+        <button id="view-cmd" type="button" title="Copy a /ref:dashboard command that reopens these filters on any run">Copy as command</button>
       </span>
       <span class="result" id="result" role="status" aria-live="polite"></span>
     </div>
@@ -93,6 +107,13 @@
     <div class="pager" id="pager"></div>
     <div class="actionbar" id="actionbar" hidden>
       <span><span class="n" id="seln"></span> selected</span>
+      <span class="selsummary" id="selsummary"></span>
+      <span class="abgroup" role="group" aria-label="Export">
+        <button id="exp-pmids" type="button" title="Download (and copy) the selected PMIDs">Export PMIDs</button>
+        <button id="exp-csv" type="button" title="Download the selected papers as CSV (e)">Export CSV <kbd>e</kbd></button>
+        <button id="copy-cmds" type="button" title="Copy every command below as one block (c)">Copy all commands <kbd>c</kbd></button>
+      </span>
+      <span class="abbreak"></span>
       <code id="cmd-fetch"></code><button data-copy="cmd-fetch">Copy</button>
       <code id="cmd-extract"></code><button data-copy="cmd-extract">Copy</button>
       <code id="cmd-fetchpdf"></code><button data-copy="cmd-fetchpdf">Copy</button>
@@ -107,6 +128,19 @@
   </section>
 
   <section id="p-projects" class="projgrid" hidden></section>
+
+  <section id="p-insights" class="grid ins" hidden>
+    <div class="panel ins-head">
+      <div class="ins-nav" role="group" aria-label="Insight view" id="ins-nav"></div>
+      <div class="ins-scope">
+        <span id="ins-scope" role="status" aria-live="polite"></span>
+        <label><input type="checkbox" id="ins-follow" checked> follow the Papers filters</label>
+        <label>Year <input type="number" id="ins-yfrom" placeholder="from" min="1800" max="2100" aria-label="Year from"></label>
+        <label>&ndash; <input type="number" id="ins-yto" placeholder="to" min="1800" max="2100" aria-label="Year to"></label>
+      </div>
+    </div>
+    <div id="ins-body" class="ins-body"></div>
+  </section>
 
   <section id="p-triage" class="grid tri" hidden>
     <div class="panel tri-head">

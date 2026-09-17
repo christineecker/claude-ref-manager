@@ -93,7 +93,16 @@ def _check_identity(meta: dict, pdf_text: str | None) -> tuple[bool, str]:
     )
 
 
-def attach_pdf_bytes(library_root: Path, pmid: str, data: bytes, attached_from: str, force: bool) -> dict:
+class _ConversionNotCommitted(Exception):
+    """Raised inside commit_version's write_fn to discard the staging dir."""
+
+
+def attach_pdf_bytes(library_root: Path, pmid: str, data: bytes, attached_from: str, force: bool,
+                     commit_failed_conversion: bool = True) -> dict:
+    """`commit_failed_conversion=False` (the dashboard upload) keeps the raw
+    PDF but leaves current.json alone when conversion isn't ok, so a paper
+    that already has committed full text never loses it to a PDF that
+    couldn't be converted."""
     paper_dir = library_root / "papers" / pmid
     meta_path = paper_dir / "meta.json"
     if not meta_path.exists():
@@ -138,11 +147,16 @@ def attach_pdf_bytes(library_root: Path, pmid: str, data: bytes, attached_from: 
                 "raw_hash": file_hash, "diagnostics": conv["diagnostics"],
                 "conversion_status": conv["status"],
             }
-            atomic_write_json(staging / "manifest.json", manifest)
             write_fn.conv = conv
+            if conv["status"] != "ok" and not commit_failed_conversion:
+                raise _ConversionNotCommitted
+            atomic_write_json(staging / "manifest.json", manifest)
 
         write_fn.conv = None
-        commit_version(paper_dir, version_id, write_fn)
+        try:
+            commit_version(paper_dir, version_id, write_fn)
+        except _ConversionNotCommitted:
+            version_id = None
         conv = write_fn.conv
 
         if conv["status"] == "ok":

@@ -140,12 +140,16 @@ def lint_flags(
 
 
 def _pdf_paths(pdir: Path) -> list[str]:
-    paths: list[str] = []
+    """Newest raw PDF first, so a replacement uploaded from the dashboard is
+    the one its PDF tab opens; older variants stay listed after it."""
+    raw: list[tuple[float, str]] = []
     raw_dir = pdir / "raw"
     if raw_dir.is_dir():
         for sub in sorted(raw_dir.iterdir()):
-            if sub.is_dir() and (sub / "source.pdf").exists():
-                paths.append(str((sub / "source.pdf").relative_to(pdir)))
+            pdf = sub / "source.pdf"
+            if sub.is_dir() and pdf.exists():
+                raw.append((pdf.stat().st_mtime, str(pdf.relative_to(pdir))))
+    paths = [rel for _mtime, rel in sorted(raw, key=lambda t: -t[0])]
     reader_pdf = pdir / "reader" / "article.pdf"
     if reader_pdf.exists():
         paths.append(str(reader_pdf.relative_to(pdir)))

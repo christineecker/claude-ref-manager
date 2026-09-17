@@ -23,11 +23,18 @@ dashboard, and a rebuild replaces it in one visible step.
 text-layer highlighting, and notes -- both write straight through
 `note.py append()` / `highlight.py add()`/`remove()` (each holds
 `pmid_lock()`). Both modes are read-only except those two write paths --
+plus the PDF upload (`POST /api/paper/<pmid>/pdf`), which goes through
+`attach.attach_pdf_bytes()` (the same commit path as `/ref:attach`) --
 nothing else in this module or its handler ever writes to the library.
+
+`/api/health`, `/api/summary` and `/api/knowledge` are read-only models
+from `dashboard_insights.py` (DASHBOARD_IMPROVEMENTS_IMPLEMENTATION_PLAN.md
+§3-§5, DASHBOARD_FEATURE_REQUESTS.md).
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import hmac
 import http.server
 import json
@@ -43,6 +50,8 @@ import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 
+import attach as attach_module
+import dashboard_insights
 import highlight as highlight_module
 import lib_intake
 import lib_inventory
@@ -87,6 +96,13 @@ MAX_TRIAGE_PMIDS = 500
 MAX_TRIAGE_REASON_BYTES = 500
 MAX_TRIAGE_JOBS = 2
 TRIAGE_JOB_KINDS = ("pdf", "full_text")
+
+# DASHBOARD_IMPROVEMENTS_IMPLEMENTATION_PLAN.md §5 (drop-in PDF upload)
+MAX_PDF_BYTES = 64 * 1024 * 1024
+MAX_UPLOAD_NAME = 200
+
+# Keys a shared view link may carry (§1); `serve --view` accepts only these.
+VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "sort", "insight")
 
 
 def _valid_pmid(pmid: str) -> bool:
@@ -189,6 +205,15 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/snapshots":
             if self._check_token():
                 self._send_json(_read_snapshots(self.library_root))
+        elif path == "/api/health":
+            if self._check_token():
+                self._serve_health()
+        elif path == "/api/summary":
+            if self._check_token():
+                self._serve_summary()
+        elif path == "/api/knowledge":
+            if self._check_token():
+                self._send_json(dashboard_insights.knowledge(self.library_root, lib_inventory.rows(self.library_root)))
         elif path.startswith("/api/paper/") and path.endswith("/highlights"):
             if self._check_token():
                 self._serve_highlights(path[len("/api/paper/"):-len("/highlights")].rstrip("/"))
@@ -238,6 +263,51 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             "columns": list(list_cli.MATRIX_COLUMNS),
             "rows": [list_cli._matrix_row(r) for r in rows],
         })
+
+    def _serve_health(self) -> None:
+        root = self.library_root
+        cache: dict = {}
+
+        def rows():
+            cache["rows"] = lib_inventory.rows(root)
+            return cache["rows"]
+
+        def matrix():
+            base = cache.get("rows")
+            if base is None:
+                base = lib_inventory.rows(root)
+            return {"columns": list(list_cli.MATRIX_COLUMNS), "rows": [list_cli._matrix_row(r) for r in base]}
+
+        body, status = dashboard_insights.health(root, {
+            "rows": rows,
+            "lint": lambda: lint_module.lint(root),
+            "matrix": matrix,
+            "snapshots": lambda: _read_snapshots(root),
+        })
+        self._send_json(body, status=status)
+
+    def _serve_summary(self) -> None:
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        scope = (query.get("scope") or [None])[0]
+        if scope not in (None, "project", "issue"):
+            self._reject(400, "scope must be project or issue")
+            return
+        include_pmids = (query.get("detail") or [None])[0] == "pmids"
+        rows = lib_inventory.rows(self.library_root)
+        sources = {"rows": "ok", "lint": "ok", "snapshots": "ok"}
+        try:
+            report = lint_module.lint(self.library_root)
+        except Exception as e:  # noqa: BLE001 -- degrade, don't fail the summary
+            report = {"summary": {}, "issues": {}}
+            sources["lint"] = f"error: {type(e).__name__}: {e}"
+        try:
+            snapshots = _read_snapshots(self.library_root)
+        except Exception as e:  # noqa: BLE001
+            snapshots = []
+            sources["snapshots"] = f"error: {type(e).__name__}: {e}"
+        self._send_json(dashboard_insights.summary(
+            rows, report, snapshots, scope=scope, include_pmids=include_pmids, data_sources=sources,
+        ))
 
     def _serve_detail(self, raw_pmid: str) -> None:
         pmid = urllib.parse.unquote(raw_pmid.rstrip("/"))
@@ -334,6 +404,9 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path.startswith("/api/paper/") and path.endswith("/highlights"):
             if self._check_token():
                 self._post_highlight(path[len("/api/paper/"):-len("/highlights")].rstrip("/"))
+        elif path.startswith("/api/paper/") and path.endswith("/pdf"):
+            if self._check_token():
+                self._post_pdf(path[len("/api/paper/"):-len("/pdf")].rstrip("/"))
         elif path.startswith("/api/triage/"):
             if self._check_token():
                 self._post_triage(path[len("/api/triage/"):].rstrip("/"))
@@ -462,6 +535,67 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._reject(404, "pmid not found")
             return
         self._send_json(entry, status=201)
+
+    def _post_pdf(self, raw_pmid: str) -> None:
+        """Drop-in PDF attach/replace (§5, FR-07/FR-08). Raw `application/pdf`
+        body; `?replace=1` is required when the paper already has a PDF (the
+        old one is kept -- raw/<sha256>/ is content-addressed), `?force=1`
+        accepts a PDF whose DOI/title identity check failed. Conversion
+        failures never repoint current.json (`commit_failed_conversion`)."""
+        pmid = urllib.parse.unquote(raw_pmid)
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        paper_dir = self.library_root / "papers" / pmid
+        if not (paper_dir / "meta.json").is_file():
+            self._reject(404, "pmid not found")
+            return
+        content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if content_type != "application/pdf":
+            self._reject(415, "Content-Type must be application/pdf")
+            return
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self._reject(411, "Content-Length required")
+            return
+        if length <= 0:
+            self._reject(400, "empty upload")
+            return
+        if length > MAX_PDF_BYTES:
+            self._reject(413, f"PDF larger than {MAX_PDF_BYTES // (1024 * 1024)} MB")
+            return
+        data = self.rfile.read(length)
+        if len(data) != length or not data.startswith(b"%PDF-"):
+            self._reject(415, "not a PDF file (missing %PDF- header)")
+            return
+
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        replace = (query.get("replace") or [""])[0] == "1"
+        force = (query.get("force") or [""])[0] == "1"
+        name = urllib.parse.unquote(self.headers.get("X-Filename") or "")
+        name = re.sub(r"[\x00-\x1f/\\]", "_", name).strip()[:MAX_UPLOAD_NAME] or "upload.pdf"
+
+        sha = hashlib.sha256(data).hexdigest()
+        if (paper_dir / "raw" / sha / "source.pdf").exists():
+            self._send_json({"pmid": pmid, "result": "duplicate_noop", "sha256": sha})
+            return
+        if lib_inventory._pdf_paths(paper_dir) and not replace:
+            self._send_json({"error": "this paper already has a PDF -- confirm to add this one as the new active PDF",
+                             "needs": "replace"}, status=409)
+            return
+        try:
+            result = attach_module.attach_pdf_bytes(
+                self.library_root, pmid, data, f"dashboard_upload:{name}", force, commit_failed_conversion=False,
+            )
+        except ValueError as e:
+            self._reject(404, str(e))
+            return
+        if result["result"] == "refused":
+            self._send_json({"error": result["reason"], "needs": "force", "sha256": result["sha256"]}, status=422)
+            return
+        result["pdf_paths"] = lib_inventory._pdf_paths(paper_dir)
+        self._send_json(result, status=201)
 
     def _delete_highlight(self, pmid: str, highlight_id: str) -> None:
         if not _valid_pmid(pmid):
@@ -686,10 +820,24 @@ def build_server(library_root: Path, *, port: int = 0, token: str | None = None)
     return httpd
 
 
-def serve(library_root: Path, *, port: int = 0, open_browser: bool = False, triage: str | None = None) -> None:
+def view_query(raw: str) -> str:
+    """Validate a `serve --view` string (a copied dashboard link's query, with
+    or without a leading `?`) down to `VIEW_PARAM_KEYS`; raises ValueError
+    naming any other key -- a token in a pasted link is never replayed."""
+    pairs = urllib.parse.parse_qsl(raw.strip().lstrip("?"), keep_blank_values=False)
+    bad = sorted({k for k, _v in pairs if k not in VIEW_PARAM_KEYS})
+    if bad:
+        raise ValueError(f"unsupported view parameter(s): {', '.join(bad)} (allowed: {', '.join(VIEW_PARAM_KEYS)})")
+    return urllib.parse.urlencode(pairs)
+
+
+def serve(library_root: Path, *, port: int = 0, open_browser: bool = False, triage: str | None = None,
+          view: str | None = None) -> None:
     httpd = build_server(library_root, port=port)
     actual_port = httpd.server_address[1]
     url = f"http://127.0.0.1:{actual_port}/?token={httpd.ref_token}"  # type: ignore[attr-defined]
+    if view:
+        url += "&" + view
     if triage:
         url += f"#triage/{triage}"
     print(f"dashboard serving at {url}", flush=True)
@@ -776,6 +924,8 @@ def _build_into(staging: Path, library_root: Path) -> None:
         "matrix": matrix_rows,
         "snapshots": _read_snapshots(library_root),
         "projects": _project_summaries(rows),
+        "summary": dashboard_insights.summary(rows, report, _read_snapshots(library_root), include_pmids=True),
+        "knowledge": dashboard_insights.knowledge(library_root, rows),
     }
 
     template = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
@@ -856,6 +1006,7 @@ def main() -> int:
     serve_ap.add_argument("--port", type=int, default=0, help="0 = OS-assigned ephemeral port")
     serve_ap.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
     serve_ap.add_argument("--triage", help="open straight on this saved search's Triage tab")
+    serve_ap.add_argument("--view", help="open a shared dashboard view (the query part of a copied link, e.g. 'tab=papers&q=autism')")
 
     args = ap.parse_args()
     library_root = Path(args.repo).expanduser().resolve()
@@ -877,7 +1028,14 @@ def main() -> int:
             if not triage_module.exists(library_root, args.triage):
                 print(f"error: no triage for {args.triage!r} -- run /ref:triage {args.triage}", file=sys.stderr)
                 return 1
-        serve(library_root, port=args.port, open_browser=args.open, triage=args.triage)
+        view = None
+        if args.view:
+            try:
+                view = view_query(args.view)
+            except ValueError as e:
+                print(f"error: {e}", file=sys.stderr)
+                return 1
+        serve(library_root, port=args.port, open_browser=args.open, triage=args.triage, view=view)
         return 0
     return 1
 

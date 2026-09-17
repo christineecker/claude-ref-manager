@@ -363,6 +363,59 @@ class TestViewerUxWiring(DashboardFixture):
             self.assertIn("stale_check", row)
 
 
+class TestDashboardImprovementsWiring(DashboardFixture):
+    """DASHBOARD_IMPROVEMENTS_IMPLEMENTATION_PLAN.md / DASHBOARD_FEATURE_REQUESTS.md:
+    structural checks, same approach as TestViewerUxWiring (no headless browser)."""
+
+    def setUp(self):
+        super().setUp()
+        self.app_js = (SCRIPTS / "dashboard_assets" / "app.js").read_text(encoding="utf-8")
+        self.index_html = (SCRIPTS / "dashboard_assets" / "index.html").read_text(encoding="utf-8")
+
+    def test_build_embeds_summary_and_knowledge(self):
+        dashboard.build(self.library_root)
+        data = self._embedded_data()
+        self.assertEqual(data["summary"]["paper_count"], 3)
+        self.assertTrue(all("pmids" in a for a in data["summary"]["top_actions"]))
+        self.assertEqual(set(data["knowledge"]["papers"]), {"11111", "22222", "55555"})
+        self.assertEqual(data["knowledge"]["claims"][0]["outcome"], "score")
+
+    def test_shareable_url_state(self):  # FR-01
+        for fn in ("function encodeViewState()", "function decodeViewState(", "function applyViewState(", "function syncUrl()"):
+            self.assertIn(fn, self.app_js)
+        self.assertIn("history.replaceState(null, \"\", location.pathname", self.app_js)
+        for id_ in ("view-link", "view-cmd"):
+            self.assertIn('id="' + id_ + '"', self.index_html)
+        self.assertEqual(
+            re.search(r"var VIEW_PARAM_KEYS = \[(.*?)\];", self.app_js).group(1).replace('"', "").replace(" ", "").split(","),
+            list(dashboard.VIEW_PARAM_KEYS),
+        )
+
+    def test_bulk_export_and_commands(self):  # FR-02/FR-03
+        for id_ in ("exp-pmids", "exp-csv", "copy-cmds", "selsummary"):
+            self.assertIn('id="' + id_ + '"', self.index_html)
+        for fn in ("function buildSelectedPMIDList()", "function buildSelectedCSV()", "function copyAllCommands()"):
+            self.assertIn(fn, self.app_js)
+
+    def test_next_actions_and_health(self):  # FR-04/FR-05/FR-06
+        self.assertIn('id="next-actions"', self.index_html)
+        self.assertIn('id="api-health"', self.index_html)
+        self.assertIn("function renderNextActions()", self.app_js)
+        self.assertIn('"/api/summary?detail=pmids"', self.app_js)
+        self.assertIn('apiFetch("/api/health")', self.app_js)
+
+    def test_pdf_upload_ui(self):  # FR-07/FR-08
+        self.assertIn('"/pdf"', self.app_js)
+        self.assertIn('body.needs === "replace"', self.app_js)
+        self.assertIn('body.needs === "force"', self.app_js)
+        self.assertIn("function pdfDropZone(row)", self.app_js)
+
+    def test_insight_views(self):  # FR-09..FR-17
+        self.assertIn('id="tab-insights"', self.index_html)
+        for fn in ("renderEvidenceMap", "renderGaps", "renderTimeline", "renderGraph", "renderClusters", "renderSynthesis"):
+            self.assertIn("function " + fn + "(body, scope)", self.app_js)
+
+
 class TestCli(DashboardFixture):
     def _run(self, *args):
         import subprocess

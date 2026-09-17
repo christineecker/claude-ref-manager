@@ -487,5 +487,216 @@ class TestTriageRoutes(ServeFixture):
         self.assertEqual(json.loads(body)["results"][0]["result"], "queued")
         self.assertEqual(self._get_json("/api/triage/asd-ct")["counts"]["pending"], 2)
 
+class TestHealthSummaryKnowledgeRoutes(ServeFixture):
+    """DASHBOARD_IMPROVEMENTS_IMPLEMENTATION_PLAN.md §4 + FR-09..FR-17's payload."""
+
+    def _get(self, path):
+        status, body, _h = self._request("GET", path, headers=self._auth_headers())
+        return status, json.loads(body)
+
+    def test_new_routes_require_token(self):
+        for path in ("/api/health", "/api/summary", "/api/knowledge"):
+            self.assertEqual(self._request("GET", path)[0], 403, path)
+
+    def test_health_reports_every_data_source(self):
+        status, h = self._get("/api/health")
+        self.assertEqual(status, 200)
+        self.assertTrue(h["ok"])
+        self.assertIn(h["status"], ("ok", "degraded"))
+        self.assertEqual(set(h["data_sources"]), {"rows", "lint", "matrix", "snapshots"})
+        self.assertTrue(all(v == "ok" for v in h["data_sources"].values()))
+        self.assertEqual(h["counts"]["rows"], 2)
+        self.assertIsInstance(h["warnings"], list)
+        self.assertEqual(h["library_root"], str(self.library_root))
+
+    def test_health_degrades_per_source_without_failing(self):
+        import dashboard_insights
+
+        def boom():
+            raise RuntimeError("lint exploded")
+
+        body, status = dashboard_insights.health(self.library_root, {
+            "rows": lambda: lib_inventory.rows(self.library_root), "lint": boom,
+        })
+        self.assertEqual(status, 200)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "degraded")
+        self.assertIn("lint exploded", body["data_sources"]["lint"])
+
+        body, status = dashboard_insights.health(self.library_root, {"rows": boom})
+        self.assertEqual((status, body["status"]), (503, "down"))
+
+    def test_summary_matches_inventory_and_lint(self):
+        status, s = self._get("/api/summary")
+        self.assertEqual(status, 200)
+        report = lint_module.lint(self.library_root)
+        self.assertEqual(s["paper_count"], 2)
+        self.assertEqual(s["issues_total"], report["summary"]["issues_total"])
+        self.assertEqual(sum(s["coverage"].values()), 2)
+        buckets = {b["bucket"]: b["count"] for b in s["top_issue_buckets"]}
+        self.assertEqual(buckets, {k: len(v) for k, v in report["issues"].items() if v})
+        scores = [a["score"] for a in s["top_actions"]]
+        self.assertEqual(scores, sorted(scores, reverse=True))
+        self.assertTrue(s["top_actions"])
+        for a in s["top_actions"]:
+            self.assertIn("why", a)
+            self.assertIn("suggested_command", a)
+            self.assertNotIn("pmids", a)  # compact unless ?detail=pmids
+        issue_types = {a["type"] for a in s["top_actions"]}
+        self.assertTrue(issue_types <= set(report["issues"]) | {"catalog_stale"})
+
+    def test_summary_detail_and_scopes(self):
+        _status, s = self._get("/api/summary?detail=pmids")
+        report = lint_module.lint(self.library_root)
+        for a in s["top_actions"]:
+            if a["type"] != "catalog_stale":
+                self.assertTrue(set(a["pmids"]) <= set(report["issues"][a["type"]]))
+        _status, by_issue = self._get("/api/summary?scope=issue")
+        self.assertEqual(by_issue["issues"], {k: sorted(v) for k, v in report["issues"].items() if v})
+        _status, by_project = self._get("/api/summary?scope=project")
+        self.assertEqual(by_project["projects"], [])
+        self.assertEqual(self._request("GET", "/api/summary?scope=nope", headers=self._auth_headers())[0], 400)
+
+    def test_knowledge_payload(self):
+        pdir = self.library_root / "papers" / "55555"
+        (pdir / "claim_registry.json").write_text(json.dumps({"claims": {
+            "c1": {"claim_id": "c1", "status": "active", "population": "adults", "intervention": "exercise",
+                   "outcome": "mood", "direction": "increase", "evidence_tier": "full", "study_type": "rct"},
+            "c2": {"claim_id": "c2", "status": "superseded", "outcome": "old"},
+            "c3": {"claim_id": "c3", "status": "active", "outcome": "unknown", "direction": "not reported",
+                   "excluded_from_synthesis": True},
+        }}))
+        (self.library_root / "graph").mkdir(exist_ok=True)
+        (self.library_root / "graph" / "concepts.jsonl").write_text(json.dumps(
+            {"concept_id": "exercise", "name": "Exercise", "aliases": ["physical activity"]}) + "\n")
+        status, k = self._get("/api/knowledge")
+        self.assertEqual(status, 200)
+        self.assertEqual(set(k["papers"]), {"11111", "55555"})
+        self.assertEqual(len(k["claims"]), 1)
+        c = k["claims"][0]
+        self.assertEqual((c["pmid"], c["intervention"], c["dir"], c["tier"]), ("55555", "exercise", "up", "full"))
+        self.assertEqual(k["concepts"][0]["aliases"], ["physical activity"])
+        self.assertEqual(k["papers"]["55555"]["notes_count"], 1)
+
+
+class TestNextActionRanking(unittest.TestCase):
+    def test_weights_and_project_scoping(self):
+        import dashboard_insights
+
+        rows = [{"pmid": str(i), "projects": [{"slug": "p"}] if i < 3 else []} for i in range(6)]
+        report = {"summary": {"catalog_stale": True}, "issues": {
+            "metadata_only": ["0", "1", "2", "3", "4", "5"],
+            "missing_doi": ["0"],
+        }}
+        actions = dashboard_insights.next_actions(rows, report, include_pmids=True, limit=None)
+        by_id = {a["id"]: a for a in actions}
+        self.assertEqual(by_id["metadata_only"]["score"], 5 * 6 * 1.25)
+        self.assertEqual(by_id["metadata_only@p"]["pmids"], ["0", "1", "2"])
+        self.assertEqual(by_id["metadata_only@p"]["score"], 5 * 3 * 1.5)
+        self.assertTrue(by_id["metadata_only@p"]["suggested_command"].startswith("/ref:fetch 0 1 2"))
+        self.assertEqual(actions[0]["id"], "metadata_only")
+        self.assertEqual([a["rank"] for a in actions], list(range(1, len(actions) + 1)))
+        self.assertIn("catalog_stale", by_id)
+
+    def test_same_papers_and_command_listed_once(self):
+        import dashboard_insights
+
+        rows = [{"pmid": "1", "projects": []}, {"pmid": "2", "projects": []}]
+        actions = dashboard_insights.next_actions(rows, {"summary": {}, "issues": {
+            "metadata_only": ["1", "2"], "missing_current": ["1", "2"]}})
+        self.assertEqual(len(actions), 1)
+        self.assertIn("also", actions[0]["why"])
+
+    def test_single_project_bucket_is_not_listed_twice(self):
+        import dashboard_insights
+
+        rows = [{"pmid": "1", "projects": [{"slug": "p"}]}]
+        actions = dashboard_insights.next_actions(rows, {"summary": {}, "issues": {"oa_pending": ["1"]}})
+        self.assertEqual([a["id"] for a in actions], ["oa_pending@p"])
+
+    def test_direction_classes(self):
+        import dashboard_insights
+
+        f = dashboard_insights.direction_class
+        self.assertEqual([f("increase"), f("Decrease"), f("no significant difference"), f("not reported"), f("U-shaped")],
+                         ["up", "down", "null", None, "other"])
+
+
+class TestPdfUpload(ServeFixture):
+    """FR-07/FR-08: POST /api/paper/<pmid>/pdf."""
+
+    PDF = b"%PDF-1.4\n% dashboard upload test\n%%EOF\n"
+
+    def _upload(self, pmid, data, *, query="", content_type="application/pdf", origin=True, token=True):
+        headers = {"Content-Type": content_type, "X-Filename": "new%20version.pdf"}
+        if token:
+            headers["X-Ref-Token"] = self.token
+        if origin:
+            headers["Origin"] = f"http://127.0.0.1:{self.port}"
+        return self._request("POST", f"/api/paper/{pmid}/pdf{query}", headers=headers, body=data)
+
+    def test_security_and_validation(self):
+        self.assertEqual(self._upload("11111", self.PDF, origin=False)[0], 403)
+        self.assertEqual(self._upload("11111", self.PDF, token=False)[0], 403)
+        self.assertEqual(self._upload("abc", self.PDF)[0], 400)
+        self.assertEqual(self._upload("99999", self.PDF)[0], 404)
+        self.assertEqual(self._upload("11111", self.PDF, content_type="text/plain")[0], 415)
+        self.assertEqual(self._upload("11111", b"<html>not a pdf</html>")[0], 415)
+        self.assertFalse((self.library_root / "papers" / "11111" / "raw").exists())
+
+    def test_oversized_upload_rejected_before_reading(self):
+        headers = {"Content-Type": "application/pdf", "X-Ref-Token": self.token,
+                   "Origin": f"http://127.0.0.1:{self.port}", "Content-Length": str(dashboard.MAX_PDF_BYTES + 1)}
+        import http.client
+
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.putrequest("POST", "/api/paper/11111/pdf")
+        for k, v in headers.items():
+            conn.putheader(k, v)
+        conn.endheaders()
+        self.assertEqual(conn.getresponse().status, 413)
+        conn.close()
+
+    def test_identity_refusal_then_forced_attach(self):
+        status, body, _h = self._upload("11111", self.PDF)
+        self.assertEqual(status, 422, body)
+        self.assertEqual(json.loads(body)["needs"], "force")
+        status, body, _h = self._upload("11111", self.PDF, query="?force=1")
+        self.assertEqual(status, 201, body)
+        result = json.loads(body)
+        self.assertEqual(result["result"], "attached")
+        self.assertEqual(result["pdf_paths"], [f"raw/{result['sha256']}/source.pdf"])
+        attachment = json.loads((self.library_root / "papers" / "11111" / "raw" / result["sha256"] / "attachment.json").read_text())
+        self.assertEqual(attachment["attached_from"], "dashboard_upload:new version.pdf")
+        status, body, _h = self._upload("11111", self.PDF, query="?force=1")
+        self.assertEqual((status, json.loads(body)["result"]), (200, "duplicate_noop"))
+
+    def test_replace_needs_confirmation_and_keeps_old_pdf(self):
+        pdir = self.library_root / "papers" / "55555"
+        before_current = (pdir / "current.json").read_text()
+        status, body, _h = self._upload("55555", self.PDF, query="?force=1")
+        self.assertEqual(status, 409)
+        self.assertEqual(json.loads(body)["needs"], "replace")
+        status, body, _h = self._upload("55555", self.PDF, query="?force=1&replace=1")
+        self.assertEqual(status, 201, body)
+        result = json.loads(body)
+        self.assertTrue((pdir / "raw" / "hash1" / "source.pdf").exists())
+        self.assertEqual(result["pdf_paths"][0], f"raw/{result['sha256']}/source.pdf")
+        self.assertIn("raw/hash1/source.pdf", result["pdf_paths"])
+        if result["conversion_status"] != "ok":
+            self.assertIsNone(result["version"])
+            self.assertEqual((pdir / "current.json").read_text(), before_current)
+        row = {r["pmid"]: r for r in lib_inventory.rows(self.library_root)}["55555"]
+        self.assertEqual(row["pdf_paths"][0], result["pdf_paths"][0])
+
+
+class TestViewQuery(unittest.TestCase):
+    def test_view_query_allowlist(self):
+        self.assertEqual(dashboard.view_query("?tab=insights&q=autism&issue=oa_pending"),
+                         "tab=insights&q=autism&issue=oa_pending")
+        with self.assertRaises(ValueError):
+            dashboard.view_query("q=x&token=secret")
+
+
 if __name__ == "__main__":
     unittest.main()

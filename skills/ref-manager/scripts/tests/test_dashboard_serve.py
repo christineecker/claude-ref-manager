@@ -380,6 +380,11 @@ class TestIndexAndAssetsServedWithoutToken(ServeFixture):
         self.assertEqual(status, 200)
         self.assertIn(b"apiFetch", body)
 
+    def test_insights_js_served_without_token(self):
+        status, body, _h = self._request("GET", "/insights.js")
+        self.assertEqual(status, 200)
+        self.assertIn(b"window.RefDashInsights", body)
+
     def test_vendored_pdfjs_served(self):
         status, body, _h = self._request("GET", "/vendor/pdfjs/pdf.min.js")
         self.assertEqual(status, 200)
@@ -577,6 +582,96 @@ class TestHealthSummaryKnowledgeRoutes(ServeFixture):
         self.assertEqual((c["pmid"], c["intervention"], c["dir"], c["tier"]), ("55555", "exercise", "up", "full"))
         self.assertEqual(k["concepts"][0]["aliases"], ["physical activity"])
         self.assertEqual(k["papers"]["55555"]["notes_count"], 1)
+        self.assertIn("timepoint", c)
+        self.assertTrue(k["meta"]["cache_key"])
+
+    def _relation(self, **overrides):
+        rel = {"relation_id": "rel-1", "type": "potential_conflict", "subject_concept_id": "exercise",
+               "object_concept_id": "mood", "supporting_claims": [{"pmid": "55555", "claim_id": "c1"}],
+               "source_version_ids": [], "review_state": "unreviewed", "rationale": None, "stale": False}
+        rel.update(overrides)
+        (self.library_root / "graph").mkdir(exist_ok=True)
+        (self.library_root / "graph" / "relations.jsonl").write_text(json.dumps(rel) + "\n")
+
+    def test_knowledge_relation_fields(self):
+        self._relation()
+        _status, k = self._get("/api/knowledge")
+        r = k["relations"][0]
+        self.assertEqual((r["claim_ids"], r["pmids"], r["rationale"], r["reviewed_at"]), (["c1"], ["55555"], None, None))
+        self.assertEqual(r["supporting"], [{"pmid": "55555", "claim_id": "c1"}])
+
+    def test_knowledge_memo_refreshes_after_relation_review(self):
+        import dashboard_insights
+
+        self._relation()
+        _s, first = self._get("/api/knowledge")
+        _s, again = self._get("/api/knowledge")
+        self.assertEqual(first["generated_at"], again["generated_at"])  # served from the memo
+        self._relation(type="contradicts", review_state="reviewed", rationale="different follow-up",
+                       reviewed_at="2026-09-17T10:00:00+00:00")
+        _s, after = self._get("/api/knowledge")
+        self.assertNotEqual(first["meta"]["cache_key"], after["meta"]["cache_key"])
+        self.assertEqual((after["relations"][0]["type"], after["relations"][0]["rationale"]),
+                         ("contradicts", "different follow-up"))
+        _s, forced = self._get("/api/knowledge?refresh=1")
+        self.assertNotEqual(after["generated_at"], forced["generated_at"])
+        rows = lib_inventory.rows(self.library_root)
+        self.assertEqual(dashboard_insights.knowledge_signature(self.library_root, rows), forced["meta"]["cache_key"])
+
+    def _review_batch(self, *, project=None, grade=None):
+        bdir = (self.library_root / "projects" / project / "reviews" / "b1") if project else (self.library_root / "reviews" / "b1")
+        (bdir / "appraisals").mkdir(parents=True, exist_ok=True)
+        (bdir / "manifest.json").write_text(json.dumps({"batch": "b1", "project": project, "pmids": ["55555", "11111"],
+                                                         "resolved_at": "2026-09-17T00:00:00+00:00", "selector_expression": "x"}))
+        (bdir / "grade.json").write_text(json.dumps(grade or {
+            "baseline": "high", "baseline_reason": "study_types=['rct']", "downgrades_applied": 1, "certainty": "moderate",
+            "factors": {"imprecision": {"downgrade": True, "not_assessed": False, "reason": "no intervals"}}}))
+        (bdir / "appraisals" / "55555.json").write_text(json.dumps({"pmid": "55555", "checklist": "RoB2", "study_type": "rct", "domains": {
+            "randomization": {"rating": "high", "claim_ids": ["c1"], "note": "", "review_status": "model_draft"},
+            "outcome_measurement": {"rating": "insufficient_information", "claim_ids": [], "note": "", "review_status": "model_draft"}}}))
+        (bdir / "appraisals" / "11111.json").write_text(json.dumps({"pmid": "11111", "checklist": None, "insufficient_information": True}))
+        return bdir
+
+    def test_knowledge_reviews_overlay(self):
+        self._review_batch(project="proj")
+        (self.library_root / "papers" / "55555" / "corrections.json").write_text(json.dumps([{
+            "target_type": "appraisal", "target_id": "55555:RoB2:randomization", "decision": "accept"}]))
+        _s, k = self._get("/api/knowledge")
+        self.assertEqual(len(k["reviews"]), 1)
+        rv = k["reviews"][0]
+        self.assertEqual((rv["batch"], rv["project"], rv["grade"]["certainty"], rv["grade"]["downgrades_applied"]), ("b1", "proj", "moderate", 1))
+        a = rv["appraisals"]["55555"]
+        self.assertEqual((a["checklist"], a["assessed"], a["high_risk"]), ("RoB2", True, True))
+        self.assertEqual(a["review_status"], {"human_confirmed": 1, "model_draft": 1})  # correction merged at read time
+        b = rv["appraisals"]["11111"]
+        self.assertEqual((b["insufficient_information"], b["assessed"], b["high_risk"]), (True, False, False))
+
+    def test_knowledge_cache_key_tracks_reviews(self):
+        import dashboard_insights
+
+        rows = lib_inventory.rows(self.library_root)
+        before = dashboard_insights.knowledge_signature(self.library_root, rows)
+        bdir = self._review_batch()
+        created = dashboard_insights.knowledge_signature(self.library_root, rows)
+        (bdir / "grade.json").write_text(json.dumps({"certainty": "low", "factors": {}}))
+        regraded = dashboard_insights.knowledge_signature(self.library_root, rows)
+        (self.library_root / "papers" / "55555" / "corrections.json").write_text("[]")
+        corrected = dashboard_insights.knowledge_signature(self.library_root, rows)
+        self.assertEqual(len({before, created, regraded, corrected}), 4)
+
+    def test_knowledge_cache_key_tracks_claims_and_concepts(self):
+        import dashboard_insights
+
+        rows = lib_inventory.rows(self.library_root)
+        before = dashboard_insights.knowledge_signature(self.library_root, rows)
+        (self.library_root / "graph").mkdir(exist_ok=True)
+        (self.library_root / "graph" / "concepts.jsonl").write_text(json.dumps({"concept_id": "x", "name": "X"}) + "\n")
+        mid = dashboard_insights.knowledge_signature(self.library_root, rows)
+        (self.library_root / "papers" / "11111" / "claim_registry.json").write_text(json.dumps({"claims": {}}))
+        after = dashboard_insights.knowledge_signature(self.library_root, rows)
+        (self.library_root / "papers" / "11111" / "authorship.json").write_text(json.dumps({"authors": [{"last": "Smith"}]}))
+        authors = dashboard_insights.knowledge_signature(self.library_root, rows)
+        self.assertEqual(len({before, mid, after, authors}), 4)
 
 
 class TestNextActionRanking(unittest.TestCase):

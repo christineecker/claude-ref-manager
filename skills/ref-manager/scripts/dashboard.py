@@ -12,7 +12,7 @@ lint snapshot history inlined as one escaped JSON blob, plus one
 `reports/dashboard/details/<pmid>.js` per paper
 (`window.__paperDetail(pmid, detail())`), loaded on demand via
 `<script src>` because file:// pages can't `fetch()` local files
-(§6 rationale). `app.js`/`app.css` are copied verbatim alongside
+(§6 rationale). `app.js`/`insights.js`/`app.css` are copied verbatim alongside
 `index.html`. Build is atomic (`lib_atomic.py` conventions): render into
 `reports/.dashboard-staging-<ts>/`, then swap it for `reports/dashboard/`
 via two directory renames -- a failed build never touches the previous
@@ -102,7 +102,7 @@ MAX_PDF_BYTES = 64 * 1024 * 1024
 MAX_UPLOAD_NAME = 200
 
 # Keys a shared view link may carry (§1); `serve --view` accepts only these.
-VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "sort", "insight")
+VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "sort", "insight", "center", "hops")
 
 
 def _valid_pmid(pmid: str) -> bool:
@@ -183,8 +183,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         path = urllib.parse.urlsplit(self.path).path
         if path in ("/", "/index.html"):
             self._serve_index()
-        elif path == "/app.js":
-            self._serve_static_file(ASSETS_DIR / "app.js", "application/javascript")
+        elif path in ("/app.js", "/insights.js"):
+            self._serve_static_file(ASSETS_DIR / path[1:], "application/javascript")
         elif path == "/app.css":
             self._serve_static_file(ASSETS_DIR / "app.css", "text/css")
         elif path == "/vendor/pdfjs/pdf.min.js":
@@ -213,7 +213,10 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
                 self._serve_summary()
         elif path == "/api/knowledge":
             if self._check_token():
-                self._send_json(dashboard_insights.knowledge(self.library_root, lib_inventory.rows(self.library_root)))
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                force = (query.get("refresh") or [""])[0] == "1"
+                self._send_json(dashboard_insights.knowledge_cached(
+                    self.library_root, lib_inventory.rows(self.library_root), force=force))
         elif path.startswith("/api/paper/") and path.endswith("/highlights"):
             if self._check_token():
                 self._serve_highlights(path[len("/api/paper/"):-len("/highlights")].rstrip("/"))
@@ -936,6 +939,7 @@ def _build_into(staging: Path, library_root: Path) -> None:
     staging.mkdir(parents=True, exist_ok=True)
     (staging / "index.html").write_text(rendered, encoding="utf-8")
     shutil.copyfile(ASSETS_DIR / "app.js", staging / "app.js")
+    shutil.copyfile(ASSETS_DIR / "insights.js", staging / "insights.js")
     shutil.copyfile(ASSETS_DIR / "app.css", staging / "app.css")
 
     details_dir = staging / "details"

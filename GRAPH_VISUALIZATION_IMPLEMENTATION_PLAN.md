@@ -1,7 +1,7 @@
 # Graph Visualization Implementation Plan
 
 Date: 2026-09-17
-Status: Draft v2 (revised after review)
+Status: Implemented — Phases 1–5, including the optional cluster map (see "Implementation notes" at the end)
 Area: Dashboard Insights tab — graph, claim-network and gap views
 Mockup: https://claude.ai/artifact/6WF6r3SCwc8iqBdpFogWjD (sample data)
 
@@ -280,3 +280,35 @@ Colours come from existing tokens (`--good`, `--warn`, `--crit`, `--c5`); no new
 5. Phase 5 — maturity components and appraisal overlay (only if needed).
 6. `/api/knowledge` memo can land with Phase 1 or independently.
 7. Update `commands/dashboard.md` Insights bullet and `docs/tutorials/library-viewer.html` per phase.
+
+---
+
+## Implementation notes (2026-09-17)
+
+Deviations and additions made while implementing:
+
+- **GRADE is per review batch, not per outcome.** `appraise.grade_certainty()` writes one
+  certainty for a batch's whole paper set (`reviews/<batch>/grade.json`), so the Phase 5
+  overlay shows certainty per batch and never relabels it per outcome. The knowledge payload
+  carries a `reviews` block (manifest, grade, per-paper appraisal summary re-merged with
+  current appraisal corrections); `appraise.appraisal_signal()` is the shared per-paper
+  risk-of-bias reading.
+- **Placeholder claim values.** `lib_schema.clean_claim_value()` is the single definition of
+  "no value"; `gaps.population_outcome_gap()` and the dashboard both use it, so the JS/Python
+  parity test also covers "not reported"-style values and whitespace variants.
+- **Clustering links terms only above chance** (≥ 1.5× the expected co-occurrence, scopes of
+  20+ papers). Plain counts merged every topic into one cluster through terms present in most
+  papers.
+- **Interactive graphs.** Knowledge graph and cluster map share one SVG renderer: nodes drag
+  (positions persist until "Re-layout"), the background pans, ⌘/Ctrl + wheel zooms, Shift +
+  arrows move a focused node.
+- **Entry by URL** uses `center` / `hops` params alongside `insight`.
+- **Alias folding (Risks).** `gaps.population_outcome_gap()` and the dashboard grid both fold a
+  population/outcome that exactly matches a concept's name or alias onto that concept; other
+  values stay as written. The JS/Python parity test covers it.
+- **CI.** `.github/workflows/tests.yml` runs the full suite on Python 3.11 and 3.12 with node 20;
+  `REF_REQUIRE_NODE=1` turns the node-based JS tests from skip into fail if node is missing.
+- **Split.** The Insights tab moved to `dashboard_assets/insights.js` (a `RefDashInsights(ctx)`
+  factory loaded before `app.js`); `app.js` passes it the shared page state, with getters for
+  values refresh reassigns. Both files are served, copied into static builds and syntax-checked
+  in CI.

@@ -20,7 +20,12 @@ Four gap types (§5b), each its own function below:
                                 population x outcome combination with zero
                                 claims where a "sibling" combination
                                 (same intervention, different population
-                                or outcome) has at least one claim
+                                or outcome) has at least one claim.
+                                Population/outcome values that exactly
+                                match (case-insensitively) a concept's name
+                                or alias are folded onto that concept's
+                                name; unmapped values stay as written --
+                                never a fuzzy merge.
 
 Fragility boundary (design decision, not pinned by PLAN.md): a claim is
 NOT single-study-fragile if either (a) its paper belongs to a confirmed
@@ -49,6 +54,7 @@ from concept import find_concept, list_concepts  # noqa: E402
 from relation import list_relations  # noqa: E402
 from study import study_for_pmid  # noqa: E402
 import lib_selector  # noqa: E402
+from lib_schema import clean_claim_value  # noqa: E402
 
 
 def _active_claims(library_root: Path, pmids: list[str]) -> list[dict]:
@@ -155,21 +161,36 @@ def population_outcome_gap(library_root: Path, pmids: list[str], intervention_co
         raise ValueError(f"no such concept: {intervention_concept_id!r}")
     names = {concept["name"].lower(), *[a.lower() for a in concept.get("aliases", [])]}
 
-    own = [c for c in claims if (c.get("intervention") or "").strip().lower() in names]
+    # Placeholder values ("unknown", "not reported", ...) are not a population
+    # or outcome, and whitespace variants are one value (lib_schema). A value
+    # that is some concept's name or alias is that concept -- "preschool ASD"
+    # and "preschool children with autism" are one row once /ref:concept has
+    # recorded the alias. The dashboard's population x outcome grid applies
+    # the same rule (insights.js populationOutcomeGaps).
+    canonical: dict[str, str] = {}
+    for other in list_concepts(library_root):
+        for term in [other["name"], *other.get("aliases", [])]:
+            canonical.setdefault(term.lower(), other["name"])
+
+    def field(c, name):
+        value = clean_claim_value(c.get(name))
+        return canonical.get(value.lower(), value) if value else None
+
+    own = [c for c in claims if (clean_claim_value(c.get("intervention")) or "").lower() in names]
     if not own:
         return []
 
-    populations = sorted({c["population"] for c in own if c.get("population") not in (None, "unknown")})
-    outcomes = sorted({c["outcome"] for c in own if c.get("outcome") not in (None, "unknown")})
-    covered = {(c.get("population"), c.get("outcome")) for c in own}
+    populations = sorted({field(c, "population") for c in own} - {None})
+    outcomes = sorted({field(c, "outcome") for c in own} - {None})
+    covered = {(field(c, "population"), field(c, "outcome")) for c in own}
 
     findings = []
     for p in populations:
         for o in outcomes:
             if (p, o) in covered:
                 continue
-            backing_pop = [c["claim_id"] for c in own if c.get("population") == p]
-            backing_outcome = [c["claim_id"] for c in own if c.get("outcome") == o]
+            backing_pop = [c["claim_id"] for c in own if field(c, "population") == p]
+            backing_outcome = [c["claim_id"] for c in own if field(c, "outcome") == o]
             findings.append({
                 "gap_type": "population_outcome_gap",
                 "intervention_concept_id": intervention_concept_id,

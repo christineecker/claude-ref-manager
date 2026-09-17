@@ -16,6 +16,20 @@ class SchemaError(ValueError):
     pass
 
 
+# Extractor placeholders that mean "no value" (agents/ref-extractor.md writes
+# "unknown" / "not reported"; older records vary). One definition so
+# /ref:gaps and the dashboard agree on which claim fields are empty.
+CLAIM_PLACEHOLDERS = frozenset({"", "unknown", "not reported", "not stated", "n/a", "na", "none", "unclear", "nr"})
+
+
+def clean_claim_value(value) -> str | None:
+    """Whitespace-collapsed claim field, or None for a non-string or a placeholder."""
+    if not isinstance(value, str):
+        return None
+    s = " ".join(value.split())
+    return None if s.casefold() in CLAIM_PLACEHOLDERS else s
+
+
 def _require(obj: dict, field: str, types=None):
     if field not in obj:
         raise SchemaError(f"missing required field {field!r}")

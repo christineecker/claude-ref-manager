@@ -21,7 +21,8 @@ Parse `$ARGUMENTS` for:
   (built index.html for `--static`; the served URL for `serve`).
 - `--view '<query>'` — serve mode only. Reopen a shared view: the string a
   "Copy as command" button produced (e.g. `tab=insights&project=foo`). Only
-  `tab`, `q`, `project`, `issue`, `source`, `sort`, `insight` are accepted.
+  `tab`, `q`, `project`, `issue`, `source`, `sort`, `insight`, `center`, `hops`
+  are accepted.
 
 Steps:
 
@@ -91,11 +92,24 @@ Both modes:
 - **Next actions** ranks work by `weight × papers × project boost`, each with
   its reason and command; can be limited to the current filters.
 - **Insights** tab (claims-based, follows the Papers filters + a year range):
-  evidence map (e.g. population × outcome coloured by effect direction),
-  gaps (sparse combinations, single-study findings, unresolved conflicts,
-  with PubMed/`/ref:search-pubmed` suggestions), topic timeline, knowledge
-  graph (concepts / papers & authors / claim network with conflicts),
-  concept clusters, and a deterministic synthesis draft (copy or `.md`).
+  notable-in-scope cards (most connected paper, open conflicts, single-study
+  findings, unextracted papers, growing/fading topics), evidence map (e.g.
+  population × outcome coloured by effect direction), gaps (a population ×
+  outcome grid per intervention concept using the same rule as `/ref:gaps`,
+  plus heuristic sparse pairs, single-study findings and unresolved
+  conflicts, with PubMed/`/ref:search-pubmed` suggestions), topic timeline,
+  knowledge graph (concepts / papers & authors / claim network / a 1–2 hop
+  neighborhood around one paper or concept — "Show in graph" in the paper
+  drawer; every relation type and its review state drawn distinctly, with
+  rationale, supporting claims and a `/ref:weave review` command; a Table
+  toggle lists the same nodes and edges), concept clusters (cards with a
+  papers-per-year sparkline and growing/fading label, or a cluster map of
+  clusters sharing papers), evidence maturity per intervention concept
+  (papers, outcome breadth, coverage, full-text share, open conflicts — shown
+  separately, no combined score) with `/ref:review` GRADE/risk-of-bias
+  batches overlaid, and a deterministic synthesis draft (copy or `.md`).
+  Graph nodes can be dragged; drag the background to pan, ⌘/Ctrl + scroll to
+  zoom, Shift + arrow keys to move a focused node, "Re-layout" to reset.
 
 Suggested follow-up:
 

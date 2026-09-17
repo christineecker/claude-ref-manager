@@ -25,12 +25,15 @@ inventory").
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
 import lib_inventory
+import lib_schema
 
 # bucket -> (weight, label template, pmid command or None, why)
 # A None command means the bucket has no command that takes a pmid list;
@@ -277,15 +280,8 @@ def health(library_root: Path, loaders: dict) -> tuple[dict, int]:
 
 # ------------------------------------------------------------- knowledge
 
-_UNKNOWN = {"", "unknown", "not reported", "not stated", "n/a", "na", "none", "unclear", "nr"}
 MAX_NOTE_EXCERPT = 280
-
-
-def _clean(value) -> str | None:
-    if not isinstance(value, str):
-        return None
-    s = " ".join(value.split())
-    return None if s.casefold() in _UNKNOWN else s
+_clean = lib_schema.clean_claim_value
 
 
 def direction_class(direction) -> str | None:
@@ -337,6 +333,7 @@ def _paper_claims(pdir: Path) -> list[dict]:
             "intervention": _clean(c.get("intervention")),
             "comparator": _clean(c.get("comparator")),
             "outcome": _clean(c.get("outcome")),
+            "timepoint": _clean(c.get("timepoint")),
             "direction": _clean(c.get("direction")),
             "dir": direction_class(c.get("direction")),
             "tier": _clean(c.get("evidence_tier")),
@@ -382,15 +379,120 @@ def knowledge(library_root: Path, rows: list[dict]) -> dict:
             "id": r.get("relation_id"), "type": r.get("type"),
             "subject": r.get("subject_concept_id"), "object": r.get("object_concept_id"),
             "pmids": sorted({sc.get("pmid") for sc in r.get("supporting_claims") or [] if isinstance(sc, dict) and sc.get("pmid")}),
+            "claim_ids": [sc.get("claim_id") for sc in r.get("supporting_claims") or [] if isinstance(sc, dict) and sc.get("claim_id")],
+            "supporting": [{"pmid": sc.get("pmid"), "claim_id": sc.get("claim_id")} for sc in r.get("supporting_claims") or []
+                           if isinstance(sc, dict) and sc.get("pmid") and sc.get("claim_id")],
             "review_state": r.get("review_state"), "stale": bool(r.get("stale")),
+            "rationale": r.get("rationale"), "reviewed_at": r.get("reviewed_at"),
         }
         for r in _read_jsonl(library_root / "graph" / "relations.jsonl")
         if r.get("relation_id")
     ]
+    generated_at = datetime.now(timezone.utc).isoformat()
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "reviews": _reviews(library_root),
+        "generated_at": generated_at,
         "papers": papers,
         "claims": claims,
         "concepts": concepts,
         "relations": relations,
+        "meta": {"cache_key": knowledge_signature(library_root, rows), "generated_at": generated_at},
     }
+
+
+def _review_dirs(library_root: Path) -> list[Path]:
+    """`/ref:review` advanced-mode batches: library-root `reviews/<batch>/`
+    and `projects/<slug>/reviews/<batch>/` (appraise._batch_dir)."""
+    found = list((library_root / "reviews").glob("*/manifest.json"))
+    found += list((library_root / "projects").glob("*/reviews/*/manifest.json"))
+    return sorted(p.parent for p in found)
+
+
+def _reviews(library_root: Path) -> list[dict]:
+    """Frozen GRADE/appraisal batches, compact. GRADE certainty is one rating
+    for the whole batch (appraise.grade_certainty), not per outcome.
+    Per-paper appraisals are re-merged with the paper's current appraisal
+    corrections, so a review recorded after the batch froze still shows."""
+    import appraise  # local: pulls in the selector/relation stack only when reviews exist
+
+    out = []
+    for bdir in _review_dirs(library_root):
+        manifest = lib_inventory._load_json(bdir / "manifest.json")
+        grade = lib_inventory._load_json(bdir / "grade.json")
+        if not isinstance(manifest, dict) or not isinstance(grade, dict):
+            continue
+        appraisals = {}
+        for pmid in manifest.get("pmids") or []:
+            a = lib_inventory._load_json(bdir / "appraisals" / f"{pmid}.json")
+            if not isinstance(a, dict):
+                continue
+            try:
+                a = appraise.merge_appraisal_review(library_root, pmid, a)
+            except (OSError, ValueError, KeyError):
+                pass
+            entries = list((a.get("domains") or {}).values()) + list((a.get("items") or {}).values())
+            statuses: dict[str, int] = {}
+            for e in entries:
+                if isinstance(e, dict) and e.get("review_status"):
+                    statuses[e["review_status"]] = statuses.get(e["review_status"], 0) + 1
+            appraisals[pmid] = {
+                "checklist": a.get("checklist"), "study_type": a.get("study_type"),
+                "insufficient_information": bool(a.get("insufficient_information")),
+                "overall_confidence": a.get("overall_confidence"),
+                "review_status": statuses, **appraise.appraisal_signal(a),
+            }
+        out.append({
+            "batch": manifest.get("batch") or bdir.name, "project": manifest.get("project"),
+            "pmids": manifest.get("pmids") or [], "resolved_at": manifest.get("resolved_at"),
+            "selector_expression": manifest.get("selector_expression"),
+            "grade": {k: grade.get(k) for k in ("certainty", "baseline", "baseline_reason", "downgrades_applied", "factors")},
+            "appraisals": appraisals,
+        })
+    return out
+
+
+def _stamp(path: Path) -> str:
+    try:
+        st = path.stat()
+    except OSError:
+        return "-"
+    return f"{st.st_mtime_ns}.{st.st_size}"
+
+
+def knowledge_signature(library_root: Path, rows: list[dict]) -> str:
+    """Cheap change detector for `knowledge()`: stats only, no reads. Covers
+    every input the payload reads -- the concept and relation registries,
+    and per paper its claim registry, notes, authorship, appraisal
+    corrections and raw PubMed responses (a new response directory bumps
+    `raw/`'s mtime), plus every review batch's manifest and grade."""
+    h = hashlib.sha1()
+    for name in ("concepts.jsonl", "relations.jsonl"):
+        h.update(f"{name}={_stamp(library_root / 'graph' / name)};".encode())
+    for bdir in _review_dirs(library_root):
+        h.update(f"{bdir}={_stamp(bdir / 'manifest.json')},{_stamp(bdir / 'grade.json')},{_stamp(bdir / 'appraisals')};".encode())
+    for pmid in sorted(r["pmid"] for r in rows):
+        pdir = library_root / "papers" / pmid
+        h.update(f"{pmid}={_stamp(pdir / 'claim_registry.json')},{_stamp(pdir / 'notes.md')},"
+                 f"{_stamp(pdir / 'authorship.json')},{_stamp(pdir / 'corrections.json')},{_stamp(pdir / 'raw')};".encode())
+    return h.hexdigest()[:16]
+
+
+_MEMO: dict[str, tuple[str, dict]] = {}
+_MEMO_LOCK = threading.Lock()
+
+
+def knowledge_cached(library_root: Path, rows: list[dict], *, force: bool = False) -> dict:
+    """`knowledge()` memoised per process and library, keyed by
+    `knowledge_signature()`. `force` recomputes regardless (the dashboard's
+    refresh button)."""
+    root = str(library_root)
+    if not force:
+        key = knowledge_signature(library_root, rows)
+        with _MEMO_LOCK:
+            hit = _MEMO.get(root)
+        if hit and hit[0] == key:
+            return hit[1]
+    payload = knowledge(library_root, rows)
+    with _MEMO_LOCK:
+        _MEMO[root] = (payload["meta"]["cache_key"], payload)
+    return payload

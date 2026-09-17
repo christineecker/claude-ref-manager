@@ -7,7 +7,9 @@ Parse `$ARGUMENTS` for:
 - a §5c selector (`--project`, `--study`, `--search`, `--from-file`, or a bare `<pmid...>`
   list) — required, same as every other set-valued command.
 - `--intervention-concept <slug>` — required only for the population/outcome query; omit
-  to skip that query.
+  to skip that query. Populations/outcomes that exactly match (case-insensitively) a
+  concept's name or alias are grouped under that concept's name; other values are kept
+  as written, and placeholders like "unknown"/"not reported" are ignored.
 - `--types <type...>` — restrict to specific gap types (`single_study_fragile`,
   `unresolved_conflicts`, `co_mentioned_ungrouped`, `population_outcome_gap`); default
   runs all applicable to the given arguments.

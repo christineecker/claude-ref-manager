@@ -16,6 +16,7 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import dashboard  # noqa: E402
 import init_repo  # noqa: E402
@@ -161,6 +162,10 @@ class TestBuildProducesIndexAndDetails(DashboardFixture):
         dashboard.build(self.library_root)
         out_dir = self.library_root / "reports" / "dashboard"
         self.assertTrue((out_dir / "app.js").exists())
+        self.assertTrue((out_dir / "insights.js").exists())
+        # insights.js defines the factory app.js calls, so it must load first
+        html = (out_dir / "index.html").read_text(encoding="utf-8")
+        self.assertLess(html.index('<script src="insights.js">'), html.index('<script src="app.js">'))
         self.assertTrue((out_dir / "app.css").exists())
 
 
@@ -252,8 +257,8 @@ class TestHtmlEscaping(DashboardFixture):
         self.assertIn("onerror", embedded_detail["abstract"])
 
     def test_app_js_never_uses_innerhtml(self):
-        app_js = (SCRIPTS / "dashboard_assets" / "app.js").read_text(encoding="utf-8")
-        self.assertNotIn("innerHTML", app_js)
+        for name in ("app.js", "insights.js"):
+            self.assertNotIn("innerHTML", (SCRIPTS / "dashboard_assets" / name).read_text(encoding="utf-8"), name)
 
 
 class TestViewerUxWiring(DashboardFixture):
@@ -268,7 +273,7 @@ class TestViewerUxWiring(DashboardFixture):
 
     def setUp(self):
         super().setUp()
-        self.app_js = (SCRIPTS / "dashboard_assets" / "app.js").read_text(encoding="utf-8")
+        self.app_js = "\n".join((SCRIPTS / "dashboard_assets" / n).read_text(encoding="utf-8") for n in ("app.js", "insights.js"))
         self.index_html = (SCRIPTS / "dashboard_assets" / "index.html").read_text(encoding="utf-8")
         self.app_css = (SCRIPTS / "dashboard_assets" / "app.css").read_text(encoding="utf-8")
 
@@ -369,7 +374,7 @@ class TestDashboardImprovementsWiring(DashboardFixture):
 
     def setUp(self):
         super().setUp()
-        self.app_js = (SCRIPTS / "dashboard_assets" / "app.js").read_text(encoding="utf-8")
+        self.app_js = "\n".join((SCRIPTS / "dashboard_assets" / n).read_text(encoding="utf-8") for n in ("app.js", "insights.js"))
         self.index_html = (SCRIPTS / "dashboard_assets" / "index.html").read_text(encoding="utf-8")
 
     def test_build_embeds_summary_and_knowledge(self):
@@ -422,6 +427,22 @@ class TestDashboardImprovementsWiring(DashboardFixture):
         for fn in ("renderEvidenceMap", "renderGaps", "renderTimeline", "renderGraph", "renderClusters", "renderSynthesis"):
             self.assertIn("function " + fn + "(body, scope)", self.app_js)
 
+    def test_graph_visualization_phases(self):  # GRAPH_VISUALIZATION_IMPLEMENTATION_PLAN.md
+        for fn in ("function buildNeighborhood(scope, centerId, hops)", "function radialLayout(",
+                   "function renderInsightCards(body, scope)", "function renderGraphTable(graph, byId, o)", "function drawGraph(graph, pos, o)",
+                   "function buildClusterMap(clusters)", "function renderClusterMap(body, clusters)",
+                   "function maturityComponents(claims, concept, relations, concepts)", "function renderMaturity(body, scope)",
+                   "function appraisalOverlay(pmid)",
+                   "function relationDetail(rel)", "function populationOutcomeGaps(claims, concept, concepts)",
+                   "function renderGapGrid(body, scope)", "function clusterTrend(c)", "function showInGraph(centerId)"):
+            self.assertIn(fn, self.app_js)
+        self.assertIn('"Show in graph"', self.app_js)
+        self.assertIn('"/ref:weave review "', self.app_js)
+        self.assertIn('"/api/knowledge" + (knowForce ? "?refresh=1" : "")', self.app_js)
+        # an unreviewed potential conflict is never labelled a contradiction
+        self.assertIn('potential_conflict: { stroke: "var(--warn)"', self.app_js)
+        self.assertIn('contradicts: { stroke: "var(--crit)"', self.app_js)
+
 
 class TestCli(DashboardFixture):
     def _run(self, *args):
@@ -443,6 +464,211 @@ class TestCli(DashboardFixture):
         proc = self._run("build", "--repo", str(self.tmp / "nope"))
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("error:", proc.stderr)
+
+
+NB_FUNCS = ["normWords", "conceptAliasIndex", "conceptNames", "relationsInScope", "relationVisible", "claimLabel",
+            "supportingClaims", "scopeKey", "neighborhoodIndex", "pairKey", "visibleLink", "buildNeighborhood",
+            "neighborhoodGraph", "radialLayout", "paperLinks", "graphLabels"]
+NB_VARS = ["NB_CAP", "KIND_RANK", "DIR_GLYPH", "NB_RING_LABELS"]
+
+
+class TestInsightsJs(unittest.TestCase):
+    """GRAPH_VISUALIZATION_IMPLEMENTATION_PLAN.md Phases 1, 2 and 4: the
+    neighbourhood, radial layout and trend logic run under node."""
+
+    def setUp(self):
+        import _js
+
+        _js.require_node(self)
+        self.js = _js
+
+    def _neighborhood(self, know, rows, center, hops, *, rel_hidden=None, reviewed_only=False, extra=""):
+        prelude = (
+            "var KNOW = " + json.dumps(know) + ";\n"
+            "var ins = { relHidden: " + json.dumps(rel_hidden or {}) + ", reviewedOnly: " + json.dumps(reviewed_only) + ", nbIndex: null };\n"
+            "var rows = " + json.dumps(rows) + ";\n"
+            "var scope = { rows: rows, pmids: new Set(rows.map(function (r) { return r.pmid; })), claims: KNOW.claims, papers: KNOW.papers };\n"
+        )
+        body = (
+            "var g = buildNeighborhood(scope, " + json.dumps(center) + ", " + str(hops) + ");\n"
+            "result = { missing: !!g.missing, capped: !!g.capped, dropped: g.dropped || 0,\n"
+            "  nodes: g.nodes.map(function (n) { return [n.id, n.kind, n.hop]; }),\n"
+            "  edges: g.edges.map(function (e) { return [e.a, e.b, e.kind, e.rel ? e.rel.id : null]; }) };\n" + extra
+        )
+        return self.js.run(NB_FUNCS, prelude, body, variables=NB_VARS)
+
+    def _library(self):
+        concepts = [{"id": "exercise", "name": "Exercise", "aliases": ["physical activity"]},
+                    {"id": "mood", "name": "Mood", "aliases": []}]
+        papers = {"1": {"mesh": ["Physical Activity"], "authors": ["Smith"]},
+                  "2": {"mesh": [], "authors": ["Smith", "Lee"]},
+                  "3": {"mesh": [], "authors": ["Lee"]}}
+        claims = [{"pmid": "2", "claim_id": "c-a", "intervention": "exercise", "outcome": "mood", "dir": "up"},
+                  {"pmid": "3", "claim_id": "c-b", "intervention": "yoga", "outcome": "mood", "dir": "down"}]
+        relations = [{"id": "rel-1", "type": "potential_conflict", "subject": "exercise", "object": "mood",
+                      "pmids": ["2", "3"], "supporting": [{"pmid": "2", "claim_id": "c-a"}, {"pmid": "3", "claim_id": "c-b"}],
+                      "review_state": "unreviewed", "stale": False}]
+        rows = [{"pmid": p, "title": "Paper " + p, "citekey": "k" + p} for p in ("1", "2", "3")]
+        return {"concepts": concepts, "papers": papers, "claims": claims, "relations": relations}, rows
+
+    def test_paper_neighborhood_links(self):
+        know, rows = self._library()
+        g = self._neighborhood(know, rows, "p:1", 1)
+        self.assertEqual({(n[0], n[2]) for n in g["nodes"]}, {("p:1", 0), ("c:exercise", 1), ("a:Smith", 1)})
+        kinds = {(e[0], e[1]): e[2] for e in g["edges"]}
+        self.assertEqual(kinds[("p:1", "c:exercise")], "mentions")
+        self.assertEqual(kinds[("p:1", "a:Smith")], "authored")
+
+        g2 = self._neighborhood(know, rows, "p:1", 2)
+        ids = {n[0] for n in g2["nodes"]}
+        self.assertTrue({"p:2", "c:mood"} <= ids)  # via the author / the relation
+        self.assertIn(["c:exercise", "c:mood", "rel", "rel-1"], g2["edges"])
+
+    def test_supporting_claim_links_use_pmid_claim_pairs(self):
+        know, rows = self._library()
+        # same claim_id in a different paper must not count as supporting
+        know["claims"].append({"pmid": "1", "claim_id": "c-b", "intervention": "tai chi", "outcome": "sleep", "dir": "up"})
+        g = self._neighborhood(know, rows, "c:mood", 1)
+        ids = {n[0] for n in g["nodes"]}
+        self.assertIn("k:3/c-b", ids)
+        self.assertNotIn("k:1/c-b", ids)
+
+    def test_hidden_relations_do_not_pull_in_nodes(self):
+        know, rows = self._library()
+        know["papers"]["2"]["authors"] = []
+        know["claims"] = []
+        shown = self._neighborhood(know, rows, "c:exercise", 1)
+        self.assertIn("c:mood", {n[0] for n in shown["nodes"]})
+        for hidden in ({"rel_hidden": {"potential_conflict": True}}, {"reviewed_only": True}):
+            g = self._neighborhood(know, rows, "c:exercise", 1, **hidden)
+            self.assertNotIn("c:mood", {n[0] for n in g["nodes"]}, hidden)
+            self.assertFalse([e for e in g["edges"] if e[2] == "rel"])
+
+    def test_node_cap(self):
+        concepts = [{"id": "x", "name": "Xylitol", "aliases": []}]
+        rows = [{"pmid": str(i), "title": "Xylitol trial " + str(i)} for i in range(150)]
+        papers = {str(i): {"mesh": [], "authors": ["Author%d" % i] if i < 5 else []} for i in range(150)}
+        know = {"concepts": concepts, "papers": papers, "claims": [], "relations": []}
+        g = self._neighborhood(know, rows, "c:x", 1)
+        self.assertEqual((len(g["nodes"]), g["capped"], g["dropped"]), (100, True, 51))
+        # a full ring leaves no room for hop 2; its candidates count as dropped too
+        g2 = self._neighborhood(know, rows, "c:x", 2)
+        self.assertEqual((len(g2["nodes"]), g2["dropped"]), (100, 56))
+
+    def test_paper_links_count_concepts_and_coauthored_papers_not_claims(self):
+        know, rows = self._library()
+        know["claims"] += [{"pmid": "3", "claim_id": "c-%d" % i, "intervention": "yoga", "outcome": "sleep", "dir": "up"}
+                           for i in range(10)]
+        extra = "var idx = neighborhoodIndex(scope); result.links = ['p:1', 'p:2', 'p:3'].map(function (p) { return paperLinks(idx, p); });"
+        links = self._neighborhood(know, rows, "p:1", 1, extra=extra)["links"]
+        # p1: concept exercise + p2 via Smith; p2: exercise, mood + p1, p3; p3: mood + p2 (its 11 claims don't count)
+        self.assertEqual([(l["concepts"], l["coauthored"], l["total"]) for l in links], [(1, 1, 2), (2, 2, 4), (1, 1, 2)])
+
+    def test_neighborhood_labels_centre_and_crowded_ring(self):
+        concepts = [{"id": "x", "name": "Xylitol", "aliases": []}]
+        rows = [{"pmid": str(i), "title": "Xylitol trial " + str(i)} for i in range(30)]
+        papers = {str(i): {"mesh": [], "authors": ["Author"] if i < 3 else []} for i in range(30)}
+        know = {"concepts": concepts, "papers": papers, "claims": [], "relations": []}
+        extra = ("ins.center = 'c:x'; var L = graphLabels(g, true);"
+                 "result.labels = g.nodes.filter(function (n) { return L.has(n.id); }).map(function (n) { return n.hop; });")
+        labels = self._neighborhood(know, rows, "c:x", 2, extra=extra)["labels"]
+        self.assertEqual(sorted(labels), [0] + [1] * 12)  # 30 papers on ring 1, author on ring 2 unlabelled
+
+    def test_maturity_components(self):
+        claims = [
+            {"pmid": "1", "claim_id": "a", "intervention": "Exercise", "population": "adults", "outcome": "mood", "tier": "full"},
+            {"pmid": "2", "claim_id": "b", "intervention": "physical activity", "population": "children", "outcome": "mood", "tier": "abstract"},
+            {"pmid": "2", "claim_id": "c", "intervention": "exercise", "population": "adults", "outcome": "sleep", "tier": "full"},
+            {"pmid": "3", "claim_id": "d", "intervention": "yoga", "population": "adults", "outcome": "pain", "tier": "full"},
+            {"pmid": "3", "claim_id": "e", "intervention": None, "population": "adults", "outcome": "fatigue", "tier": "full"},
+            # "low mood" is an alias of the Mood concept: same outcome column, not a new one
+            {"pmid": "3", "claim_id": "f", "intervention": "yoga", "population": "adults", "outcome": "low mood", "tier": "full"},
+        ]
+        concept = {"id": "exercise", "name": "Exercise", "aliases": ["physical activity"]}
+        registry = [concept, {"id": "mood", "name": "mood", "aliases": ["low mood"]}]
+        relations = [
+            {"id": "r1", "type": "potential_conflict", "subject": "exercise", "object": "mood", "review_state": "unreviewed", "stale": False},
+            {"id": "r2", "type": "potential_conflict", "subject": "mood", "object": "exercise", "review_state": "reviewed", "stale": False},
+            {"id": "r3", "type": "contradicts", "subject": "exercise", "object": "sleep", "review_state": "reviewed", "stale": True},
+            {"id": "r4", "type": "contradicts", "subject": "exercise", "object": "pain", "review_state": "reviewed", "stale": False},
+            {"id": "r5", "type": "potential_conflict", "subject": "yoga", "object": "pain", "review_state": "unreviewed", "stale": False},
+        ]
+        m = self.js.run(["populationOutcomeGaps", "maturityComponents"], "var input = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
+                        "result = maturityComponents(input.claims, input.concept, input.relations, input.registry);",
+                        stdin={"claims": claims, "concept": concept, "relations": relations, "registry": registry})
+        self.assertEqual((m["volume"], m["pmids"], m["claims"]), (2, ["1", "2"], 3))
+        self.assertEqual((m["outcomes"], m["outcomesInScope"]), (2, 3))  # fatigue has no intervention
+        self.assertEqual((m["cells"], m["covered"]), (4, 3))  # children x sleep is the gap
+        self.assertEqual(m["fullText"], 2)
+        self.assertEqual(m["openConflicts"], ["r1", "r3"])
+
+    def test_cluster_map_links_clusters_sharing_papers(self):
+        prelude = (
+            "function cl(name, pmids) { return { name: name, terms: [{ label: name }], pmids: new Set(pmids) }; }\n"
+            "var clusters = [cl('a', ['1','2','3']), cl('b', ['2','3','4']), cl('c', ['3','9']), cl('d', ['7'])];\n"
+        )
+        g = self.js.run(["buildClusterMap"], prelude,
+                        "var m = buildClusterMap(clusters); result = { n: m.nodes.map(function (x) { return [x.id, x.size]; }), e: m.edges.map(function (x) { return [x.a, x.b, x.w]; }) };",
+                        variables=["CLUSTER_MAP_MIN_SHARED"])
+        self.assertEqual(g["n"], [["cl:0", 3], ["cl:1", 3], ["cl:2", 2], ["cl:3", 1]])
+        self.assertEqual(g["e"], [["cl:0", "cl:1", 2]])  # a-c and b-c share only one paper
+
+    def test_clusters_ignore_chance_level_cooccurrence(self):
+        # 40 papers: topic A terms in papers 0-19, topic B in 20-39, and two
+        # ubiquitous claim terms spread evenly across all of them.
+        prelude = (
+            "var BY_PMID = {};\n"
+            "var ctx = { byPmid: function () { return BY_PMID; } };\n"
+            "var rows = []; for (var i = 0; i < 40; i++) { rows.push({ pmid: 'p' + i, year: '2020' }); BY_PMID['p' + i] = rows[i]; }\n"
+            "function term(key, pick) { var s = new Set(); rows.forEach(function (r, i) { if (pick(i)) s.add(r.pmid); }); return { key: key, label: key, pmids: s }; }\n"
+            "var terms = [term('a1', function (i) { return i < 20; }), term('a2', function (i) { return i < 20; }),\n"
+            "  term('b1', function (i) { return i >= 20; }), term('b2', function (i) { return i >= 20; }),\n"
+            "  term('u1', function (i) { return i % 2 === 0; }), term('u2', function (i) { return i % 3 !== 0; })];\n"
+            "var scope = { rows: rows };\n"
+        )
+        groups = self.js.run(["cooccurrence", "labelPropagation", "computeClusters"], prelude,
+                             "result = computeClusters(scope, terms).map(function (c) { return c.terms.map(function (t) { return t.key; }).sort(); });",
+                             variables=["CLUSTER_LIFT"])
+        self.assertEqual(sorted(groups), [["a1", "a2"], ["b1", "b2"]])
+
+    def test_missing_center(self):
+        know, rows = self._library()
+        self.assertTrue(self._neighborhood(know, rows, "p:999", 1)["missing"])
+
+    def test_radial_layout_rings(self):
+        know, rows = self._library()
+        extra = (
+            "var byId = {}; g.nodes.forEach(function (n) { byId[n.id] = n; });\n"
+            "var pos = radialLayout(g.nodes, g.edges, 'p:1', 900, 600);\n"
+            "result.pos = g.nodes.map(function (n) { var p = pos[n.id]; return [n.hop, p.x, p.y]; });\n"
+        )
+        pos = self._neighborhood(know, rows, "p:1", 2, extra=extra)["pos"]
+        self.assertIn([0, 450, 300], pos)
+        for hop, x, y in pos:
+            self.assertTrue(0 <= x <= 900 and 0 <= y <= 600)
+            if hop:
+                # on the hop's ellipse: rx = 380 * hop / 2, ry = 270 * hop / 2
+                self.assertAlmostEqual(((x - 450) / (190 * hop)) ** 2 + ((y - 300) / (135 * hop)) ** 2, 1, places=6)
+
+    def _trend(self, years):
+        prelude = (
+            "var ROWS = [{ pmid: 'last', year: '2025' }];\n"
+            "var BY_PMID = {};\n"
+            "var ctx = { rows: function () { return ROWS; }, byPmid: function () { return BY_PMID; } };\n"
+            "var years = " + json.dumps(years) + ";\n"
+            "var c = { pmids: new Set() };\n"
+            "years.forEach(function (y, i) { BY_PMID['p' + i] = { year: String(y) }; c.pmids.add('p' + i); });\n"
+        )
+        return self.js.run(["libraryLastYear", "clusterTrend"], prelude,
+                           "var t = clusterTrend(c); result = [t.label, t.last, t.prev, t.ratio];",
+                           variables=["TREND_MIN"])
+
+    def test_cluster_trend_thresholds(self):
+        # windows end at the library's newest year (2025): 2021-2025 vs 2016-2020
+        self.assertEqual(self._trend([2021, 2022, 2023, 2025, 2016, 2017, 2020]), ["growing", 4, 3, 4 / 3])
+        self.assertEqual(self._trend([2021, 2022, 2023, 2024, 2016, 2017, 2018, 2019, 2020]), ["fading", 4, 5, 0.8])
+        self.assertEqual(self._trend([2021, 2022, 2023, 2016, 2017, 2018]), ["stable", 3, 3, 1])
+        self.assertEqual(self._trend([2021, 2022, 2016, 2017, 2018, 2019, 2010]), [None, 2, 4, 0.5])
 
 
 if __name__ == "__main__":

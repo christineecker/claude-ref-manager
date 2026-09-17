@@ -297,6 +297,42 @@ def _relevant_relations(library_root: Path, pmids: set[str]) -> list[dict]:
     return out
 
 
+def appraisal_signal(a: dict) -> dict:
+    """One paper's appraisal read as GRADE's risk-of-bias factor reads it:
+    `assessed` when any domain/item carries a real rating, `high_risk` when
+    one is high (RoB2), zero stars (NOS) or critically_low (AMSTAR-2).
+    Each checklist shape needs its own reading: RoB2/NOS use "domains"
+    (RoB2 domains carry "rating", NOS domains carry "stars_awarded"/
+    "stars_max" instead -- no "rating" key at all), AMSTAR-2 uses "items"
+    plus a top-level "overall_confidence"."""
+    if a.get("insufficient_information") or a.get("checklist") is None:
+        return {"assessed": False, "high_risk": False}
+    high = False
+    assessed = False
+    for d in a.get("domains", {}).values():
+        if "stars_awarded" in d:  # NOS star-rated domain
+            if d["stars_max"] > 0:
+                if d["stars_awarded"] == 0:
+                    high = True
+                else:
+                    assessed = True
+        else:  # RoB2 rating domain
+            rating = d.get("rating")
+            if rating and rating != "insufficient_information":
+                assessed = True
+                if rating in ("high",):
+                    high = True
+    for it in a.get("items", {}).values():  # AMSTAR-2 items
+        rating = it.get("rating")
+        if rating and rating != "insufficient_information":
+            assessed = True
+    if a.get("overall_confidence") not in (None, "insufficient_information"):
+        assessed = True
+        if a["overall_confidence"] == "critically_low":
+            high = True
+    return {"assessed": assessed, "high_risk": high}
+
+
 def grade_certainty(library_root: Path, pmids: list[str], appraisals: dict[str, dict]) -> dict:
     all_claims = []
     for pmid in pmids:
@@ -308,42 +344,15 @@ def grade_certainty(library_root: Path, pmids: list[str], appraisals: dict[str, 
     factors = {}
 
     # 1. risk of bias: an explicit "high"/"critically_low" signal downgrades;
-    # if every paper's appraisal is unassessable, this factor is not_assessed.
-    # Each checklist shape needs its own reading: RoB2/NOS use "domains"
-    # (RoB2 domains carry "rating", NOS domains carry "stars_awarded"/
-    # "stars_max" instead -- no "rating" key at all), AMSTAR-2 uses "items"
-    # plus a top-level "overall_confidence".
+    # if every paper's appraisal is unassessable, this factor is not_assessed
+    # (per-paper reading: appraisal_signal()).
     high_risk_pmids = []
     any_assessed = False
     for pmid, a in appraisals.items():
-        if a.get("insufficient_information") or a.get("checklist") is None:
-            continue
-        domain_high = False
-        domain_assessed = False
-        for d in a.get("domains", {}).values():
-            if "stars_awarded" in d:  # NOS star-rated domain
-                if d["stars_max"] > 0:
-                    if d["stars_awarded"] == 0:
-                        domain_high = True
-                    else:
-                        domain_assessed = True
-            else:  # RoB2 rating domain
-                rating = d.get("rating")
-                if rating and rating != "insufficient_information":
-                    domain_assessed = True
-                    if rating in ("high",):
-                        domain_high = True
-        for it in a.get("items", {}).values():  # AMSTAR-2 items
-            rating = it.get("rating")
-            if rating and rating != "insufficient_information":
-                domain_assessed = True
-        if a.get("overall_confidence") not in (None, "insufficient_information"):
-            domain_assessed = True
-            if a["overall_confidence"] == "critically_low":
-                domain_high = True
-        if domain_high:
+        signal = appraisal_signal(a)
+        if signal["high_risk"]:
             high_risk_pmids.append(pmid)
-        if domain_assessed:
+        if signal["assessed"]:
             any_assessed = True
     if not any_assessed:
         factors["risk_of_bias"] = {"downgrade": False, "not_assessed": True,

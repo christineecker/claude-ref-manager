@@ -15,6 +15,7 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import add  # noqa: E402
 import extract  # noqa: E402
@@ -194,6 +195,62 @@ class TestPopulationOutcomeGap(TempLibrary):
         self.assertEqual(f["outcome_evidenced_by"], [c3["claim_id"]])
         # the actually-covered combos never appear as gaps
         self.assertNotIn(("adults", "systolic blood pressure"), missing)
+
+
+class TestPopulationOutcomeGapDashboardParity(TempLibrary):
+    """GRAPH_VISUALIZATION_IMPLEMENTATION_PLAN.md Phase 3: the dashboard's JS
+    port (app.js populationOutcomeGaps) run under node on the knowledge
+    payload must find exactly the gaps gaps.py finds."""
+
+    def test_js_port_matches_python(self):
+        import _js
+        import dashboard_insights
+        import lib_inventory
+
+        _js.require_node(self)
+        for pmid in ("1", "2", "3", "4", "5"):
+            self.add_paper(pmid)
+        concept.create_concept(self.library_root, "drug-x", "drug X")
+        concept.add_alias(self.library_root, "drug-x", "DX-101", "manual")
+        self.extract_claim("1", claim(population="adults", outcome="systolic blood pressure"))
+        self.extract_claim("2", claim(locator="Results/p2", population="children", outcome="systolic blood pressure"))
+        self.extract_claim("3", claim(locator="Results/p3", intervention="dx-101 ", population="adults", outcome="LDL cholesterol"))
+        self.extract_claim("4", claim(locator="Results/p4", population="older  adults", outcome="heart rate"))
+        self.extract_claim("4", claim(locator="Results/p5", intervention="drug Y", population="teens", outcome="sleep"))
+        # placeholders are not a population/outcome in either implementation
+        self.extract_claim("5", claim(locator="Results/p6", population="not reported", outcome="heart rate"))
+        self.extract_claim("5", claim(locator="Results/p7", population="adults", outcome="Unknown"))
+        # "SBP" and "Children" are a registered concept's alias/name: folded onto it, not new rows/columns
+        concept.create_concept(self.library_root, "sbp", "systolic blood pressure")
+        concept.add_alias(self.library_root, "sbp", "SBP", "manual")
+        concept.create_concept(self.library_root, "children", "children")
+        self.extract_claim("5", claim(locator="Results/p8", population="Children", outcome="SBP"))
+        self.extract_claim("3", claim(locator="Results/p9", intervention="DX-101", population="older adults", outcome="sbp"))
+
+        pmids = ["1", "2", "3", "4", "5"]
+        expected = gaps.population_outcome_gap(self.library_root, pmids, "drug-x")
+        payload = dashboard_insights.knowledge(self.library_root, lib_inventory.rows(self.library_root))
+        concept_row = next(c for c in payload["concepts"] if c["id"] == "drug-x")
+        actual = _js.run(
+            ["populationOutcomeGaps"], "var input = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
+            "result = populationOutcomeGaps(input.claims, input.concept, input.concepts).gaps;",
+            stdin={"claims": payload["claims"], "concept": concept_row, "concepts": payload["concepts"]},
+        )
+
+        def key(findings):
+            return sorted((f["missing_population"], f["missing_outcome"], tuple(sorted(f["population_evidenced_by"])),
+                           tuple(sorted(f["outcome_evidenced_by"]))) for f in findings)
+
+        self.assertTrue(expected)
+        self.assertNotIn("not reported", {f["missing_population"] for f in expected})
+        self.assertIn("older adults", {f["missing_population"] for f in expected})
+        populations = {f["missing_population"] for f in expected}
+        outcomes = {f["missing_outcome"] for f in expected}
+        self.assertNotIn("Children", populations)
+        self.assertFalse({"SBP", "sbp"} & outcomes)
+        # older adults x SBP is covered through the alias, so it is not a gap
+        self.assertNotIn(("older adults", "systolic blood pressure"), {(f["missing_population"], f["missing_outcome"]) for f in expected})
+        self.assertEqual(key(actual), key(expected))
 
 
 # ---------------------------------------------------------------- hypothesize

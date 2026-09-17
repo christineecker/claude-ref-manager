@@ -415,6 +415,9 @@ tbody tr.droptarget{box-shadow:inset 0 0 0 2px var(--accent);background:var(--ac
 .evcell.gap{background:transparent;border:1px dashed var(--crit)}
 .evcell:hover{outline:2px solid var(--accent);outline-offset:1px}
 .evcell .ct{font-family:"IBM Plex Mono",monospace;font-size:.7rem;background:var(--panel);color:var(--ink);border-radius:3px;padding:0 4px;line-height:1.35}
+.evcell.hatch{border:1px dashed var(--crit);background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--crit) 24%,transparent) 0 3px,transparent 3px 7px)}
+.evcell[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+.hatchsw{display:inline-block;width:12px;height:9px;border:1px dashed var(--crit);border-radius:2px;margin-right:6px;vertical-align:-1px;background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--crit) 40%,transparent) 0 2px,transparent 2px 4px)}
 .gapsw{display:inline-block;width:12px;height:9px;border:1px dashed var(--crit);border-radius:2px;margin-right:6px;vertical-align:-1px}
 .ins-detail{gap:8px}
 .ins-tablewrap table{min-width:640px}
@@ -440,18 +443,55 @@ svg.chart .pt:focus-visible{outline:none;stroke:var(--ink);stroke-width:2}
 @media (max-width:980px){.gwrap{grid-template-columns:1fr}}
 svg.graph{display:block;width:100%;height:auto;background:var(--panel);touch-action:manipulation}
 svg.graph text{font-family:"IBM Plex Sans",sans-serif;font-size:11px;fill:var(--ink);paint-order:stroke;stroke:var(--panel);stroke-width:3px;pointer-events:none}
-.gnode{cursor:pointer}
+.gnode{cursor:grab;touch-action:none}
+svg.graph.dragging,svg.graph.dragging .gnode{cursor:grabbing}
+svg.graph{cursor:default}
+svg.graph.panning{cursor:move}
 .gnode:focus-visible{outline:none}
-.gnode:focus-visible circle,.gnode.sel circle{stroke:var(--ink);stroke-width:2.5}
+.gnode:focus-visible .shape,.gnode.sel .shape{stroke:var(--ink);stroke-width:2.5}
+.gnode.center .shape{stroke:var(--ink);stroke-width:3}
+.gedge.rel{cursor:pointer}
+svg.graph text.eglyph{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;fill:var(--ink);stroke:none}
+svg.graph text.estale{font-family:"IBM Plex Mono",monospace;font-size:9px;fill:var(--muted)}
+.lsw{width:26px;height:10px;vertical-align:-1px;margin-right:6px}
+.rel-legend{align-items:center}
+.reltoggle{all:unset;cursor:pointer;display:inline-flex;align-items:center;border-radius:4px;padding:1px 4px}
+.reltoggle[aria-pressed="false"]{opacity:.4;text-decoration:line-through}
+.reltoggle:focus-visible{outline:2px solid var(--accent)}
+.tri-legend i.k-concept,.tri-legend i.k-paper{background:var(--c);border-radius:50%}
+.tri-legend i.k-author{background:transparent;border:2px solid var(--c);border-radius:50%;width:7px;height:7px}
+.tri-legend i.k-claim{background:var(--c);transform:rotate(45deg);width:8px;height:8px}
+.gtable{gap:8px}
+.gtable th button.plink{font-family:inherit;color:inherit;font-size:inherit;text-transform:inherit;letter-spacing:inherit}
+.gtable tr.sel td{background:var(--hover)}
+.reldetail{display:grid;gap:8px}
+.reldetail code{font-size:.74rem;word-break:break-all}
+.ins-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.ins-card{all:unset;box-sizing:border-box;display:grid;gap:1px;width:100%;height:100%;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:8px 11px;cursor:pointer;font-size:.8rem;color:var(--muted)}
+.ins-card:hover{border-color:var(--accent)}
+.ins-card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ins-card b{font-family:"IBM Plex Mono",monospace;font-size:1.1rem;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.ins-card span{color:var(--ink)}
+.ins-card small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ins-card.off{cursor:default}
+.ins-card.off:hover{border-color:var(--line)}
 .gside{max-height:80vh;overflow-y:auto}
 .gside .gtitle{font-size:.95rem;line-height:1.35}
 .conflict{display:grid;gap:3px;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:.82rem}
-.conflict.is{border-color:var(--crit)}
+.conflict.is{border-color:var(--c7)}
+.complist{display:grid;gap:6px}
+.compfields{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;margin:4px 0 0;font-size:.78rem}
+.compfields dt{color:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:.7rem}
+.compfields dd{margin:0;overflow-wrap:anywhere}
+.compfields dd.differs{color:var(--warn)}
 .clgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .clcard{gap:8px}
 .clhead{display:grid;grid-template-columns:58px 1fr;gap:10px;align-items:center}
 .clbubble{width:58px;height:58px}
 .clbubble text{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--ink);paint-order:stroke;stroke:var(--panel);stroke-width:3px}
+.cltrend{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:.76rem;color:var(--muted)}
+.cltrend small{font-family:"IBM Plex Mono",monospace}
+.spark{width:120px;height:26px;display:block}
 .clterms{display:flex;flex-wrap:wrap;gap:4px}
 .clterms .fchip{font-size:.74rem;padding:2px 8px}
 pre.synth{white-space:pre-wrap;font-family:"IBM Plex Mono",monospace;font-size:.78rem;line-height:1.55;margin:0;max-height:70vh;overflow:auto;display:block}
@@ -464,3 +504,12 @@ pre.synth{white-space:pre-wrap;font-family:"IBM Plex Mono",monospace;font-size:.
 .actionbar .tri-reasons .chip.excluded{border-color:color-mix(in srgb,var(--crit) 60%,transparent)}
 .actionbar .tri-reasons .chip:disabled{opacity:.45;cursor:default}
 .tri-why{display:block;font-size:.7rem;color:var(--muted);margin-top:3px;max-width:22ch}
+.meter{display:grid;gap:2px;min-width:110px}
+.meter .mtext{font-family:"IBM Plex Mono",monospace;font-size:.72rem;font-variant-numeric:tabular-nums}
+.meter .mbar{display:block;height:5px;border-radius:3px;background:var(--hover);overflow:hidden}
+.meter .mbar i{display:block;height:100%;background:var(--accent)}
+.ins-table.maturity td{vertical-align:top}
+.formula{margin-top:8px;font-size:.76rem;color:var(--muted)}
+.conflict.review{gap:6px;margin-top:8px}
+.factors li{align-items:baseline}
+.apprlist{display:grid;gap:6px}

@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # scripts declare requires-python >=3.11
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # the dashboard's JS logic tests (and the gaps.py <-> app parity check)
+      # run the real functions under node
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax-check dashboard scripts
+        run: |
+          node --check skills/ref-manager/scripts/dashboard_assets/insights.js
+          node --check skills/ref-manager/scripts/dashboard_assets/app.js
+
+      - name: Run tests
+        env:
+          REF_REQUIRE_NODE: "1"
+        working-directory: skills/ref-manager/scripts
+        run: python -m unittest discover -s tests -p "test_*.py" -v

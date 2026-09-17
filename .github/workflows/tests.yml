@@ -22,24 +22,27 @@ jobs:
         # scripts declare requires-python >=3.11
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
       # the dashboard's JS logic tests (and the gaps.py <-> app parity check)
       # run the real functions under node
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
 
       # convert.py's backends: JATS -> pandoc, HTML -> a trafilatura worker run
       # through `uv run` (its dependencies are declared inline in the worker)
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
+        with:
+          # nothing to key a cache on (no lockfile); the worker's deps are inline
+          enable-cache: false
 
       - name: Syntax-check dashboard scripts
         run: |

@@ -34,6 +34,13 @@ jobs:
         with:
           node-version: "20"
 
+      # convert.py's backends: JATS -> pandoc, HTML -> a trafilatura worker run
+      # through `uv run` (its dependencies are declared inline in the worker)
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
+
+      - uses: astral-sh/setup-uv@v6
+
       - name: Syntax-check dashboard scripts
         run: |
           node --check skills/ref-manager/scripts/dashboard_assets/insights.js

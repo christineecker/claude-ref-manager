@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-17 · [`929dab8`](https://github.com/christineecker/claude-ref-manager/commit/929dab8) feat: dashboard graph visualization (plan phases 1-5)
 - 2026-09-17 · [`1b65776`](https://github.com/christineecker/claude-ref-manager/commit/1b65776) docs: graph visualization implementation plan (v2)
 - 2026-09-17 · [`baf5c84`](https://github.com/christineecker/claude-ref-manager/commit/baf5c84) feat: triage follow-ups (PRISMA link, --triage selector, reason chips)
 - 2026-09-17 · [`5783b81`](https://github.com/christineecker/claude-ref-manager/commit/5783b81) feat: dashboard insights, next actions, shareable views, PDF upload
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-16 · [`02ae63d`](https://github.com/christineecker/claude-ref-manager/commit/02ae63d) Implement library viewer UX improvements (P0-P2)
 - 2026-09-16 · [`b0bac59`](https://github.com/christineecker/claude-ref-manager/commit/b0bac59) fix: SVG diagram text unreadable in dark mode (default black fill)
 - 2026-09-16 · [`afdd656`](https://github.com/christineecker/claude-ref-manager/commit/afdd656) docs: restore dropped adding-papers content, document library viewer
-- 2026-09-16 · [`f8b247b`](https://github.com/christineecker/claude-ref-manager/commit/f8b247b) Add library viewer: /ref:list, /ref:dashboard, lint --diff
 <!-- changelog:end -->

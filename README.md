@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-17 · [`32f3cd1`](https://github.com/christineecker/claude-ref-manager/commit/32f3cd1) ci: move workflow actions to Node 24 releases and test on Node 24
 - 2026-09-17 · [`426c5e9`](https://github.com/christineecker/claude-ref-manager/commit/426c5e9) ci: install pandoc and uv for the conversion tests
 - 2026-09-17 · [`929dab8`](https://github.com/christineecker/claude-ref-manager/commit/929dab8) feat: dashboard graph visualization (plan phases 1-5)
 - 2026-09-17 · [`1b65776`](https://github.com/christineecker/claude-ref-manager/commit/1b65776) docs: graph visualization implementation plan (v2)
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-16 · [`c0eb24f`](https://github.com/christineecker/claude-ref-manager/commit/c0eb24f) feat: /ref:read opens live PDF+notes viewer instead of md reconstruction
 - 2026-09-16 · [`e7fde72`](https://github.com/christineecker/claude-ref-manager/commit/e7fde72) docs: PhD-friendly command explanations + file-structure trees in tutorials
 - 2026-09-16 · [`02ae63d`](https://github.com/christineecker/claude-ref-manager/commit/02ae63d) Implement library viewer UX improvements (P0-P2)
-- 2026-09-16 · [`b0bac59`](https://github.com/christineecker/claude-ref-manager/commit/b0bac59) fix: SVG diagram text unreadable in dark mode (default black fill)
 <!-- changelog:end -->

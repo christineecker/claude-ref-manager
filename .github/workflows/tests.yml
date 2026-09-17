@@ -39,7 +39,8 @@ jobs:
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pandoc
 
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv publishes exact release tags only (no floating v10)
+      - uses: astral-sh/setup-uv@v10.1.0
         with:
           # nothing to key a cache on (no lockfile); the worker's deps are inline
           enable-cache: false

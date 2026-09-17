@@ -52,10 +52,9 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, pmid_lock
+from lib_atomic import atomic_write_json, pmid_lock, now_iso
 from lib_schema import validate_retraction_status, validate_citation_observation, SchemaError
 from lib_selector import resolve_from_args, add_selector_args, SelectorError, _all_pmids
-from lib_status_check import diff_status
 
 
 def _meta_path(library_root: Path, pmid: str) -> Path:
@@ -117,7 +116,7 @@ def audit_citation_observation(library_root: Path, pmid: str, observation: dict 
     path = _citations_path(library_root, pmid)
     with pmid_lock(library_root, pmid):
         existing = json.loads(path.read_text()) if path.exists() else []
-        now = datetime.now(timezone.utc).isoformat()
+        now = now_iso()
 
         if no_pmcid:
             entry = {"retrieved_at": now, "status": "no_pmcid", "reason": "paper has no PMCID"}

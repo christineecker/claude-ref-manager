@@ -34,10 +34,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, pmid_lock
+from lib_atomic import atomic_write_json, pmid_lock, now_iso
 
 
 def _figures_path(library_root: Path, pmid: str, version: str) -> Path:
@@ -126,7 +125,7 @@ def store(library_root: Path, pmid: str, version: str, figure_id: str, model: st
             "model": model, "prompt": prompt, "description": description,
             "kind": "model_interpretation",  # D17: never masquerades as an author-reported finding
             "figure_sha256": fig["sha256"],
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": now_iso(),
         }
         fig.setdefault("vision", [])
         # replace any existing entry for this exact (model, prompt) key

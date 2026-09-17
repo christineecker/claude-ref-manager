@@ -9,7 +9,6 @@ Run: python3 skills/ref-manager/scripts/tests/test_phase8_okf.py
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import sys
 import tempfile

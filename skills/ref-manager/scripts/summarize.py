@@ -33,18 +33,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_status_check import diff_status
-from lib_selector import resolve_from_args, add_selector_args, SelectorError
-from lib_verify_link import load_registry
-
-
-def _meta(library_root: Path, pmid: str) -> dict | None:
-    p = library_root / "papers" / pmid / "meta.json"
-    return json.loads(p.read_text()) if p.exists() else None
+from lib_selector import resolve_from_args, add_selector_args, SelectorError, paper_meta
+from lib_verify_link import active_claims, withdrawn_evidence
 
 
 def build_candidates(library_root: Path, pmids: list[str]) -> list[dict]:
@@ -54,15 +48,12 @@ def build_candidates(library_root: Path, pmids: list[str]) -> list[dict]:
     no retrieval/ranking, the selector already fixed the set."""
     candidates = []
     for pmid in pmids:
-        meta = _meta(library_root, pmid) or {}
-        registry = load_registry(library_root, pmid)
-        for claim_id, c in registry.get("claims", {}).items():
-            if c.get("status") != "active":
-                continue
+        meta = paper_meta(library_root, pmid) or {}
+        for c in active_claims(library_root, pmid):
             candidates.append({
                 "kind": "claim",
                 "pmid": pmid,
-                "claim_id": claim_id,
+                "claim_id": c["claim_id"],
                 "citekey": meta.get("citekey"),
                 "locator": c.get("locator"),
                 "text": c.get("evidence_span"),
@@ -76,24 +67,6 @@ def _batch_dir(library_root: Path, batch: str, project: str | None) -> Path:
     if project:
         return library_root / "projects" / project / "summaries" / batch
     return library_root / "summaries" / batch
-
-
-def _withdrawn_evidence(library_root: Path, prior_candidates: list[dict]) -> list[dict]:
-    withdrawn = []
-    for e in prior_candidates:
-        if e.get("kind") != "claim":
-            continue
-        registry = load_registry(library_root, e["pmid"])
-        entry = registry["claims"].get(e["claim_id"])
-        if entry is None:
-            withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"], "reason": "claim_id not found"})
-        elif entry.get("status") != "active":
-            withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"],
-                               "reason": f"status={entry.get('status')} (superseded)"})
-        elif entry.get("excluded_from_synthesis"):
-            withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"],
-                               "reason": "excluded_from_synthesis (rejected via /ref:verify)"})
-    return withdrawn
 
 
 def run_summarize(
@@ -132,7 +105,7 @@ def run_summarize(
         "project": project,
         "selector_expression": resolution["selector_expression"],
         "pmids": pmids,
-        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "resolved_at": now_iso(),
         "report": resolution["report"],
         "coverage_note": coverage_note,
         "unresolved_questions": unresolved_questions or [],
@@ -144,7 +117,7 @@ def run_summarize(
     if prior_pmids:
         result["added_pmids"] = sorted(set(pmids) - set(prior_pmids))
         result["removed_pmids"] = sorted(set(prior_pmids) - set(pmids))
-        result["withdrawn_evidence"] = _withdrawn_evidence(library_root, prior_candidates)
+        result["withdrawn_evidence"] = withdrawn_evidence(library_root, prior_candidates)
         # Phase 11: report a paper's retraction_status changing since this
         # summary was generated, same never-silent spirit as withdrawn claims.
         prior_status_by_pmid = {

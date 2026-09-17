@@ -22,7 +22,6 @@ import queue as queue_mod  # noqa: E402
 import note  # noqa: E402
 import person  # noqa: E402
 import grant  # noqa: E402
-import report  # noqa: E402
 from lib_ids import SlugError  # noqa: E402
 from lib_schema import SchemaError  # noqa: E402
 

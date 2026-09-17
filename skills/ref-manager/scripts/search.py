@@ -3,12 +3,11 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""`/ref:search` — §5 retrieval, phase-2 subset.
+"""`/ref:search` — substring search over the library's structured surface.
 
-No full-text conversion exists until phase 3 and no passage FTS index is
-populated until then either (catalog.py's passages_fts stays an empty
-stub) — so "evidence" search here is still metadata-only, but it now checks
-more of the structured library surface than just title/abstract/journal.
+Metadata-level only (title/abstract/ids/authors/funding, notes, project
+relevance, saved queries); ranked full-text retrieval over claims and
+passages is `ask_retrieve.py`.
 
 -scope evidence   title/abstract/journal/doi/pmcid/citekey/authors (raw/<hash>/
                     response.json's 'abstract', since meta.json never stores
@@ -24,6 +23,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
+from lib_atomic import read_json
+from lib_selector import source_badge
 
 
 def _paper_abstract(library_root: Path, pmid: str) -> str | None:
@@ -60,21 +62,16 @@ def _paper_funding(library_root: Path, pmid: str) -> list[dict]:
 
 def _paper_lifecycle(library_root: Path, pmid: str) -> str:
     paper_dir = library_root / "papers" / pmid
-    meta_path = paper_dir / "meta.json"
-    if not meta_path.exists():
-        return "missing_record"
-    meta = json.loads(meta_path.read_text())
-    raw_dir = paper_dir / "raw"
-    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
-    if has_pdf:
-        return "pdf-backed"
-    if meta.get("full_text"):
-        return "full-text"
-    if meta.get("oa_location"):
-        return "oa-pending"
-    if meta.get("abstract_available"):
-        return "abstract-only"
-    return "metadata-only"
+    meta = read_json(paper_dir / "meta.json")
+    return source_badge(paper_dir, meta) if meta else "missing_record"
+
+
+def _author_text(a: dict) -> str:
+    return a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip()
+
+
+def _funding_text(obs: dict) -> str:
+    return " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v)
 
 
 def _query_matches(library_root: Path, query: str) -> list[dict]:
@@ -121,53 +118,25 @@ def _evidence_hits(library_root: Path, query: str) -> list[dict]:
         if not meta_path.exists():
             continue
         meta = json.loads(meta_path.read_text())
-        authors = _paper_authors(library_root, pdir.name)
-        funding = _paper_funding(library_root, pdir.name)
-        title = meta.get("title") or ""
-        journal = meta.get("journal") or ""
         abstract = _paper_abstract(library_root, pdir.name) or ""
-        haystack = "\n".join([
-            title,
-            journal,
-            meta.get("doi") or "",
-            meta.get("pmcid") or "",
-            meta.get("citekey") or "",
-            abstract,
-            "\n".join(a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip() for a in authors),
-            "\n".join(
-                " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v)
-                for obs in funding
-            ),
-        ]).lower()
-        if q in haystack:
-            if q in title.lower():
-                snippet_source = title
-                field = "title"
-            elif q in (meta.get("doi") or "").lower():
-                snippet_source = meta.get("doi") or ""
-                field = "doi"
-            elif q in (meta.get("pmcid") or "").lower():
-                snippet_source = meta.get("pmcid") or ""
-                field = "pmcid"
-            elif q in (meta.get("citekey") or "").lower():
-                snippet_source = meta.get("citekey") or ""
-                field = "citekey"
-            elif any(q in (a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip()).lower() for a in authors):
-                snippet_source = next((a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip() for a in authors if q in (a.get("raw") or f"{a.get('last', '')} {a.get('first', '')}".strip()).lower()), abstract or journal)
-                field = "author"
-            elif any(
-                q in " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v).lower()
-                for obs in funding
-            ):
-                first = next(
-                    (obs for obs in funding if q in " ".join(str(v) for v in (obs.get("funder"), obs.get("award_number"), obs.get("text"), obs.get("locator")) if v).lower()),
-                    {},
-                )
-                snippet_source = " ".join(str(v) for v in (first.get("funder"), first.get("award_number"), first.get("text"), first.get("locator")) if v)
-                field = "grant"
-            else:
-                snippet_source = abstract or journal
-                field = "abstract" if q in abstract.lower() else "journal"
+        journal = meta.get("journal") or ""
+        # (field, candidate strings) in the order a hit is attributed
+        fields = [
+            ("title", [meta.get("title") or ""]),
+            ("doi", [meta.get("doi") or ""]),
+            ("pmcid", [meta.get("pmcid") or ""]),
+            ("citekey", [meta.get("citekey") or ""]),
+            ("author", [_author_text(a) for a in _paper_authors(library_root, pdir.name)]),
+            ("grant", [_funding_text(o) for o in _paper_funding(library_root, pdir.name)]),
+            ("abstract", [abstract]),
+            ("journal", [journal]),
+        ]
+        match = next(
+            ((field, text) for field, texts in fields for text in texts if text and q in text.lower()),
+            None,
+        )
+        if match:
+            field, snippet_source = match
             hits.append({
                 "kind": "evidence",
                 "pmid": pdir.name,
@@ -243,7 +212,7 @@ def main() -> int:
     hits = run(library_root, args.scope, args.q)
     print(json.dumps({"query": args.q, "scope": args.scope, "results": hits}, indent=2))
     if not hits:
-        print("(no evidence/passage index exists yet before phase 3 — this searched title/abstract/notes only)", file=sys.stderr)
+        print("(no matches; this searches metadata, notes and saved queries -- use /ref:ask for full-text retrieval)", file=sys.stderr)
     return 0
 
 

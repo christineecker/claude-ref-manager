@@ -15,7 +15,6 @@ Steps:
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/export.py" --repo <library_root> --batch <label> [selector flags...] [--refresh]
    ```
 3. Print the script's own output verbatim, including the resolved-set report (counts
-   by extraction tier / human-verification state / retraction-errata status — the
-   latter two read "not_yet_tracked" until phases 4 and 11 exist) and, on refresh,
+   by extraction tier / human-verification state / retraction-errata status) and, on refresh,
    the added/removed PMIDs.
 4. Point the user at `exports/<label>/references.bib` and `references.csl.json`.

@@ -18,10 +18,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_cite import build_exports
 from lib_selector import resolve_from_args, add_selector_args, SelectorError
 
@@ -57,7 +56,7 @@ def run_export(library_root: Path, batch: str, resolution: dict | None, refresh:
         "selector_expression": resolution["selector_expression"],
         "pmids": pmids,
         "citekeys": [c["id"] for c in csl_entries],
-        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "resolved_at": now_iso(),
         "report": resolution["report"],
     }
     atomic_write_json(manifest_path, manifest)

@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 import catalog
-from lib_selector import add_selector_args, resolve_from_args, SelectorError
+from lib_selector import add_selector_args, any_selector, resolve_from_args, SelectorError
 
 DEFAULT_CANDIDATE_BUDGET = 30
 DEFAULT_TOKEN_BUDGET = 6000
@@ -202,10 +202,9 @@ def main() -> int:
         print(f"error: no library at {library_root}", file=sys.stderr)
         return 1
 
-    selector_given = any([args.pmids, args.project, args.query, args.study, args.search, args.from_file])
     resolution = None
     try:
-        if selector_given:
+        if any_selector(args):
             resolution = resolve_from_args(library_root, args)
         result = retrieve(library_root, args.q, args.expand, resolution,
                            args.candidate_budget, args.token_budget)

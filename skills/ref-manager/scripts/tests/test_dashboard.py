@@ -151,13 +151,6 @@ class TestBuildProducesIndexAndDetails(DashboardFixture):
         )
         self.assertEqual(len(data["matrix"]), 3)
 
-    def test_projects_embedded(self):
-        dashboard.build(self.library_root)
-        data = self._embedded_data()
-        self.assertEqual(len(data["projects"]), 1)
-        self.assertEqual(data["projects"][0]["slug"], "proj-a")
-        self.assertEqual([p["pmid"] for p in data["projects"][0]["papers"]], ["55555"])
-
     def test_app_js_and_css_copied(self):
         dashboard.build(self.library_root)
         out_dir = self.library_root / "reports" / "dashboard"
@@ -314,11 +307,25 @@ class TestViewerUxWiring(DashboardFixture):
         self.assertIn("lastFocusedBeforeDrawer.focus()", self.app_js)
 
     # P1.1 -- saved views/presets, localStorage-only.
-    def test_saved_views_persist_to_local_storage_only(self):
+    def test_saved_views_removed_quick_filters_instead(self):
+        # Saved views (localStorage presets) were cut: filter state lives in the
+        # URL, so a bookmark or "Copy link" covers the same need. The toolbar
+        # carries one-click `missing:` chips in their place.
         for id_ in ("viewselect", "view-apply", "view-save", "view-rename", "view-delete"):
+            self.assertNotIn('id="' + id_ + '"', self.index_html)
+        self.assertNotIn("VIEWS_KEY", self.app_js)
+        self.assertIn('data-missing="pdf"', self.index_html)
+        self.assertIn('data-missing="fulltext"', self.index_html)
+        self.assertIn("function syncQuickFilters()", self.app_js)
+
+    def test_intake_panel_wired(self):
+        for id_ in ("intake", "intake-zone", "intake-form", "intake-text", "intake-fulltext", "intake-list", "trend-head", "trend-buckets"):
             self.assertIn('id="' + id_ + '"', self.index_html)
-        self.assertIn('localStorage.setItem(VIEWS_KEY', self.app_js)
-        self.assertNotIn("apiFetch(\"/api/views", self.app_js)  # never a server round-trip
+        self.assertNotIn('id="years"', self.index_html)  # papers-by-year chart dropped for the intake panel
+        for fn in ("function submitIntakeText(", "function submitIntakeFiles(", "function uploadIntakePdf(", "function pollIntakeJob("):
+            self.assertIn(fn, self.app_js)
+        self.assertIn('"/api/intake"', self.app_js)
+        self.assertIn('"/api/intake/pdf"', self.app_js)
 
     # P1.2 -- maintenance diff by paper.
     def test_maintenance_has_per_paper_diff(self):
@@ -389,8 +396,8 @@ class TestDashboardImprovementsWiring(DashboardFixture):
         for fn in ("function encodeViewState()", "function decodeViewState(", "function applyViewState(", "function syncUrl()"):
             self.assertIn(fn, self.app_js)
         self.assertIn("history.replaceState(null, \"\", location.pathname", self.app_js)
-        for id_ in ("view-link", "view-cmd"):
-            self.assertIn('id="' + id_ + '"', self.index_html)
+        self.assertIn('id="view-link"', self.index_html)
+        self.assertNotIn('id="view-cmd"', self.index_html)  # dropped: the --view query is the Copy link's query part
         self.assertEqual(
             re.search(r"var VIEW_PARAM_KEYS = \[(.*?)\];", self.app_js).group(1).replace('"', "").replace(" ", "").split(","),
             list(dashboard.VIEW_PARAM_KEYS),

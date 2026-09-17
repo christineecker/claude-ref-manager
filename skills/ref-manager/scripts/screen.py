@@ -19,12 +19,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, project_lock
+from lib_atomic import atomic_write_json, project_lock, now_iso, read_json
 from lib_schema import validate_screening_record, SchemaError
-from project import _project_dir, _load
+from project import _project_dir
 
 DECISIONS = ("included", "excluded", "pending")
 
@@ -36,7 +35,7 @@ def decide(library_root: Path, slug: str, pmid: str, decision: str, reason: str,
     if not pdir.is_dir():
         raise SchemaError(f"project {slug!r} does not exist")
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = now_iso()
     record = {"pmid": pmid, "decision": decision, "reason": reason, "timestamp": now}
     if run_ref:
         record["search_run"] = run_ref
@@ -50,7 +49,7 @@ def decide(library_root: Path, slug: str, pmid: str, decision: str, reason: str,
             f.write(json.dumps(record, sort_keys=True) + "\n")
 
         papers_path = pdir / "papers.yaml"
-        doc = _load(papers_path, {"papers": []})
+        doc = read_json(papers_path, {"papers": []})
         membership = next((m for m in doc["papers"] if m["pmid"] == pmid), None)
         if membership is None:
             membership = {

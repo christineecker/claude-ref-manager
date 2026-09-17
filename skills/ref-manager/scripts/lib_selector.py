@@ -5,20 +5,17 @@
 # ///
 """Selector grammar (PLAN.md §5c) — shared by every set-valued command.
 
-Not a standalone command; other scripts import `resolve()`. Implements the
-subset of §5c available before full-text/graph phases:
-  <pmid...>, --project [--question], --screened, --read/--queue,
-  --query [--run], --triage [--screened], --search, --from-file, refined by
-  --tier / --exclude.
-`--study`/`--concept` are phase 5/8 selectors — they raise a named
-NotAvailableError here rather than silently matching nothing, so callers get
-an explicit "not yet available" instead of a false empty result.
+Not a standalone command; other scripts import `resolve()`. Base sources:
+  <pmid...>, --from-file, --project [--question], --query [--run],
+  --triage [--screened], --study, --concept, --search; narrowed by
+  --screened / --read / --queue (project-scoped) and refined by
+  --tier / --exclude. `--study` resolves through the study registry,
+  `--concept` through the concept relation graph.
 
 "Resolve, report, then work" / "Freeze the resolved set" (§5c): resolve()
-always returns counts by extraction tier before any caller does real work.
-Human-verification state (phase 4 corrections) and retraction/errata status
-(phase 11 audit) don't exist as concepts yet — reported as "not_yet_tracked"
-rather than fabricated. An empty resolution is a SelectorError naming the
+always returns counts by extraction tier, human-verification state
+(corrections.json) and retraction/errata status (meta.json) before any
+caller does real work. An empty resolution is a SelectorError naming the
 selector expression, never a silent empty list.
 
 One exception to "not a standalone command": `recent()` backs the shared
@@ -37,17 +34,11 @@ import argparse
 import json
 from pathlib import Path
 
+from lib_atomic import read_json
+
 
 class SelectorError(ValueError):
     pass
-
-
-class NotAvailableError(SelectorError):
-    pass
-
-
-def _load_json(path: Path, default):
-    return json.loads(path.read_text()) if path.exists() else default
 
 
 def _all_pmids(library_root: Path) -> list[str]:
@@ -61,14 +52,14 @@ def _project_membership(library_root: Path, slug: str) -> list[dict]:
     papers_path = library_root / "projects" / slug / "papers.yaml"
     if not papers_path.exists():
         raise SelectorError(f"--project {slug!r}: no such project")
-    return _load_json(papers_path, {"papers": []})["papers"]
+    return read_json(papers_path, {"papers": []})["papers"]
 
 
 def _query_run_pmids(library_root: Path, slug: str, run_id: str | None) -> tuple[list[str], str]:
     qpath = library_root / "queries" / f"{slug}.yaml"
     if not qpath.exists():
         raise SelectorError(f"--query {slug!r}: no such saved query")
-    doc = _load_json(qpath, {"runs": []})
+    doc = read_json(qpath, {"runs": []})
     runs = doc.get("runs", [])
     if not runs:
         raise SelectorError(f"--query {slug!r}: no runs recorded yet")
@@ -114,6 +105,18 @@ def _study_pmids(library_root: Path, study_id: str) -> list[str]:
     raise SelectorError(f"--study {study_id!r}: no such study")
 
 
+def _concept_pmids(library_root: Path, concept_id: str) -> list[str]:
+    """Papers whose claims support a relation touching this concept."""
+    # local import: relation.py is only needed by --concept callers
+    import relation as relation_mod
+
+    hood = relation_mod.neighbors(library_root, concept_id)
+    rows = hood["outgoing"] + hood["incoming"]
+    if not rows:
+        raise SelectorError(f"--concept {concept_id!r}: no relations touch this concept")
+    return sorted({sc["pmid"] for r in rows for sc in r.get("supporting_claims", [])})
+
+
 def _search_pmids(library_root: Path, expr: str) -> list[str]:
     # local import to avoid a hard dependency for callers that never use --search
     import search as search_mod
@@ -122,9 +125,9 @@ def _search_pmids(library_root: Path, expr: str) -> list[str]:
     return sorted({h["pmid"] for h in hits})
 
 
-def _meta(library_root: Path, pmid: str) -> dict | None:
-    p = library_root / "papers" / pmid / "meta.json"
-    return json.loads(p.read_text()) if p.exists() else None
+def paper_meta(library_root: Path, pmid: str) -> dict | None:
+    """papers/<pmid>/meta.json, or None when the paper has no record."""
+    return read_json(library_root / "papers" / pmid / "meta.json")
 
 
 def selector_expression(**kwargs) -> str:
@@ -155,8 +158,6 @@ def resolve(
     tier: str = "any",
     exclude: list[str] | None = None,
 ) -> dict:
-    if concept is not None:
-        raise NotAvailableError("--concept is not available until phase 8 (concept graph)")
     if tier not in ("abstract", "full", "any"):
         raise SelectorError(f"--tier must be abstract|full|any, got {tier!r}")
     if (read or queue_state) and not project:
@@ -187,12 +188,15 @@ def resolve(
     elif study:
         base = _study_pmids(library_root, study)
         sources_used += 1
+    elif concept:
+        base = _concept_pmids(library_root, concept)
+        sources_used += 1
     elif search:
         base = _search_pmids(library_root, search)
         sources_used += 1
     else:
         raise SelectorError(
-            "no selector given: pass <pmid...>, --project, --query, --triage, --study, --search, or --from-file"
+            "no selector given: pass <pmid...>, --project, --query, --triage, --study, --concept, --search, or --from-file"
         )
 
     # AND-narrow by project-scoped state (only meaningful in combination with --project)
@@ -217,7 +221,7 @@ def resolve(
         base = [p for p in base if p not in exclude_set]
 
     if tier != "any":
-        base = [p for p in base if (_meta(library_root, p) or {}).get("extraction_tier") == tier]
+        base = [p for p in base if (paper_meta(library_root, p) or {}).get("extraction_tier") == tier]
 
     resolved = sorted(dict.fromkeys(base))
 
@@ -225,7 +229,8 @@ def resolve(
         pmid=" ".join(pmids) if pmids else None,
         project=project, question=question, screened=screened,
         read=read or None, queue=queue_state, query=query, run=run, triage=triage,
-        search=search, from_file=from_file, tier=tier if tier != "any" else None,
+        study=study, concept=concept, search=search, from_file=from_file,
+        tier=tier if tier != "any" else None,
         exclude=" ".join(exclude) if exclude else None,
     )
 
@@ -234,22 +239,20 @@ def resolve(
 
     tier_counts = {"abstract": 0, "full": 0, "unavailable": 0, "missing_record": 0}
     retraction_counts: dict[str, int] = {}
+    verification_counts = {"reviewed": 0, "unreviewed": 0}
     for pmid in resolved:
-        meta = _meta(library_root, pmid)
+        meta = paper_meta(library_root, pmid)
         if meta is None:
             tier_counts["missing_record"] += 1
-            retraction_counts["unknown"] = retraction_counts.get("unknown", 0) + 1
+            rstatus = "unknown"
         else:
-            tier_counts[meta.get("extraction_tier", "unavailable")] = (
-                tier_counts.get(meta.get("extraction_tier", "unavailable"), 0) + 1
-            )
-            # meta.json's retraction_status exists since phase 4's extract.py
-            # and is kept current by phase 11's /ref:audit -- report the real
-            # counts, not a placeholder (this used to hardcode
-            # "not_yet_tracked" for every PMID even though the field has been
-            # populated since phase 4).
+            tier = meta.get("extraction_tier", "unavailable")
+            tier_counts[tier] = tier_counts.get(tier, 0) + 1
             rstatus = (meta.get("retraction_status") or {}).get("status", "unknown")
-            retraction_counts[rstatus] = retraction_counts.get(rstatus, 0) + 1
+        retraction_counts[rstatus] = retraction_counts.get(rstatus, 0) + 1
+        # a paper is "reviewed" once /ref:verify has recorded any correction for it
+        has_corrections = read_json(library_root / "papers" / pmid / "corrections.json", [])
+        verification_counts["reviewed" if has_corrections else "unreviewed"] += 1
 
     return {
         "pmids": resolved,
@@ -257,7 +260,7 @@ def resolve(
         "report": {
             "count": len(resolved),
             "by_extraction_tier": tier_counts,
-            "by_human_verification_state": {"not_yet_tracked": len(resolved)},  # phase 4
+            "by_human_verification_state": verification_counts,
             "by_retraction_errata_status": retraction_counts,
         },
     }
@@ -280,6 +283,11 @@ def add_selector_args(ap) -> None:
     ap.add_argument("--concept")
     ap.add_argument("--tier", default="any", choices=["abstract", "full", "any"])
     ap.add_argument("--exclude", nargs="*", default=None)
+
+
+def any_selector(args) -> bool:
+    """True when the parsed args name any §5c selector at all."""
+    return any(getattr(args, k, None) for k in ("pmids", "project", "query", "triage", "study", "concept", "search", "from_file"))
 
 
 def resolve_from_args(library_root: Path, args) -> dict:

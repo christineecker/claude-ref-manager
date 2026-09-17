@@ -13,6 +13,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -550,17 +551,12 @@ class TestHealthSummaryKnowledgeRoutes(ServeFixture):
         issue_types = {a["type"] for a in s["top_actions"]}
         self.assertTrue(issue_types <= set(report["issues"]) | {"catalog_stale"})
 
-    def test_summary_detail_and_scopes(self):
+    def test_summary_detail_pmids(self):
         _status, s = self._get("/api/summary?detail=pmids")
         report = lint_module.lint(self.library_root)
         for a in s["top_actions"]:
             if a["type"] != "catalog_stale":
                 self.assertTrue(set(a["pmids"]) <= set(report["issues"][a["type"]]))
-        _status, by_issue = self._get("/api/summary?scope=issue")
-        self.assertEqual(by_issue["issues"], {k: sorted(v) for k, v in report["issues"].items() if v})
-        _status, by_project = self._get("/api/summary?scope=project")
-        self.assertEqual(by_project["projects"], [])
-        self.assertEqual(self._request("GET", "/api/summary?scope=nope", headers=self._auth_headers())[0], 400)
 
     def test_knowledge_payload(self):
         pdir = self.library_root / "papers" / "55555"
@@ -791,6 +787,139 @@ class TestViewQuery(unittest.TestCase):
                          "tab=insights&q=autism&issue=oa_pending")
         with self.assertRaises(ValueError):
             dashboard.view_query("q=x&token=secret")
+
+
+class TestIntakeRoutes(ServeFixture):
+    """"Add papers" panel: POST /api/intake (batch job) and /api/intake/pdf."""
+
+    PDF = b"%PDF-1.4\n% intake test\n%%EOF\n"
+
+    def setUp(self):
+        super().setUp()
+        self.fetched = []
+
+        def fetcher(pmids):
+            self.fetched.extend(pmids)
+            return [{"pmid": p, "title": f"Title {p}", "abstract": "A.", "authors": [{"last": "Doe", "first": "J", "raw": "Doe J"}],
+                     "journal": "J", "year": "2024", "doi": f"10.9/{p}", "pmcid": "PMC77" if p == "77777" else None,
+                     "grants": []} for p in pmids], []
+
+        self.httpd.intake_fetcher = fetcher
+        self.httpd.intake_resolver = lambda doi, pmcid: {"10.9/77777": "77777", "10.1/11111": "11111"}.get((doi or "").lower())
+        self.pdf_fetched = []
+
+        def pdf_fetcher(root, pmid):
+            self.pdf_fetched.append(pmid)
+            return {"pmid": pmid, "result": "attached", "conversion_status": "ok"} if pmid == "77777" else {"pmid": pmid, "result": "no_pmcid"}
+
+        self.httpd.intake_pdf_fetcher = pdf_fetcher
+        self.jats_fetched = []
+
+        def jats_fetcher(root, pmid):
+            self.jats_fetched.append(pmid)
+            return {"pmid": pmid, "result": "acquired"} if pmid == "77777" else {"pmid": pmid, "result": "no_pmcid"}
+
+        self.httpd.intake_jats_fetcher = jats_fetcher
+
+    def _post_json(self, path, payload):
+        headers = {"Content-Type": "application/json", "X-Ref-Token": self.token, "Origin": f"http://127.0.0.1:{self.port}"}
+        return self._request("POST", path, headers=headers, body=json.dumps(payload).encode("utf-8"))
+
+    def _job(self, job_id):
+        for _ in range(100):
+            job = json.loads(self._request("GET", f"/api/jobs/{job_id}", headers=self._auth_headers())[1])
+            if job["state"] != "running":
+                return job
+            time.sleep(0.05)
+        self.fail("job did not finish")
+
+    def _upload(self, data, query=""):
+        headers = {"Content-Type": "application/pdf", "X-Filename": "dropped.pdf", "X-Ref-Token": self.token,
+                   "Origin": f"http://127.0.0.1:{self.port}"}
+        status, body, _h = self._request("POST", f"/api/intake/pdf{query}", headers=headers, body=data)
+        return status, json.loads(body)
+
+    def test_validation(self):
+        self.assertEqual(self._post_json("/api/intake", {"items": []})[0], 400)
+        self.assertEqual(self._post_json("/api/intake", {"items": [1]})[0], 400)
+        self.assertEqual(self._post_json("/api/intake", [])[0], 400)
+        headers = {"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{self.port}"}
+        self.assertEqual(self._request("POST", "/api/intake", headers=headers, body=b"{}")[0], 403)
+
+    def test_text_batch_adds_new_and_tops_up_existing(self):
+        status, body, _h = self._post_json("/api/intake", {
+            "items": ["77777", "https://pubmed.ncbi.nlm.nih.gov/11111/", "https://doi.org/10.9/77777", "not a thing"],
+            "fulltext": True,
+        })
+        self.assertEqual(status, 202, body)
+        job = self._job(json.loads(body)["job_id"])
+        self.assertEqual(job["state"], "done", job)
+        by_input = {r["input"]: r for r in job["results"]}
+
+        new = by_input["77777"]
+        self.assertEqual(new["status"], "done")
+        self.assertEqual(new["title"], "Title 77777")
+        self.assertIn("added", new["steps"])
+        self.assertIn("PMC PDF attached, full text extracted", new["steps"])
+        # The fake attach wrote no version dir, so the JATS stage ran next.
+        self.assertIn("full text extracted (PMC JATS)", new["steps"])
+        self.assertTrue((self.library_root / "papers" / "77777" / "meta.json").exists())
+
+        existing = by_input["https://pubmed.ncbi.nlm.nih.gov/11111/"]
+        self.assertEqual(existing["status"], "exists")
+        self.assertIn("already in library", existing["steps"])
+        self.assertIn("no full text: not in PMC", existing["steps"])
+        self.assertNotIn("11111", self.jats_fetched)  # no PMCID: JATS never tried
+        self.assertNotIn("11111", self.fetched)  # never re-fetched, never re-added
+
+        doi = by_input["https://doi.org/10.9/77777"]
+        self.assertEqual(doi["status"], "exists")  # resolved to the paper the first item just added
+        self.assertIn("DOI matched PMID 77777", doi["steps"])
+
+        bad = by_input["not a thing"]
+        self.assertEqual(bad["status"], "failed")
+        self.assertEqual(self.fetched.count("77777"), 1)
+
+    def test_pdf_without_clues_then_pmid_then_force(self):
+        status, res = self._upload(self.PDF)
+        self.assertEqual(status, 422, res)
+        self.assertEqual(res["status"], "needs_pmid")
+
+        status, res = self._upload(self.PDF, "?pmid=11111")
+        self.assertEqual(status, 422, res)
+        self.assertEqual(res["status"], "needs_force")  # no DOI/title in the fake PDF text
+        self.assertEqual(res["pmid"], "11111")
+
+        status, res = self._upload(self.PDF, "?pmid=11111&force=1")
+        self.assertEqual(status, 200, res)
+        self.assertEqual(res["status"], "done")
+        self.assertIn("PDF attached", res["steps"])
+        self.assertTrue(res["has_pdf"])
+        raw = self.library_root / "papers" / "11111" / "raw"
+        self.assertEqual(len([p for p in raw.iterdir() if (p / "source.pdf").exists()]), 1)
+
+        # Same bytes again: recognised, nothing written.
+        status, res = self._upload(self.PDF, "?pmid=11111")
+        self.assertEqual(status, 200, res)
+        self.assertEqual(res["status"], "exists")
+        self.assertIn("this PDF is already attached", res["steps"])
+
+        # A different PDF for a paper that already has one needs an explicit replace.
+        other = self.PDF + b"% v2\n"
+        status, res = self._upload(other, "?pmid=11111")
+        self.assertEqual(status, 422, res)
+        self.assertEqual(res["status"], "needs_replace")
+        status, res = self._upload(other, "?pmid=11111&replace=1&force=1")
+        self.assertEqual(status, 200, res)
+        self.assertEqual(res["status"], "done")
+
+    def test_pdf_for_unknown_pmid_adds_the_paper_first(self):
+        status, res = self._upload(self.PDF, "?pmid=77777&force=1")
+        self.assertEqual(status, 200, res)
+        self.assertIn("metadata fetched", res["steps"])
+        self.assertIn("added", res["steps"])
+        self.assertIn("PDF attached", res["steps"])
+        self.assertEqual(res["title"], "Title 77777")
 
 
 if __name__ == "__main__":

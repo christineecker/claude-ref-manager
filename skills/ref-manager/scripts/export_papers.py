@@ -35,10 +35,10 @@ import re
 import shutil
 import sys
 import unicodedata
-from datetime import date, datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text, pmid_lock
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
+from init_repo import load_config
 from lib_cite import to_csl
 from lib_selector import resolve_from_args, add_selector_args, SelectorError
 from papers_snapshot import try_read_items, find_duplicate
@@ -290,7 +290,7 @@ def _record_note_push(library_root: Path, pmid: str, text_hash: str, batch: str)
     idx[pmid] = {
         "hash": text_hash,
         "batch": batch,
-        "pushed_at": datetime.now(timezone.utc).isoformat(),
+        "pushed_at": now_iso(),
     }
     atomic_write_json(_note_push_index_path(library_root), idx)
 
@@ -334,8 +334,7 @@ def run_export_papers(library_root: Path, args, resolution: dict) -> dict:
         dest_reason = "--to"
         default_layout = "flat"
     else:
-        cfg_path = Path.home() / ".config" / "ref-manager" / "config.json"
-        cfg = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
+        cfg = load_config() or {}
         if cfg.get("papers_export_dir"):
             dest = Path(cfg["papers_export_dir"]).expanduser()
             dest_reason = "config.json papers_export_dir"
@@ -450,7 +449,7 @@ def run_export_papers(library_root: Path, args, resolution: dict) -> dict:
         "destination_reason": dest_reason,
         "layout": layout,
         "pdfs_mode": args.pdfs,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now_iso(),
         "per_paper": {
             p["pmid"]: {
                 "citekey": p["citekey"],

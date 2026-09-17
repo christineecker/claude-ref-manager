@@ -16,18 +16,15 @@ import catalog
 from init_repo import CONFIG_PATH, load_config
 import project as project_mod
 from lib_inventory import rows as inventory_rows
-from lib_selector import recent
 
 
-def _print_recent_papers(library_root: Path, limit: int = 5) -> None:
-    rows = recent(library_root, limit=limit)
-    print(f"recent papers: {len(rows)}")
-    inv_by_pmid = {row["pmid"]: row for row in inventory_rows(library_root)}
-    for row in rows:
+def _print_recent_papers(rows: list[dict], limit: int = 5) -> None:
+    recent = sorted(rows, key=lambda r: r.get("checked_at") or "", reverse=True)[:limit]
+    print(f"recent papers: {len(recent)}")
+    for row in recent:
         pmid = row.get("pmid")
-        inv_row = inv_by_pmid.get(pmid, {})
-        source_badge = inv_row.get("source_badge") or "unknown"
-        if source_badge in {"pdf-backed", "full-text"} and inv_row.get("figures_with_image"):
+        source_badge = row.get("source_badge") or "unknown"
+        if source_badge in {"pdf-backed", "full-text"} and row.get("figures_with_image"):
             source_badge += "+figures"
 
         title = row.get("title") or "(untitled)"
@@ -222,10 +219,10 @@ def main() -> int:
     _print_source_completeness(source_counts)
     if args.verbosity == "verbose":
         _print_project_overview(library_root, limit=n_projects or 1)
-        _print_recent_papers(library_root, limit=15)
+        _print_recent_papers(rows, limit=15)
     else:
         _print_project_overview(library_root)
-        _print_recent_papers(library_root, limit=3)
+        _print_recent_papers(rows, limit=3)
     return 0
 
 

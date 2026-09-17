@@ -6,9 +6,7 @@ Run: python3 skills/ref-manager/scripts/tests/test_phase0.py
 from __future__ import annotations
 
 import json
-import os
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -66,34 +64,6 @@ class TestSlugCollision(TempLibrary):
         with self.assertRaises(lib_ids.SlugError):
             lib_ids.allocate_slug(self.library_root, "project", "thesis-ch3")
         self.assertFalse((self.library_root / "projects" / "thesis-ch3-2").exists())
-
-
-class TestRename(TempLibrary):
-    def test_rename_rewrites_and_leaves_resolving_alias(self):
-        lib_ids.allocate_slug(self.library_root, "concept", "mi")
-        lib_ids.rename_slug(self.library_root, "concept", "mi", "myocardial-infarction")
-        self.assertFalse(lib_ids.slug_exists(self.library_root, "concept", "mi") is False and False)
-        # old id still resolves
-        self.assertEqual(
-            lib_ids.resolve_slug(self.library_root, "concept", "mi"),
-            "myocardial-infarction",
-        )
-        self.assertEqual(
-            lib_ids.resolve_slug(self.library_root, "concept", "myocardial-infarction"),
-            "myocardial-infarction",
-        )
-        # new slug is taken, so allocating it again is refused
-        with self.assertRaises(lib_ids.SlugError):
-            lib_ids.allocate_slug(self.library_root, "concept", "myocardial-infarction")
-
-    def test_rename_dir_backed_slug(self):
-        proj = self.library_root / "projects" / "old-name"
-        proj.mkdir(parents=True)
-        (proj / "project.yaml").write_text("slug: old-name\n")
-        lib_ids.rename_slug(self.library_root, "project", "old-name", "new-name")
-        self.assertFalse((self.library_root / "projects" / "old-name").exists())
-        self.assertTrue((self.library_root / "projects" / "new-name").exists())
-        self.assertEqual(lib_ids.resolve_slug(self.library_root, "project", "old-name"), "new-name")
 
 
 class TestQuestionIds(unittest.TestCase):

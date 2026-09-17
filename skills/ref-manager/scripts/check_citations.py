@@ -44,10 +44,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_ids import gen_opaque_id
 from lib_cite import build_exports
 from lib_schema import validate_citation_check_finding, SchemaError
@@ -132,7 +131,7 @@ def persist_check(
     manifest = {
         "check_id": check_id,
         "project": project,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": now_iso(),
         "selector_expression": resolution["selector_expression"] if resolution else "<none>",
         "pmids_at_resolution": resolution["pmids"] if resolution else None,
         "referenced_pmids": referenced_pmids,

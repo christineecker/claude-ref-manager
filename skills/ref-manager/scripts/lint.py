@@ -13,11 +13,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import catalog
 from lib_inventory import LINT_BUCKETS, rows as inventory_rows
+from lib_atomic import now_stamp
 
 
 def lint(library_root: Path, stale_days: int = 180) -> dict:
@@ -77,7 +77,7 @@ def _print_human(report: dict) -> None:
 def _write_snapshot(library_root: Path, report: dict) -> Path:
     snapshot_dir = library_root / "maintenance"
     snapshot_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = now_stamp()
     snapshot_path = snapshot_dir / f"{stamp}.json"
     snapshot_path.write_text(json.dumps(report, indent=2) + "\n")
     return snapshot_path

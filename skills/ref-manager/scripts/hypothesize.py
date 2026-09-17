@@ -68,8 +68,6 @@ def _concept_edges(library_root: Path, concept_id: str) -> list[tuple[str, dict]
 
 def candidates(library_root: Path, concept_a: str) -> list[dict]:
     a_edges = _concept_edges(library_root, concept_a)
-    direct_c_ids = {concept_a}  # never propose A as its own candidate
-
     # chains[c_id] = list of (b_id, ab_edge, bc_edge)
     chains: dict[str, list[tuple[str, dict, dict]]] = {}
     for b_id, ab_edge in a_edges:

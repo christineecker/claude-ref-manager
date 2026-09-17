@@ -233,7 +233,7 @@
 /ref:compare --batch &lt;label&gt; [--project &lt;slug&gt;] --edit &lt;pmid&gt; &lt;column&gt; &lt;value&gt;</div>
   <h4>Arguments</h4>
   <dl class="args">
-    <dt>&lt;selector&gt;</dt><dd>Any §5c selector: <code>&lt;pmid…&gt;</code>, <code>--project</code> [<code>--question</code>], <code>--screened</code>, <code>--read</code>/<code>--queue</code>, <code>--query</code> [<code>--run</code>], <code>--study</code>, <code>--search</code>, <code>--from-file</code>, refined by <code>--tier</code>/<code>--exclude</code>. <code>--concept</code> is rejected with "not available until phase 8".</dd>
+    <dt>&lt;selector&gt;</dt><dd>Any §5c selector: <code>&lt;pmid…&gt;</code>, <code>--project</code> [<code>--question</code>], <code>--screened</code>, <code>--read</code>/<code>--queue</code>, <code>--query</code> [<code>--run</code>], <code>--study</code>, <code>--concept</code>, <code>--search</code>, <code>--from-file</code>, refined by <code>--tier</code>/<code>--exclude</code>.</dd>
     <dt>--batch &lt;label&gt;</dt><dd>Required. Names the table. Re-running without <code>--refresh</code> returns the frozen table unchanged.</dd>
     <dt>--refresh</dt><dd>Re-resolve the selector, rebuild cells, and report <code>added</code>, <code>removed</code>, <code>changed_evidence_cells</code>, and <code>retraction_status_changes</code>.</dd>
     <dt>--edit &lt;pmid&gt; &lt;column&gt; &lt;value&gt;</dt><dd>Record your own override for one cell (the script takes it as <code>--edit-pmid</code>/<code>--edit-column</code>/<code>--edit-value</code>). Pass <code>--project</code> if the table was built with one.</dd>
@@ -264,7 +264,7 @@
     "report": {
       "count": 2,
       "by_extraction_tier": {"abstract": 2, "full": 0, "unavailable": 0, "missing_record": 0},
-      "by_human_verification_state": {"not_yet_tracked": 2},
+      "by_human_verification_state": {"reviewed": 0, "unreviewed": 2},
       "by_retraction_errata_status": {"unknown": 2}
     },
     "retraction_status_snapshot": {"10000001": "unknown", "10000002": "unknown"}
@@ -315,7 +315,7 @@
   "report": {
     "count": 1,
     "by_extraction_tier": {"abstract": 1, "full": 0, "unavailable": 0, "missing_record": 0},
-    "by_human_verification_state": {"not_yet_tracked": 1},
+    "by_human_verification_state": {"reviewed": 0, "unreviewed": 1},
     "by_retraction_errata_status": {"unknown": 1}
   },
   "rows": [
@@ -377,7 +377,7 @@
     "report": {
       "count": 1,
       "by_extraction_tier": {"abstract": 1, "full": 0, "unavailable": 0, "missing_record": 0},
-      "by_human_verification_state": {"not_yet_tracked": 1},
+      "by_human_verification_state": {"reviewed": 0, "unreviewed": 1},
       "by_retraction_errata_status": {"unknown": 1}
     }
   },
@@ -663,7 +663,7 @@
     "report": {
       "count": 2,
       "by_extraction_tier": {"abstract": 2, "full": 0, "unavailable": 0, "missing_record": 0},
-      "by_human_verification_state": {"not_yet_tracked": 2},
+      "by_human_verification_state": {"reviewed": 0, "unreviewed": 2},
       "by_retraction_errata_status": {"unknown": 2}
     }
   }

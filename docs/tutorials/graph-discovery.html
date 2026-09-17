@@ -300,7 +300,7 @@
 }</span></pre>
 <p class="muted">The empty lists here only mean the scratch library has no extracted claim registries. They don't mean the evidence is robust.</p>
 <p>The dashboard shows the same findings interactively. Insights → Gaps → <em>Population × outcome</em> draws the <code>population_outcome_gap</code> query as a grid for any intervention concept, with each uncovered cell hatched and its evidencing claims one click away. Its <em>Unresolved conflicts</em> and <em>Single-study findings</em> lists mirror the other two queries. See <a href="dashboard-insights.html">Evidence insights</a>.</p>
-<div class="note warn"><strong><code>--concept</code> as a selector currently fails.</strong> The shared selector code still has an early-phase guard. <code>/ref:gaps --concept tdcs</code> raises <code>NotAvailableError: --concept is not available until phase 8 (concept graph)</code>, even though the graph exists. Use <code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--search</code> or <code>--from-file</code> instead.</div>
+<div class="note"><strong><code>--concept</code> as a selector.</strong> <code>/ref:gaps --concept tdcs</code> resolves to the papers whose claims support a relation touching <code>tdcs</code>. A concept with no relations yet gives a named selector error, so run <code>/ref:weave</code> first.</div>
 </li>
 
 <li>

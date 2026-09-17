@@ -41,20 +41,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_text, library_lock
+from lib_atomic import library_lock, now_iso, read_jsonl, write_jsonl
 from lib_ids import gen_opaque_id, SlugError
 from lib_schema import validate_relation, SchemaError, RELATION_TYPES
 
 _PATH = "graph/relations.jsonl"
 _OPPOSITE_DIRECTIONS = {("increase", "decrease"), ("decrease", "increase")}
 _COMPARABLE_FIELDS = ("comparator", "effect_measure", "timepoint", "population")
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _norm(s) -> str:
@@ -66,16 +61,11 @@ def _jsonl_path(library_root: Path) -> Path:
 
 
 def _read_all(library_root: Path) -> list[dict]:
-    p = _jsonl_path(library_root)
-    if not p.exists():
-        return []
-    return [json.loads(line) for line in p.read_text().splitlines() if line.strip()]
+    return read_jsonl(_jsonl_path(library_root))
 
 
 def _write_all(library_root: Path, rows: list[dict]) -> None:
-    text = "\n".join(json.dumps(r, sort_keys=True) for r in rows)
-    text += "\n" if rows else ""
-    atomic_write_text(_jsonl_path(library_root), text)
+    write_jsonl(_jsonl_path(library_root), rows)
 
 
 def comparable(claim_a: dict, claim_b: dict) -> tuple[bool, list[str]]:
@@ -127,7 +117,7 @@ def create_relation(library_root: Path, rel_type: str, subject_concept_id: str, 
             "create it as 'potential_conflict' (or another type) first, then "
             "promote via review_relation() with an explicit rationale (§4a)"
         )
-    now = _now()
+    now = now_iso()
     row = {
         "relation_id": gen_opaque_id("rel-"), "type": rel_type,
         "subject_concept_id": subject_concept_id, "object_concept_id": object_concept_id,
@@ -164,9 +154,9 @@ def review_relation(library_root: Path, relation_id: str, new_type: str, reviewe
         target["review_state"] = "reviewed"
         target["rationale"] = rationale
         target["reviewer"] = reviewer
-        target["reviewed_at"] = _now()
+        target["reviewed_at"] = now_iso()
         target["stale"] = False
-        target["updated_at"] = _now()
+        target["updated_at"] = now_iso()
         validate_relation(target)
         _write_all(library_root, rows)
         return target
@@ -205,7 +195,7 @@ def refresh_relations(library_root: Path) -> dict:
             if not all_active and not row["stale"]:
                 row["stale"] = True
                 row["stale_reason"] = "one or more supporting claims are no longer active (superseded or excluded)"
-                row["updated_at"] = _now()
+                row["updated_at"] = now_iso()
                 went_stale.append(row["relation_id"])
         _write_all(library_root, rows)
     return {"relations_checked": len(rows), "went_stale": went_stale}

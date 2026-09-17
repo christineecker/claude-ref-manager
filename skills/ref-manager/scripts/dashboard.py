@@ -24,7 +24,9 @@ text-layer highlighting, and notes -- both write straight through
 `note.py append()` / `highlight.py add()`/`remove()` (each holds
 `pmid_lock()`). Both modes are read-only except those two write paths --
 plus the PDF upload (`POST /api/paper/<pmid>/pdf`), which goes through
-`attach.attach_pdf_bytes()` (the same commit path as `/ref:attach`) --
+`attach.attach_pdf_bytes()` (the same commit path as `/ref:attach`) and the
+"Add papers" intake (`POST /api/intake`, `POST /api/intake/pdf`), which goes
+through `intake_pipeline.py` (add.py / attach.py / fetch.py commit paths) --
 nothing else in this module or its handler ever writes to the library.
 
 `/api/health`, `/api/summary` and `/api/knowledge` are read-only models
@@ -53,6 +55,7 @@ from pathlib import Path
 import attach as attach_module
 import dashboard_insights
 import highlight as highlight_module
+import intake_pipeline
 import lib_intake
 import lib_inventory
 import lint as lint_module
@@ -60,6 +63,7 @@ import list as list_cli  # noqa: A004 -- reuse the /ref:list coverage-matrix cel
 import note as note_module
 import triage as triage_module
 from lib_ids import SlugError, validate_slug
+from lib_atomic import now_iso
 
 ASSETS_DIR = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -100,6 +104,11 @@ TRIAGE_JOB_KINDS = ("pdf", "full_text")
 # DASHBOARD_IMPROVEMENTS_IMPLEMENTATION_PLAN.md §5 (drop-in PDF upload)
 MAX_PDF_BYTES = 64 * 1024 * 1024
 MAX_UPLOAD_NAME = 200
+
+# "Add papers" intake panel: text items go through one background job,
+# dropped PDFs one synchronous request each (intake_pipeline.py).
+MAX_INTAKE_BODY_BYTES = 64 * 1024
+MAX_INTAKE_ITEMS = 100
 
 # Keys a shared view link may carry (§1); `serve --view` accepts only these.
 VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops")
@@ -187,6 +196,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             self._serve_static_file(ASSETS_DIR / path[1:], "application/javascript")
         elif path == "/app.css":
             self._serve_static_file(ASSETS_DIR / "app.css", "text/css")
+        elif path == "/icon.svg":
+            self._serve_static_file(ASSETS_DIR / "icon.svg", "image/svg+xml")
         elif path == "/vendor/pdfjs/pdf.min.js":
             self._serve_static_file(ASSETS_DIR / "vendor" / "pdfjs" / "pdf.min.js", "application/javascript")
         elif path == "/vendor/pdfjs/pdf.worker.min.js":
@@ -243,7 +254,7 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         data = {
             "live": True,
             "library_root": str(self.library_root),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": now_iso(),
         }
         rendered = template.replace("/*__DASHBOARD_DATA__*/", _escape_for_script_tag(data))
         self._send_bytes(rendered.encode("utf-8"), "text/html; charset=utf-8")
@@ -257,15 +268,8 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         self._send_bytes(body, content_type)
 
     def _serve_matrix(self) -> None:
-        """`/api/matrix` (§7 live-mode gap): the coverage matrix, computed
-        the same way the static build does at build time -- reusing
-        `list.py`'s `_matrix_row()`/`MATRIX_COLUMNS` over `rows()` rather
-        than reimplementing the cell semantics (§1.2 "one inventory")."""
-        rows = lib_inventory.rows(self.library_root)
-        self._send_json({
-            "columns": list(list_cli.MATRIX_COLUMNS),
-            "rows": [list_cli._matrix_row(r) for r in rows],
-        })
+        """`/api/matrix`: the coverage matrix, the same cells the static build inlines."""
+        self._send_json(_matrix(lib_inventory.rows(self.library_root)))
 
     def _serve_health(self) -> None:
         root = self.library_root
@@ -275,26 +279,16 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             cache["rows"] = lib_inventory.rows(root)
             return cache["rows"]
 
-        def matrix():
-            base = cache.get("rows")
-            if base is None:
-                base = lib_inventory.rows(root)
-            return {"columns": list(list_cli.MATRIX_COLUMNS), "rows": [list_cli._matrix_row(r) for r in base]}
-
         body, status = dashboard_insights.health(root, {
-            "rows": rows,
+            "rows": rows,  # health() runs loaders in this order, so matrix() sees the cached rows
             "lint": lambda: lint_module.lint(root),
-            "matrix": matrix,
+            "matrix": lambda: _matrix(cache.get("rows") or lib_inventory.rows(root)),
             "snapshots": lambda: _read_snapshots(root),
         })
         self._send_json(body, status=status)
 
     def _serve_summary(self) -> None:
         query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
-        scope = (query.get("scope") or [None])[0]
-        if scope not in (None, "project", "issue"):
-            self._reject(400, "scope must be project or issue")
-            return
         include_pmids = (query.get("detail") or [None])[0] == "pmids"
         rows = lib_inventory.rows(self.library_root)
         sources = {"rows": "ok", "lint": "ok", "snapshots": "ok"}
@@ -309,7 +303,7 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             snapshots = []
             sources["snapshots"] = f"error: {type(e).__name__}: {e}"
         self._send_json(dashboard_insights.summary(
-            rows, report, snapshots, scope=scope, include_pmids=include_pmids, data_sources=sources,
+            rows, report, snapshots, include_pmids=include_pmids, data_sources=sources,
         ))
 
     def _serve_detail(self, raw_pmid: str) -> None:
@@ -413,8 +407,95 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path.startswith("/api/triage/"):
             if self._check_token():
                 self._post_triage(path[len("/api/triage/"):].rstrip("/"))
+        elif path == "/api/intake":
+            if self._check_token():
+                self._post_intake()
+        elif path == "/api/intake/pdf":
+            if self._check_token():
+                self._post_intake_pdf()
         else:
             self._reject(404, "not found")
+
+    # --------------------------------------------------------------- intake
+
+    def _post_intake(self) -> None:
+        """`{items: [str], fulltext: bool}` -> 202 `{job_id}`; poll /api/jobs/<id>.
+        Each item's result lands in the job's `results` as it finishes."""
+        payload = self._read_json_body(MAX_INTAKE_BODY_BYTES)
+        if payload is None:
+            return
+        if not isinstance(payload, dict):
+            self._reject(400, "body must be an object")
+            return
+        items = payload.get("items")
+        if not isinstance(items, list) or not items or len(items) > MAX_INTAKE_ITEMS:
+            self._reject(400, f"items must be a non-empty list of at most {MAX_INTAKE_ITEMS} strings")
+            return
+        if not all(isinstance(i, str) and i.strip() and len(i) <= 2000 for i in items):
+            self._reject(400, "every item must be a non-empty string")
+            return
+        fulltext = payload.get("fulltext", True) is not False
+        root = self.library_root
+        fetcher = self.server.intake_fetcher  # type: ignore[attr-defined]
+        resolver = self.server.intake_resolver  # type: ignore[attr-defined]
+        pdf_fetcher = self.server.intake_pdf_fetcher  # type: ignore[attr-defined]
+        jats_fetcher = self.server.intake_jats_fetcher  # type: ignore[attr-defined]
+        cleaned = list(dict.fromkeys(i.strip() for i in items))
+
+        def work(progress):
+            for raw in cleaned:
+                try:
+                    res = intake_pipeline.intake_text(root, raw, fulltext=fulltext, fetcher=fetcher,
+                                                      resolver=resolver, pdf_fetcher=pdf_fetcher,
+                                                      jats_fetcher=jats_fetcher)
+                except Exception as e:  # noqa: BLE001 -- one bad item must not sink the batch
+                    res = {"input": raw, "status": "failed", "steps": [], "error": str(e)}
+                progress(res)
+
+        self._start_job("intake:" + secrets.token_hex(4), "intake", len(cleaned), work)
+
+    def _post_intake_pdf(self) -> None:
+        """Raw application/pdf body (+ X-Filename) -> intake_pipeline.intake_pdf.
+        `?pmid=` answers a `needs_pmid` result, `?replace=1` / `?force=1` the
+        `needs_replace` / `needs_force` ones."""
+        content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if content_type != "application/pdf":
+            self._reject(415, "Content-Type must be application/pdf")
+            return
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self._reject(411, "Content-Length required")
+            return
+        if length <= 0:
+            self._reject(400, "empty upload")
+            return
+        if length > MAX_PDF_BYTES:
+            self._reject(413, f"PDF larger than {MAX_PDF_BYTES // (1024 * 1024)} MB")
+            return
+        data = self.rfile.read(length)
+        if len(data) != length or not data.startswith(b"%PDF-"):
+            self._reject(415, "not a PDF file (missing %PDF- header)")
+            return
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        pmid = (query.get("pmid") or [""])[0].strip()
+        if pmid and not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        replace = (query.get("replace") or [""])[0] == "1"
+        force = (query.get("force") or [""])[0] == "1"
+        name = urllib.parse.unquote(self.headers.get("X-Filename") or "")
+        name = re.sub(r"[\x00-\x1f/\\]", "_", name).strip()[:MAX_UPLOAD_NAME] or "upload.pdf"
+        try:
+            res = intake_pipeline.intake_pdf(
+                self.library_root, data, name, pmid_override=pmid or None, replace=replace, force=force,
+                fetcher=self.server.intake_fetcher,  # type: ignore[attr-defined]
+                resolver=self.server.intake_resolver,  # type: ignore[attr-defined]
+            )
+        except Exception as e:  # noqa: BLE001 -- surfaced to the page, never kills the server
+            self._send_json({"input": name, "kind": "pdf", "status": "failed", "steps": [], "error": str(e)}, status=500)
+            return
+        self._send_json(res, status=200 if res["status"] in ("done", "exists") else 422)
 
     def do_DELETE(self) -> None:  # noqa: N802 -- stdlib method name
         port = self.server.server_address[1]
@@ -737,7 +818,7 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             job_id = secrets.token_hex(8)
             job = {"id": job_id, "slug": slug, "kind": kind, "state": "running",
                    "total": total, "done": 0, "results": [], "error": None,
-                   "started_at": datetime.now(timezone.utc).isoformat()}
+                   "started_at": now_iso()}
             registry["jobs"][job_id] = job
 
         def progress(result: dict) -> None:
@@ -800,11 +881,11 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         pass  # keep the terminal clean; the one line serve() prints is the launch URL
 
 
-def build_server(library_root: Path, *, port: int = 0, token: str | None = None) -> http.server.ThreadingHTTPServer:
+def build_server(library_root: Path, *, port: int = 0) -> http.server.ThreadingHTTPServer:
     """Construct (but don't start) the loopback dashboard server. Exposed
     separately from `serve()` so tests can start/stop it on an ephemeral
     port without going through `serve_forever()`/`webbrowser.open()`."""
-    token = token or secrets.token_urlsafe(24)
+    token = secrets.token_urlsafe(24)
 
     class _BoundHandler(_DashboardHandler):
         pass
@@ -820,6 +901,11 @@ def build_server(library_root: Path, *, port: int = 0, token: str | None = None)
     # None = the real NCBI efetch / PMC OA downloaders; tests swap in fakes.
     httpd.triage_fetcher = None  # type: ignore[attr-defined]
     httpd.triage_pdf_fetcher = None  # type: ignore[attr-defined]
+    # Same idea for the intake panel (intake_pipeline.py): None = real NCBI/PMC.
+    httpd.intake_fetcher = None  # type: ignore[attr-defined]
+    httpd.intake_resolver = None  # type: ignore[attr-defined]
+    httpd.intake_pdf_fetcher = None  # type: ignore[attr-defined]
+    httpd.intake_jats_fetcher = None  # type: ignore[attr-defined]
     return httpd
 
 
@@ -854,6 +940,12 @@ def serve(library_root: Path, *, port: int = 0, open_browser: bool = False, tria
         httpd.server_close()
 
 
+def _matrix(rows: list[dict]) -> dict:
+    """Coverage matrix over `rows()`, reusing `list.py`'s cell semantics
+    (§1.2 "one inventory") for both the live API and the static build."""
+    return {"columns": list(list_cli.MATRIX_COLUMNS), "rows": [list_cli._matrix_row(r) for r in rows]}
+
+
 def _escape_for_script_tag(payload: object) -> str:
     """`json.dumps` with `</` neutralised so embedding inside an inline
     `<script>` tag can't be broken out of by a `</script>` (or any other
@@ -885,49 +977,24 @@ def _read_snapshots(library_root: Path) -> list[dict]:
     return out
 
 
-def _project_summaries(rows: list[dict]) -> list[dict]:
-    """One entry per project slug, aggregated from `rows()`'s `projects[]`
-    membership -- `dashboard.py` has no project API of its own to keep to
-    "one inventory, never re-derived" (§1.2)."""
-    projects: dict[str, list[dict]] = {}
-    for row in rows:
-        for p in row.get("projects") or []:
-            slug = p.get("slug")
-            if not slug:
-                continue
-            projects.setdefault(slug, []).append({
-                "pmid": row["pmid"],
-                "title": row["title"],
-                "reading_status": p.get("reading_status"),
-                "added_at": p.get("added_at"),
-                "has_fulltext": row["has_fulltext"],
-                "claims_active": row["claims_active"],
-            })
-    out = []
-    for slug, papers in sorted(projects.items()):
-        papers.sort(key=lambda p: p["pmid"])
-        out.append({"slug": slug, "papers": papers})
-    return out
-
-
 def _build_into(staging: Path, library_root: Path) -> None:
     """Populate `staging` with the full dashboard. Raises (and leaves
     `staging` for the caller to clean up) rather than promoting anything
     on any failure -- see `build()`'s atomicity contract."""
     rows = lib_inventory.rows(library_root)
     report = lint_module.lint(library_root)
-    matrix_rows = [list_cli._matrix_row(r) for r in rows]
+    matrix = _matrix(rows)
+    snapshots = _read_snapshots(library_root)
 
     data = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_iso(),
         "library_root": str(library_root),
         "rows": rows,
         "lint": report,
-        "matrix_columns": list(list_cli.MATRIX_COLUMNS),
-        "matrix": matrix_rows,
-        "snapshots": _read_snapshots(library_root),
-        "projects": _project_summaries(rows),
-        "summary": dashboard_insights.summary(rows, report, _read_snapshots(library_root), include_pmids=True),
+        "matrix_columns": matrix["columns"],
+        "matrix": matrix["rows"],
+        "snapshots": snapshots,
+        "summary": dashboard_insights.summary(rows, report, snapshots, include_pmids=True),
         "knowledge": dashboard_insights.knowledge(library_root, rows),
     }
 
@@ -941,6 +1008,7 @@ def _build_into(staging: Path, library_root: Path) -> None:
     shutil.copyfile(ASSETS_DIR / "app.js", staging / "app.js")
     shutil.copyfile(ASSETS_DIR / "insights.js", staging / "insights.js")
     shutil.copyfile(ASSETS_DIR / "app.css", staging / "app.css")
+    shutil.copyfile(ASSETS_DIR / "icon.svg", staging / "icon.svg")
 
     details_dir = staging / "details"
     details_dir.mkdir(parents=True, exist_ok=True)

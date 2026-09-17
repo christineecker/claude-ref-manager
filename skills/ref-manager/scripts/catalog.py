@@ -50,16 +50,10 @@ import re
 import sqlite3
 import sys
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import catalog_lock
-
-CLAIM_NORMALIZED_FIELDS = (
-    "population", "intervention", "comparator", "outcome", "timepoint",
-    "direction", "effect_value", "effect_measure", "uncertainty_interval",
-    "study_design", "cohort_identity", "adjustment_context",
-)
+from lib_atomic import catalog_lock, current_version, now_iso
+from lib_schema import CLAIM_NORMALIZED_FIELDS
 
 SCHEMA = """
 CREATE TABLE papers (
@@ -95,18 +89,6 @@ CREATE VIRTUAL TABLE claims_fts USING fts5(
     claim_id UNINDEXED, pmid UNINDEXED, text, tokenize='porter'
 );
 
--- extension point (phase 8+): concepts / relations
-CREATE TABLE concepts (
-    concept_id TEXT PRIMARY KEY,
-    name TEXT
-);
-CREATE TABLE relations (
-    relation_id TEXT PRIMARY KEY,
-    src_concept TEXT,
-    dst_concept TEXT,
-    kind TEXT
-);
-
 CREATE TABLE catalog_meta (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -118,13 +100,6 @@ def _db_path(library_root: Path) -> Path:
     return library_root / "index" / "catalog.sqlite"
 
 
-def _current_version(pdir: Path) -> str | None:
-    current_path = pdir / "current.json"
-    if not current_path.exists():
-        return None
-    return json.loads(current_path.read_text()).get("version")
-
-
 def fingerprint(library_root: Path) -> str:
     """Hash of (path, size, mtime) for every file rebuild() reads."""
     h = hashlib.sha256()
@@ -134,7 +109,7 @@ def fingerprint(library_root: Path) -> str:
     for pdir in sorted(p for p in papers_dir.iterdir() if p.is_dir()):
         paths = [pdir / "meta.json", pdir / "current.json", pdir / "claim_registry.json"]
         try:
-            version_id = _current_version(pdir)
+            version_id = current_version(pdir)
         except (OSError, ValueError):
             version_id = None
         if version_id:
@@ -213,7 +188,7 @@ def rebuild(library_root: Path) -> dict:
             with contextlib.closing(sqlite3.connect(tmp_path)) as conn:
                 conn.executescript(SCHEMA)
                 result = _populate(conn, library_root)
-                meta = {**result, "fingerprint": fp, "built_at": datetime.now(timezone.utc).isoformat()}
+                meta = {**result, "fingerprint": fp, "built_at": now_iso()}
                 conn.executemany(
                     "INSERT OR REPLACE INTO catalog_meta (key, value) VALUES (?, ?)",
                     [(k, str(v)) for k, v in meta.items()],
@@ -250,7 +225,7 @@ def _populate(conn: sqlite3.Connection, library_root: Path) -> dict:
             )
             n_papers += 1
 
-            version_id = _current_version(pdir)
+            version_id = current_version(pdir)
             if version_id:
                 source_path = pdir / "versions" / version_id / "source.md"
                 if source_path.exists():
@@ -296,7 +271,7 @@ def _populate(conn: sqlite3.Connection, library_root: Path) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["rebuild", "init"])
+    ap.add_argument("action", choices=["rebuild"])
     ap.add_argument("--repo", required=True)
     args = ap.parse_args()
 

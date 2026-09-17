@@ -6,7 +6,6 @@ Run: python3 skills/ref-manager/scripts/tests/test_phase9_related.py
 """
 from __future__ import annotations
 
-import json
 import shutil
 import sys
 import tempfile
@@ -19,7 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 import add  # noqa: E402
 import init_repo  # noqa: E402
 import related  # noqa: E402
-from lib_atomic import atomic_write_json, atomic_write_text, commit_version  # noqa: E402
+from lib_atomic import atomic_write_text, commit_version  # noqa: E402
 
 
 def author(last, first):

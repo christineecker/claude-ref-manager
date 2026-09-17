@@ -29,6 +29,7 @@ import xml.etree.ElementTree as ET
 import init_repo
 
 EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+ESEARCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 TOOL = "ref-manager"
 CHUNK = 100
 TIMEOUT = 30
@@ -65,12 +66,12 @@ def _throttle(api_key: str | None) -> None:
         _last_request[0] = time.monotonic()
 
 
-def _post(params: dict, api_key: str | None) -> bytes:
+def _post(params: dict, api_key: str | None, url: str = EFETCH_URL) -> bytes:
     data = urllib.parse.urlencode(params).encode("ascii")
     last_error: Exception | None = None
     for attempt in range(2):
         _throttle(api_key)
-        req = urllib.request.Request(EFETCH_URL, data=data, method="POST")
+        req = urllib.request.Request(url, data=data, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
                 return resp.read()
@@ -101,6 +102,32 @@ def efetch_pubmed(pmids: list[str], *, email: str, api_key: str | None = None) -
     records = [by_pmid[p] for p in pmids if p in by_pmid]
     missing = [p for p in pmids if p not in by_pmid]
     return records, missing
+
+
+def esearch_pubmed(term: str, *, email: str, api_key: str | None = None) -> list[str]:
+    """`esearch` for one fielded term (e.g. `10.1000/x[doi]`, `PMC12345[pmcid]`);
+    returns the PMIDs NCBI matched, in its order."""
+    params = {"db": "pubmed", "retmode": "xml", "term": term, "retmax": "5", "tool": TOOL, "email": email}
+    if api_key:
+        params["api_key"] = api_key
+    root = ET.fromstring(_post(params, api_key, ESEARCH_URL))
+    return [_text(node) for node in root.iterfind("./IdList/Id") if _text(node)]
+
+
+def resolve_to_pmid(*, doi: str | None = None, pmcid: str | None = None, email: str, api_key: str | None = None) -> str | None:
+    """Best-effort DOI / PMCID -> PMID via `esearch`. DOI first (the stronger
+    identity), then PMCID. None when neither matches exactly one record."""
+    if doi:
+        hits = esearch_pubmed(f"{doi}[doi]", email=email, api_key=api_key)
+        if len(hits) == 1:
+            return hits[0]
+    if pmcid:
+        digits = re.sub(r"(?i)^PMC", "", pmcid.strip())
+        if digits.isdigit():
+            hits = esearch_pubmed(f"PMC{digits}[pmcid]", email=email, api_key=api_key)
+            if len(hits) == 1:
+                return hits[0]
+    return None
 
 
 def _text(node: ET.Element | None) -> str:

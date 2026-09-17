@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
+from lib_atomic import atomic_write_json, now_iso
 from lib_ids import allocate_slug, SlugError
 from lib_schema import validate_person, SchemaError
 
@@ -74,7 +74,6 @@ def reject_publication(library_root: Path, slug: str, pmid: str) -> dict:
 def add_candidates(library_root: Path, slug: str, query_text: str, candidates: list[dict]) -> dict:
     """Persist a /ref:discover run: exact query, retrieval date, candidates
     (§3c "Portfolio discovery"). Rejected pmids are never re-suggested."""
-    from datetime import datetime, timezone
 
     person = show(library_root, slug)
     rejected = set(person.get("rejected_publications", []))
@@ -83,7 +82,7 @@ def add_candidates(library_root: Path, slug: str, query_text: str, candidates: l
     new_candidates = [c for c in candidates if c["pmid"] not in rejected and c["pmid"] not in confirmed]
     person["discovery_runs"].append({
         "query": query_text,
-        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "retrieved_at": now_iso(),
         "candidate_count": len(new_candidates),
     })
     existing_pmids = {c["pmid"] for c in person["candidate_publications"]}

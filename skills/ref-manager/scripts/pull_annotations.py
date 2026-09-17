@@ -41,10 +41,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, pmid_lock
+from lib_atomic import atomic_write_json, pmid_lock, now_iso
 from papers_snapshot import try_read_items, find_duplicate
 
 
@@ -129,7 +128,7 @@ def pull(library_root: Path, pmid: str, papers_db_path: Path | None) -> dict:
 
         # tombstone: any locally-known papers-sourced annotation no longer
         # present upstream this pull.
-        now = datetime.now(timezone.utc).isoformat()
+        now = now_iso()
         for aid, rec in existing.items():
             if rec.get("source") != "papers":
                 continue

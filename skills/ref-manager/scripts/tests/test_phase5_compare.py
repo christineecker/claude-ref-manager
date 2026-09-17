@@ -6,7 +6,6 @@ Run: python3 skills/ref-manager/scripts/tests/test_phase5_compare.py
 """
 from __future__ import annotations
 
-import json
 import shutil
 import sys
 import tempfile
@@ -25,7 +24,7 @@ import compare  # noqa: E402
 import methods  # noqa: E402
 import init_repo  # noqa: E402
 from lib_ids import SlugError  # noqa: E402
-from lib_selector import resolve, SelectorError  # noqa: E402
+from lib_selector import resolve  # noqa: E402
 
 
 def author(last, first):

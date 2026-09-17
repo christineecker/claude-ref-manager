@@ -42,16 +42,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_text
+from lib_atomic import atomic_write_text, now_iso, read_jsonl
 
 ACTOR = "process:ref-manager-okf-emit"
 
 
 def _now(now: str | None) -> str:
-    return now or datetime.now(timezone.utc).isoformat()
+    return now or now_iso()
 
 
 def _fm(d: dict) -> str:
@@ -85,12 +84,6 @@ def _fm(d: dict) -> str:
             lines.append(f"{k}: {json.dumps(v) if isinstance(v, str) else v}")
     lines.append("---")
     return "\n".join(lines) + "\n"
-
-
-def _read_jsonl(p: Path) -> list[dict]:
-    if not p.exists():
-        return []
-    return [json.loads(line) for line in p.read_text().splitlines() if line.strip()]
 
 
 def _write_concept(okf_root: Path, concept: dict, relations: list[dict] | None, now: str) -> None:
@@ -211,9 +204,9 @@ def emit(library_root: Path, now: str | None = None) -> dict:
     okf_root = library_root / "okf"
     okf_root.mkdir(parents=True, exist_ok=True)
 
-    concepts = _read_jsonl(library_root / "graph" / "concepts.jsonl")
+    concepts = read_jsonl(library_root / "graph" / "concepts.jsonl")
     relations_path = library_root / "graph" / "relations.jsonl"
-    relations = _read_jsonl(relations_path) if relations_path.exists() else None
+    relations = read_jsonl(relations_path) if relations_path.exists() else None
 
     for c in sorted(concepts, key=lambda c: c["concept_id"]):
         _write_concept(okf_root, c, relations, now)

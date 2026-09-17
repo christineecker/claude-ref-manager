@@ -37,12 +37,12 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_ids import gen_opaque_id
 from lib_status_check import diff_status
+from lib_verify_link import withdrawn_evidence
 
 
 def _key_dir(library_root: Path, project: str | None, key: str) -> Path:
@@ -74,26 +74,6 @@ def _evidence_hash(candidates: list[dict]) -> str:
     return hashlib.sha256(json.dumps(ids, sort_keys=True).encode()).hexdigest()
 
 
-def _withdrawn_evidence(library_root: Path, prior_evidence: list[dict]) -> list[dict]:
-    from lib_verify_link import load_registry  # local import, same precedent as extract.py/compare.py
-
-    withdrawn = []
-    for e in prior_evidence:
-        if e.get("kind") != "claim":
-            continue
-        registry = load_registry(library_root, e["pmid"])
-        entry = registry["claims"].get(e["claim_id"])
-        if entry is None:
-            withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"], "reason": "claim_id not found"})
-        elif entry.get("status") != "active":
-            withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"],
-                               "reason": f"status={entry.get('status')} (superseded)"})
-        elif entry.get("excluded_from_synthesis"):
-            withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"],
-                               "reason": "excluded_from_synthesis (rejected via /ref:verify)"})
-    return withdrawn
-
-
 def save_brief(
     library_root: Path, project: str | None, key: str, question: str,
     resolution: dict | None, candidates: list[dict], answer: str,
@@ -116,7 +96,7 @@ def save_brief(
         pdir = _snapshot_dir(library_root, project, key, latest_id)
         prior_evidence = json.loads((pdir / "evidence.json").read_text())
 
-    withdrawn = _withdrawn_evidence(library_root, prior_evidence) if latest_id else []
+    withdrawn = withdrawn_evidence(library_root, prior_evidence) if latest_id else []
     new_claim_ids = {c["claim_id"] for c in candidates if c.get("kind") == "claim"}
     prior_claim_ids = {e["claim_id"] for e in prior_evidence if e.get("kind") == "claim"}
     added_support = sorted(new_claim_ids - prior_claim_ids)
@@ -141,7 +121,7 @@ def save_brief(
         "snapshot_id": snapshot_id, "key": key, "project": project, "question": question,
         "selector_expression": resolution["selector_expression"] if resolution else "<all>",
         "pmids_at_resolution": resolution["pmids"] if resolution else None,
-        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "resolved_at": now_iso(),
         "unresolved_questions": unresolved_questions or [],
         "evidence_hash": evidence_hash,
         "provenance": {
@@ -178,7 +158,7 @@ def edit_brief(library_root: Path, project: str | None, key: str, revision_text:
     edits = {
         "revision": revision_text,
         "based_on_evidence_hash": manifest["evidence_hash"],
-        "edited_at": datetime.now(timezone.utc).isoformat(),
+        "edited_at": now_iso(),
         "stale": False,
     }
     atomic_write_json(_edits_path(library_root, project, key), edits)

@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import pmid_lock
+from lib_atomic import pmid_lock, now_iso
 
 
 def notes_path(library_root: Path, pmid: str) -> Path:
@@ -24,7 +23,7 @@ def append(library_root: Path, pmid: str, text: str) -> Path:
     path = notes_path(library_root, pmid)
     if not path.parent.is_dir():
         raise FileNotFoundError(f"pmid {pmid!r} not found — add it first via /ref:add")
-    stamp = datetime.now(timezone.utc).isoformat()
+    stamp = now_iso()
     with pmid_lock(library_root, pmid):
         with path.open("a", encoding="utf-8") as f:
             f.write(f"\n---\n{stamp}\n\n{text}\n")

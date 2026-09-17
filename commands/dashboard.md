@@ -20,8 +20,8 @@ Parse `$ARGUMENTS` for:
 - `--port <n>` — serve mode only. Fixed port instead of an OS-assigned one.
 - `--open` — open the dashboard in the default browser after it's ready
   (built index.html for `--static`; the served URL for `serve`).
-- `--view '<query>'` — serve mode only. Reopen a shared view: the string a
-  "Copy as command" button produced (e.g. `tab=insights&project=foo`). Only
+- `--view '<query>'` — serve mode only. Reopen a shared view: the query part
+  of a "Copy link" URL (e.g. `tab=insights&project=foo`). Only
   `tab`, `q`, `project`, `issue`, `source`, `missing`, `sort`, `insight`,
   `center`, `hops` are accepted.
 
@@ -85,8 +85,15 @@ Notes (static mode, `--static`):
 
 Both modes:
 
-- Filters, sort, tab and Insights view live in the URL ("Copy link" /
-  "Copy as command"); saved views stay in browser storage.
+- Filters, sort, tab and Insights view live in the URL ("Copy link"); the
+  toolbar's `missing: pdf` / `missing: full-text` chips are one-click filters.
+- Serve mode only: the **Add papers** panel takes dropped PDFs, PMIDs, DOIs
+  and PubMed/PMC/DOI links (drop or paste). Each item is resolved to a PMID,
+  checked against the library (an existing paper is never re-added, only
+  topped up), added via `add.py` when new, the dropped PDF attached via
+  `attach.py`, and full text pulled from PMC (OA PDF, then JATS via
+  `fetch.py`) when missing. Server routes: `POST /api/intake` (batch job)
+  and `POST /api/intake/pdf`; logic in `intake_pipeline.py`.
 - Selecting rows builds `/ref:fetch` / `/ref:extract` / `/ref:fetch-pdf` /
   `/ref:audit` commands (copy each or all, `c`) and exports PMIDs or CSV
   (`e`) — only selected rows the current filters show.

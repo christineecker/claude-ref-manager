@@ -54,12 +54,6 @@ from pathlib import Path
 from lib_atomic import atomic_write_text
 
 
-def _read_jsonl_or_empty(p: Path) -> list[dict]:
-    if not p.exists():
-        return []
-    return [json.loads(line) for line in p.read_text().splitlines() if line.strip()]
-
-
 def _load_grants(library_root: Path) -> list[dict]:
     d = library_root / "grants"
     if not d.is_dir():

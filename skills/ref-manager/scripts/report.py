@@ -26,7 +26,7 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 import publications as pub_mod
 from audit import latest_real_observation
 
@@ -133,8 +133,8 @@ def generate(library_root: Path, person_slug: str, since: str, until: str, label
             )
     else:
         md_lines += [
-            f"| PMID | Year | Role | Title | Tier |",
-            f"|---|---|---|---|---|",
+            "| PMID | Year | Role | Title | Tier |",
+            "|---|---|---|---|---|",
         ]
         for r in rows:
             md_lines.append(f"| {r['pmid']} | {r['year']} | {r['author_role']} | {r['title']} | {r['extraction_tier']} |")
@@ -156,7 +156,7 @@ def generate(library_root: Path, person_slug: str, since: str, until: str, label
         "identity_review_policy": IDENTITY_REVIEW_POLICY,
         "dedup_policy": DEDUP_POLICY,
         "publication_count": len(rows),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_iso(),
         "includes_citations": include_citations,
     }
     if include_citations:

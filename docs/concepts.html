@@ -507,11 +507,11 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
   "report": {
     "count": 12,
     "by_extraction_tier": {"abstract": 0, "full": 12, "unavailable": 0, "missing_record": 0},
-    "by_human_verification_state": {"not_yet_tracked": 12},
+    "by_human_verification_state": {"reviewed": 3, "unreviewed": 9},
     "by_retraction_errata_status": {"none": 11, "unknown": 1}
   }
 }</pre>
-<div class="note warn"><strong>Current limits in the code.</strong> <code>--concept</code> is accepted by the parser, but <code>resolve()</code> raises <code>NotAvailableError</code> (<em>"--concept is not available until phase 8"</em>). <code>/ref:hypothesize</code> has its own <code>--concept</code> flag instead. <code>--question</code> is accepted but does not narrow membership. <code>by_human_verification_state</code> is always reported as <code>not_yet_tracked</code>. <code>audit.py</code> is the one command that treats an empty selector as "the whole library".</div>
+<div class="note warn"><strong>Current limits in the code.</strong> <code>--concept &lt;slug&gt;</code> selects the papers whose claims support a relation touching that concept, so a concept with no relations yet resolves to a named error. <code>/ref:hypothesize</code> has its own <code>--concept</code> flag instead. <code>--question</code> is accepted but does not narrow membership. <code>by_human_verification_state</code> counts a paper as <code>reviewed</code> once any <code>/ref:verify</code> correction exists for it. <code>audit.py</code> is the one command that treats an empty selector as "the whole library".</div>
 </section>
 
 <!-- ============================================================ -->

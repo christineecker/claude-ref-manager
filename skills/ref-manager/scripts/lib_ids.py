@@ -15,7 +15,6 @@ Two ID classes:
 from __future__ import annotations
 
 import json
-import os
 import re
 import secrets
 from pathlib import Path
@@ -36,7 +35,7 @@ _SLUG_LAYOUT = {
     "grant": ("grants/{slug}.json", "file"),
     # registry kinds: existence is tracked in index/aliases/<kind>.json
     # (studies.jsonl / concepts.jsonl are the authoritative records; the
-    # alias index here is only a fast slug->exists lookup + rename log).
+    # alias index here is only a fast slug->exists lookup).
     "study": ("studies/studies.jsonl", "registry"),
     "dataset": ("studies/datasets.jsonl", "registry"),
     "method": ("studies/methods.jsonl", "registry"),
@@ -46,6 +45,12 @@ _SLUG_LAYOUT = {
 
 class SlugError(ValueError):
     pass
+
+
+def normalize_title(title: str | None) -> str:
+    """Lowercased alphanumeric words only -- the fuzzy-identity key add.py
+    and attach.py use to spot the same paper under a different id."""
+    return re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).strip()
 
 
 def validate_slug(slug: str) -> None:
@@ -103,40 +108,6 @@ def allocate_slug(library_root: Path, kind: str, slug: str) -> None:
                 raise SlugError(_conflict_record_info(library_root, kind, slug))
             idx["live"][slug] = slug
             atomic_write_json(_alias_index_path(library_root, kind), idx)
-
-
-def rename_slug(library_root: Path, kind: str, old: str, new: str) -> None:
-    """Explicit rename: rewrites the record's own path/registry key under the
-    library lock and records `old` as a resolving alias to `new`."""
-    validate_slug(new)
-    if not slug_exists(library_root, kind, old):
-        raise SlugError(f"{kind} {old!r} does not exist")
-    if slug_exists(library_root, kind, new):
-        raise SlugError(_conflict_record_info(library_root, kind, new))
-    template, mode = _SLUG_LAYOUT[kind]
-    with library_lock(library_root):
-        if mode in ("dir", "file"):
-            src = library_root / template.format(slug=old)
-            dst = library_root / template.format(slug=new)
-            src.rename(dst)
-        idx = _load_alias_index(library_root, kind)
-        idx["live"].pop(old, None)
-        idx["live"][new] = new
-        idx["aliases"][old] = new
-        atomic_write_json(_alias_index_path(library_root, kind), idx)
-
-
-def resolve_slug(library_root: Path, kind: str, slug: str) -> str:
-    """Resolve a possibly-renamed slug to its current live slug."""
-    idx = _load_alias_index(library_root, kind)
-    if slug in idx["live"]:
-        return slug
-    seen = set()
-    cur = slug
-    while cur in idx["aliases"] and cur not in seen:
-        seen.add(cur)
-        cur = idx["aliases"][cur]
-    return cur
 
 
 def check_question_id(project_yaml: dict, question_id: str) -> None:

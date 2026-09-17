@@ -2,20 +2,21 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Shared linkage between extract.py and verify.py (§3b overlay rules).
+"""Claim registry + corrections overlay access (§3b overlay rules).
 
-Split into its own module (not folded into either extract.py or verify.py)
-because both need it: extract.py calls revalidate_corrections() right after
+One home for reading papers/<pmid>/claim_registry.json and corrections.json
+and for the derived views every consumer needs: `active_claims()` (appraise,
+compare, methods, gaps, summarize) and `withdrawn_evidence()` (brief,
+summarize refresh). extract.py calls revalidate_corrections() right after
 committing a new extraction pass (to catch corrections whose target claim
 just got superseded), and verify.py calls it too when applying a new
 correction (so a stale claim_id can't be corrected as if it were current).
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
+from lib_atomic import atomic_write_json, read_json
 
 
 def corrections_path(library_root: Path, pmid: str) -> Path:
@@ -27,15 +28,41 @@ def registry_path(library_root: Path, pmid: str) -> Path:
 
 
 def load_corrections(library_root: Path, pmid: str) -> list[dict]:
-    p = corrections_path(library_root, pmid)
-    return json.loads(p.read_text()) if p.exists() else []
+    return read_json(corrections_path(library_root, pmid), [])
 
 
 def load_registry(library_root: Path, pmid: str) -> dict:
-    p = registry_path(library_root, pmid)
-    if p.exists():
-        return json.loads(p.read_text())
-    return {"claims": {}, "by_locator": {}}
+    return read_json(registry_path(library_root, pmid), {"claims": {}, "by_locator": {}})
+
+
+def active_claims(library_root: Path, pmid: str, *, for_synthesis: bool = False) -> list[dict]:
+    """A paper's currently active claims. `for_synthesis=True` also drops
+    claims a /ref:verify reject excluded from synthesis (gap analysis and
+    retrieval want that; appraisal/comparison views show them)."""
+    claims = [c for c in load_registry(library_root, pmid).get("claims", {}).values() if c.get("status") == "active"]
+    if for_synthesis:
+        claims = [c for c in claims if not c.get("excluded_from_synthesis")]
+    return claims
+
+
+def withdrawn_evidence(library_root: Path, prior_evidence: list[dict]) -> list[dict]:
+    """Claim candidates of a frozen artifact (brief/summary) that are no
+    longer usable: missing, superseded, or rejected since it was written."""
+    withdrawn = []
+    for e in prior_evidence:
+        if e.get("kind") != "claim":
+            continue
+        entry = load_registry(library_root, e["pmid"])["claims"].get(e["claim_id"])
+        if entry is None:
+            reason = "claim_id not found"
+        elif entry.get("status") != "active":
+            reason = f"status={entry.get('status')} (superseded)"
+        elif entry.get("excluded_from_synthesis"):
+            reason = "excluded_from_synthesis (rejected via /ref:verify)"
+        else:
+            continue
+        withdrawn.append({"claim_id": e["claim_id"], "pmid": e["pmid"], "reason": reason})
+    return withdrawn
 
 
 def revalidate_corrections(library_root: Path, pmid: str) -> list[dict]:

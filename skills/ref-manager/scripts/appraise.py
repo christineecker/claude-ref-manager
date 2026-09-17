@@ -55,23 +55,12 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
-from lib_selector import resolve_from_args, add_selector_args, SelectorError
-from lib_verify_link import load_registry, load_corrections
+from lib_atomic import atomic_write_json, now_iso
+from lib_selector import resolve_from_args, add_selector_args, SelectorError, paper_meta
+from lib_verify_link import load_corrections, active_claims
 from relation import list_relations
-
-
-def _meta(library_root: Path, pmid: str) -> dict | None:
-    p = library_root / "papers" / pmid / "meta.json"
-    return json.loads(p.read_text()) if p.exists() else None
-
-
-def _active_claims(library_root: Path, pmid: str) -> list[dict]:
-    registry = load_registry(library_root, pmid)
-    return [c for c in registry.get("claims", {}).values() if c.get("status") == "active"]
 
 
 def _study_type(claims: list[dict]) -> str:
@@ -190,7 +179,6 @@ AMSTAR2_ITEMS = (
 
 
 def amstar2_appraisal(claims: list[dict]) -> dict:
-    text = " ".join(c.get("evidence_span") or "" for c in claims)
     items = {}
     for key, critical, pattern in AMSTAR2_ITEMS:
         hits = [c["claim_id"] for c in claims if re.search(pattern, c.get("evidence_span") or "", re.I)]
@@ -265,13 +253,13 @@ def merge_appraisal_review(library_root: Path, pmid: str, draft: dict) -> dict:
 
 
 def draft_appraisal_for_pmid(library_root: Path, pmid: str) -> dict:
-    meta = _meta(library_root, pmid) or {}
+    meta = paper_meta(library_root, pmid) or {}
     if meta.get("extraction_tier") != "full":
         return {
             "pmid": pmid, "checklist": None, "insufficient_information": True,
             "reason": f"extraction_tier={meta.get('extraction_tier')!r} -- full text required for appraisal",
         }
-    claims = _active_claims(library_root, pmid)
+    claims = active_claims(library_root, pmid)
     study_type = _study_type(claims)
     fn = CHECKLIST_BY_STUDY_TYPE.get(study_type)
     if fn is None:
@@ -336,7 +324,7 @@ def appraisal_signal(a: dict) -> dict:
 def grade_certainty(library_root: Path, pmids: list[str], appraisals: dict[str, dict]) -> dict:
     all_claims = []
     for pmid in pmids:
-        all_claims.extend(_active_claims(library_root, pmid))
+        all_claims.extend(active_claims(library_root, pmid))
 
     study_types = {c.get("study_type", "unknown") for c in all_claims}
     baseline = "high" if study_types and study_types <= {"rct"} else "low"
@@ -468,7 +456,7 @@ def run_review(library_root: Path, batch: str, project: str | None,
     manifest = {
         "batch": batch, "project": project,
         "selector_expression": resolution["selector_expression"],
-        "pmids": pmids, "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "pmids": pmids, "resolved_at": now_iso(),
         "report": resolution["report"],
     }
     atomic_write_json(manifest_path, manifest)

@@ -19,11 +19,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
+from lib_atomic import atomic_write_json, now_iso, read_json
 from lib_ids import allocate_slug, check_question_id, SlugError
+from lib_selector import source_badge
 from lib_schema import validate_project, SchemaError
 
 READING_STATES = ("to_screen", "to_read", "reading", "read")
@@ -82,27 +82,10 @@ def _project_dir(library_root: Path, slug: str) -> Path:
     return library_root / "projects" / slug
 
 
-def _load(path: Path, default):
-    return json.loads(path.read_text()) if path.exists() else default
-
-
 def _paper_source_badge(library_root: Path, pmid: str) -> str:
     paper_dir = library_root / "papers" / pmid
-    meta_path = paper_dir / "meta.json"
-    if not meta_path.exists():
-        return "metadata-only"
-    meta = json.loads(meta_path.read_text())
-    raw_dir = paper_dir / "raw"
-    has_pdf = raw_dir.is_dir() and any((p / "source.pdf").exists() for p in raw_dir.iterdir() if p.is_dir())
-    if has_pdf:
-        return "pdf-backed"
-    if meta.get("full_text"):
-        return "full-text"
-    if meta.get("oa_location"):
-        return "oa-pending"
-    if meta.get("abstract_available"):
-        return "abstract-only"
-    return "metadata-only"
+    meta = read_json(paper_dir / "meta.json")
+    return source_badge(paper_dir, meta) if meta else "metadata-only"
 
 
 def _paper_source_counts(library_root: Path, papers: list[dict]) -> dict[str, int]:
@@ -158,7 +141,7 @@ def add_paper(
     if reading_status is not None and reading_status not in READING_STATES:
         raise SchemaError(f"reading_status must be one of {READING_STATES}")
 
-    doc = _load(papers_path, {"papers": []})
+    doc = read_json(papers_path, {"papers": []})
     for m in doc["papers"]:
         if m["pmid"] == pmid:
             return m  # already a member; membership references a paper once (§3b)
@@ -170,7 +153,7 @@ def add_paper(
         "reading_status": reading_status,
         "why_saved": None,
         "screening": None,
-        "added_at": datetime.now(timezone.utc).isoformat(),
+        "added_at": now_iso(),
     }
     doc["papers"].append(membership)
     atomic_write_json(papers_path, doc)
@@ -243,7 +226,7 @@ def show(library_root: Path, slug: str) -> dict:
     project_path = pdir / "project.yaml"
     if not project_path.exists():
         raise SlugError(f"project {slug!r} does not exist")
-    papers_doc = _load(pdir / "papers.yaml", {"papers": []})
+    papers_doc = read_json(pdir / "papers.yaml", {"papers": []})
     papers = papers_doc.get("papers", [])
     reading = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
     for paper in papers:
@@ -274,7 +257,7 @@ def list_projects(library_root: Path) -> list[dict]:
             if p.exists():
                 proj = json.loads(p.read_text())
                 papers_path = pdir / "papers.yaml"
-                papers_doc = _load(papers_path, {"papers": []}) if papers_path.exists() else {"papers": []}
+                papers_doc = read_json(papers_path, {"papers": []}) if papers_path.exists() else {"papers": []}
                 papers = papers_doc.get("papers", [])
                 reading = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
                 for paper in papers:

@@ -33,11 +33,10 @@ import hashlib
 import json
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, pmid_lock
-from lib_ids import allocate_citekey
+from lib_atomic import atomic_write_json, pmid_lock, now_iso
+from lib_ids import allocate_citekey, normalize_title
 from lib_schema import validate_meta, SchemaError
 
 
@@ -53,16 +52,12 @@ def _first_author_lastname(authors: list) -> str:
     return a.get("last") or (a.get("raw") or "anon").split()[0]
 
 
-def _normalize_title(title: str | None) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).strip()
-
-
 def _flag_doi_title_conflicts(library_root: Path, pmid: str, doi: str | None, title: str) -> list[str]:
     warnings = []
     papers_dir = library_root / "papers"
     if not papers_dir.is_dir():
         return warnings
-    title_norm = _normalize_title(title)
+    title_norm = normalize_title(title)
     for pdir in papers_dir.iterdir():
         if pdir.name == pmid:
             continue
@@ -71,7 +66,7 @@ def _flag_doi_title_conflicts(library_root: Path, pmid: str, doi: str | None, ti
             continue
         other = json.loads(meta_path.read_text())
         other_doi = other.get("doi")
-        other_title_norm = _normalize_title(other.get("title"))
+        other_title_norm = normalize_title(other.get("title"))
         other_pmid = other.get("pmid") or pdir.name
         if doi and other_doi and other_doi == doi:
             warnings.append(
@@ -117,7 +112,7 @@ def add_one(library_root: Path, record: dict) -> dict:
         )
 
         extraction_tier = "abstract" if abstract else "unavailable"
-        now = datetime.now(timezone.utc).isoformat()
+        now = now_iso()
 
         meta = {
             "pmid": pmid,

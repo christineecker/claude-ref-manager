@@ -454,12 +454,12 @@ persisting at five-year follow-up [^99100003], but a larger consortium sample fo
     "report": {
       "count": 3,
       "by_extraction_tier": { "abstract": 2, "full": 1, "unavailable": 0, "missing_record": 0 },
-      "by_human_verification_state": { "not_yet_tracked": 3 },
+      "by_human_verification_state": { "reviewed": 1, "unreviewed": 2 },
       "by_retraction_errata_status": { "none": 2, "unknown": 1 }
     }
   }
 }</span></pre>
-<p>Cite the papers in your manuscript as <code>@moreno2021increased</code> and so on (<a href="../commands/write.html#cite"><code>/ref:cite</code></a> prints the key for any PMID), and point your writing tool at <code>exports/ch3-bib/references.bib</code>. The report shows that one included paper has retraction status <code>unknown</code>. Before submitting, <a href="../commands/maintain.html#audit"><code>/ref:audit</code></a> can refresh that status. The verification-state count still reads <code>not_yet_tracked</code> in this version, even after the reviews in step 6.</p>
+<p>Cite the papers in your manuscript as <code>@moreno2021increased</code> and so on (<a href="../commands/write.html#cite"><code>/ref:cite</code></a> prints the key for any PMID), and point your writing tool at <code>exports/ch3-bib/references.bib</code>. The report shows that one included paper has retraction status <code>unknown</code>. Before submitting, <a href="../commands/maintain.html#audit"><code>/ref:audit</code></a> can refresh that status. The verification-state count shows the paper reviewed in step 6.</p>
 </li>
 
 </ol>

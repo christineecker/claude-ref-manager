@@ -9,7 +9,6 @@ no library is configured (see status.py / any command doc)."""
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 from lib_atomic import atomic_write_json

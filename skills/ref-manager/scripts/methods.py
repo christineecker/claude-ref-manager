@@ -23,17 +23,12 @@ import sys
 from pathlib import Path
 
 from lib_selector import resolve_from_args, add_selector_args, SelectorError
-from lib_verify_link import load_registry
+from lib_verify_link import active_claims
 import study as study_mod
 
 
-def _active_claims(library_root: Path, pmid: str) -> list[dict]:
-    registry = load_registry(library_root, pmid)
-    return [c for c in registry.get("claims", {}).values() if c.get("status") == "active"]
-
-
 def methods_for_pmid(library_root: Path, pmid: str) -> dict:
-    claims = _active_claims(library_root, pmid)
+    claims = active_claims(library_root, pmid)
 
     designs = sorted({c["study_design"] for c in claims if c.get("study_design", "unknown") != "unknown"})
     adjustments = sorted({c["adjustment_context"] for c in claims if c.get("adjustment_context", "unknown") != "unknown"})

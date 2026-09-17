@@ -50,24 +50,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from concept import find_concept, list_concepts  # noqa: E402
+from concept import list_concepts  # noqa: E402
 from relation import list_relations  # noqa: E402
 from study import study_for_pmid  # noqa: E402
 import lib_selector  # noqa: E402
 from lib_schema import clean_claim_value  # noqa: E402
+from lib_verify_link import active_claims  # noqa: E402
 
 
 def _active_claims(library_root: Path, pmids: list[str]) -> list[dict]:
-    out = []
-    for pmid in pmids:
-        reg_path = library_root / "papers" / pmid / "claim_registry.json"
-        if not reg_path.exists():
-            continue
-        reg = json.loads(reg_path.read_text())
-        for c in reg["claims"].values():
-            if c.get("status") == "active" and not c.get("excluded_from_synthesis"):
-                out.append(c)
-    return out
+    return [c for pmid in pmids for c in active_claims(library_root, pmid, for_synthesis=True)]
 
 
 def single_study_fragile(library_root: Path, pmids: list[str]) -> list[dict]:

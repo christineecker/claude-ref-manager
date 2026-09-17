@@ -170,11 +170,11 @@
     <tr><td>--question &lt;qid&gt;</td><td>accepted and recorded in the expression</td><td>does not narrow membership in the current code</td></tr>
     <tr><td>--tier abstract|full|any</td><td>filters on <code>meta.json</code> <code>extraction_tier</code></td><td>default <code>any</code></td></tr>
     <tr><td>--exclude &lt;pmid…&gt;</td><td>removes PMIDs from the result</td><td></td></tr>
-    <tr><td>--concept &lt;id&gt;</td><td>raises “not available until phase 8”</td><td>not wired to the graph yet</td></tr>
+    <tr><td>--concept &lt;id&gt;</td><td>papers whose claims support a relation touching this concept</td><td>graph/relations.jsonl</td></tr>
   </tbody>
 </table>
 </div>
-<p class="muted">Only one base source is used, in this order: PMIDs, <code>--from-file</code>, <code>--project</code>, <code>--query</code>, <code>--study</code>, <code>--search</code>. The state filters then narrow it (AND). Human-verification counts are still reported as <code>not_yet_tracked</code>. In <code>ask_retrieve.py</code>, <code>--concept</code> on its own does not count as a selector, so retrieval runs across the whole library.</p>
+<p class="muted">Only one base source is used, in this order: PMIDs, <code>--from-file</code>, <code>--project</code>, <code>--query</code>, <code>--triage</code>, <code>--study</code>, <code>--concept</code>, <code>--search</code>. The state filters then narrow it (AND). Human-verification counts report <code>reviewed</code> (any <code>/ref:verify</code> correction on file) vs <code>unreviewed</code>.</p>
 </section>
 
 <section>

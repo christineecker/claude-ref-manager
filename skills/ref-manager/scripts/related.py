@@ -52,14 +52,9 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, pmid_lock
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from lib_atomic import atomic_write_json, pmid_lock, now_iso
 
 
 def _related_path(library_root: Path, pmid: str) -> Path:
@@ -121,7 +116,7 @@ def backward(library_root: Path, pmid: str) -> dict:
     if not candidates:
         return {"available": True, "candidates": [], "note": "References heading found but no citation lines extracted"}
 
-    now = _now()
+    now = now_iso()
     rows = [
         {
             "candidate": c, "resolved": False, "direction": "backward",
@@ -134,7 +129,7 @@ def backward(library_root: Path, pmid: str) -> dict:
 
 
 def forward(library_root: Path, pmid: str, link_type: str, result_pmids: list[str], query_params: dict) -> dict:
-    now = _now()
+    now = now_iso()
     rows = []
     for cand in result_pmids:
         rows.append({

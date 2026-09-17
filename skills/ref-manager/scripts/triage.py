@@ -31,7 +31,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import add as add_module
@@ -39,7 +38,7 @@ import lib_eutils
 import lib_inventory
 import project as project_module
 import screen as screen_module
-from lib_atomic import atomic_write_json, triage_lock
+from lib_atomic import atomic_write_json, triage_lock, now_iso, read_json
 from lib_ids import SlugError, validate_slug
 from lib_schema import SchemaError
 
@@ -54,19 +53,9 @@ class TriageError(Exception):
     pass
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def _dir(library_root: Path, slug: str) -> Path:
     validate_slug(slug)
     return library_root / "triage" / slug
-
-
-def _read_json(path: Path, default):
-    if not path.exists():
-        return default
-    return json.loads(path.read_text())
 
 
 def _query_doc(library_root: Path, slug: str) -> dict:
@@ -142,7 +131,7 @@ def init(library_root: Path, slug: str, project: str | None = None) -> dict:
                 )
             created = False
         else:
-            now = _now()
+            now = now_iso()
             atomic_write_json(d / "triage.json", {
                 "slug": slug, "project": project, "created_at": now,
                 "project_linked_at": now if project else None,
@@ -240,7 +229,7 @@ def load_batch(library_root: Path, slug: str, size: int = BATCH_SIZE,
         while (d / f"batch-{n:04d}.json").exists():
             n += 1
         atomic_write_json(d / f"batch-{n:04d}.json", {
-            "batch": n, "loaded_at": _now(), "source": "ncbi_efetch",
+            "batch": n, "loaded_at": now_iso(), "source": "ncbi_efetch",
             "records": records, "missing": missing,
         })
     _, remaining = next_unloaded(library_root, slug, 0)
@@ -318,7 +307,7 @@ def decide(library_root: Path, slug: str, pmids: list[str], decision: str,
                 )
             _append_decision(library_root, slug, {
                 "pmid": pmid, "decision": decision, "reason": reason,
-                "timestamp": _now(), "run_id": run_id, "origin": origin,
+                "timestamp": now_iso(), "run_id": run_id, "origin": origin,
             })
             out["result"] = "recorded"
         except (TriageError, SchemaError, SlugError, ValueError, KeyError, OSError) as e:
@@ -352,7 +341,7 @@ def link(library_root: Path, slug: str, project: str | None) -> dict:
     with triage_lock(library_root, slug):
         tri = load(library_root, slug)
         tri["project"] = project
-        tri["project_linked_at"] = _now() if project else None
+        tri["project_linked_at"] = now_iso() if project else None
         atomic_write_json(_dir(library_root, slug) / "triage.json", tri)
     return {"slug": slug, "project": project, "replayed": replayed, "failed": failed}
 
@@ -361,16 +350,16 @@ def link(library_root: Path, slug: str, project: str | None) -> dict:
 
 
 def pending(library_root: Path, slug: str) -> dict[str, dict]:
-    return _read_json(_dir(library_root, slug) / "pending.json", {})
+    return read_json(_dir(library_root, slug) / "pending.json", {})
 
 
 def queue_pending(library_root: Path, slug: str, items: dict[str, str], kind: str = "full_text") -> dict:
     """items: pmid -> why."""
     p = _dir(library_root, slug) / "pending.json"
     with triage_lock(library_root, slug):
-        doc = _read_json(p, {})
+        doc = read_json(p, {})
         for pmid, why in items.items():
-            doc[pmid] = {"kind": kind, "why": why, "queued_at": _now()}
+            doc[pmid] = {"kind": kind, "why": why, "queued_at": now_iso()}
         atomic_write_json(p, doc)
     return doc
 
@@ -378,7 +367,7 @@ def queue_pending(library_root: Path, slug: str, items: dict[str, str], kind: st
 def clear_pending(library_root: Path, slug: str, pmids: list[str]) -> dict:
     p = _dir(library_root, slug) / "pending.json"
     with triage_lock(library_root, slug):
-        doc = _read_json(p, {})
+        doc = read_json(p, {})
         cleared = [x for x in pmids if doc.pop(x, None) is not None]
         atomic_write_json(p, doc)
     return {"cleared": cleared, "remaining": sorted(doc)}

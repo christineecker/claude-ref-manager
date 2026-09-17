@@ -41,12 +41,12 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, commit_version, pmid_lock
+from lib_atomic import atomic_write_json, commit_version, pmid_lock, now_iso
 from lib_ids import gen_opaque_id
 from lib_schema import validate_claim, SchemaError, CLAIM_NORMALIZED_FIELDS, STUDY_TYPES
+from lib_verify_link import load_registry, registry_path, revalidate_corrections
 
 SCHEMA_VERSION = "phase4-v1"
 
@@ -55,17 +55,6 @@ def _content_hash(claim: dict) -> str:
     payload = {f: claim.get(f, "unknown") for f in CLAIM_NORMALIZED_FIELDS}
     payload["study_type"] = claim.get("study_type", "unknown")
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
-
-
-def _registry_path(paper_dir: Path) -> Path:
-    return paper_dir / "claim_registry.json"
-
-
-def _load_registry(paper_dir: Path) -> dict:
-    p = _registry_path(paper_dir)
-    if p.exists():
-        return json.loads(p.read_text())
-    return {"claims": {}}
 
 
 def assign_claim_ids(registry: dict, incoming_claims: list[dict], study_type: str) -> list[dict]:
@@ -151,7 +140,7 @@ def extract_one(library_root: Path, record: dict, schema_stamps: dict) -> dict:
         source_hash = record.get("source_hash") or ""
         evidence_tier = record.get("evidence_tier") or ("full" if meta.get("full_text") else "abstract")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = now_iso()
         version_id = gen_opaque_id("v-")
 
         # normalize + validate each incoming claim BEFORE touching the
@@ -174,7 +163,7 @@ def extract_one(library_root: Path, record: dict, schema_stamps: dict) -> dict:
             validate_claim(provisional)
             normalized.append(claim)
 
-        registry = _load_registry(paper_dir)
+        registry = load_registry(library_root, pmid)
         committed_claims = assign_claim_ids(registry, normalized, study_type)
         for c in committed_claims:
             c["version_id"] = version_id
@@ -197,7 +186,7 @@ def extract_one(library_root: Path, record: dict, schema_stamps: dict) -> dict:
             atomic_write_json(staging / "manifest.json", manifest)
 
         commit_version(paper_dir, version_id, write_fn)
-        atomic_write_json(_registry_path(paper_dir), registry)
+        atomic_write_json(registry_path(library_root, pmid), registry)
 
         # extraction_tier promotion is monotonic: abstract -> full, never
         # downgraded by a thinner rerun (D4).
@@ -215,8 +204,6 @@ def extract_one(library_root: Path, record: dict, schema_stamps: dict) -> dict:
             meta.setdefault("retraction_status", {"status": "unknown", "source": None, "checked_at": None})
 
         atomic_write_json(meta_path, meta)
-
-    from lib_verify_link import revalidate_corrections  # local import avoids a cycle at module load
 
     revalidate_corrections(library_root, pmid)
 

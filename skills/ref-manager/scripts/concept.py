@@ -32,18 +32,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_text, library_lock
+from lib_atomic import library_lock, now_iso, read_jsonl, write_jsonl
 from lib_ids import allocate_slug, SlugError
 from lib_schema import validate_concept, SchemaError
 
 _PATH = "graph/concepts.jsonl"
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _norm(s: str) -> str:
@@ -55,16 +50,11 @@ def _jsonl_path(library_root: Path) -> Path:
 
 
 def _read_all(library_root: Path) -> list[dict]:
-    p = _jsonl_path(library_root)
-    if not p.exists():
-        return []
-    return [json.loads(line) for line in p.read_text().splitlines() if line.strip()]
+    return read_jsonl(_jsonl_path(library_root))
 
 
 def _write_all(library_root: Path, rows: list[dict]) -> None:
-    text = "\n".join(json.dumps(r, sort_keys=True) for r in rows)
-    text += "\n" if rows else ""
-    atomic_write_text(_jsonl_path(library_root), text)
+    write_jsonl(_jsonl_path(library_root), rows)
 
 
 def find_concept(library_root: Path, name_or_alias: str) -> dict | None:
@@ -90,7 +80,7 @@ def create_concept(library_root: Path, concept_id: str, name: str,
             "instead of minting a duplicate"
         )
     allocate_slug(library_root, "concept", concept_id)
-    now = _now()
+    now = now_iso()
     row = {
         "concept_id": concept_id, "name": name, "aliases": [],
         "alias_provenance": {}, "created_at": now, "updated_at": now,
@@ -137,8 +127,8 @@ def add_alias(library_root: Path, concept_id: str, alias: str, source: str) -> d
                 )
 
         target["aliases"].append(alias)
-        target["alias_provenance"][alias] = {"source": source, "added_at": _now()}
-        target["updated_at"] = _now()
+        target["alias_provenance"][alias] = {"source": source, "added_at": now_iso()}
+        target["updated_at"] = now_iso()
         validate_concept(target)
         _write_all(library_root, rows)
         return target

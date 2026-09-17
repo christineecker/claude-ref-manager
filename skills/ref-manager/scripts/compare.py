@@ -42,12 +42,11 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
+from lib_atomic import atomic_write_json, now_iso
 from lib_selector import resolve_from_args, add_selector_args, SelectorError
-from lib_verify_link import load_registry
+from lib_verify_link import active_claims
 from lib_status_check import current_status, diff_status
 import study as study_mod
 
@@ -63,11 +62,6 @@ CLAIM_COLUMNS = {
 UNMAPPED_COLUMNS = ("methods", "sample_size", "limitations", "relevance")
 ALL_COLUMNS = ("population", "design", "methods", "sample_size", "comparator",
                 "results", "uncertainty", "limitations", "relevance")
-
-
-def _active_claims(library_root: Path, pmid: str) -> list[dict]:
-    registry = load_registry(library_root, pmid)
-    return [c for c in registry.get("claims", {}).values() if c.get("status") == "active"]
 
 
 def _results_cell(claims: list[dict]) -> dict:
@@ -138,7 +132,7 @@ def _methods_cell(library_root: Path, pmid: str) -> dict:
 
 
 def build_cells(library_root: Path, pmid: str, project: str | None) -> dict:
-    claims = _active_claims(library_root, pmid)
+    claims = active_claims(library_root, pmid)
     cells = {}
     if not claims:
         for col in ("population", "design", "comparator", "results", "uncertainty"):
@@ -255,7 +249,7 @@ def run_compare(library_root: Path, batch: str, project: str | None,
         "selector_expression": resolution["selector_expression"],
         "pmids": pmids,
         "project": project,
-        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "resolved_at": now_iso(),
         "report": resolution["report"],
         # Phase 11: snapshot current status per PMID so the NEXT refresh can
         # detect a retraction-status change against this frozen version.
@@ -292,7 +286,7 @@ def edit_cell(library_root: Path, batch: str, project: str | None, pmid: str, co
     edits[key] = {
         "value": value,
         "based_on_cell_hash": _cell_hash(current_cell),
-        "edited_at": datetime.now(timezone.utc).isoformat(),
+        "edited_at": now_iso(),
         "stale": False,
     }
     atomic_write_json(edits_path, edits)

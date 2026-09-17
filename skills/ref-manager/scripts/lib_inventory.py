@@ -31,8 +31,17 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from lib_atomic import current_version
 import catalog
 from lib_selector import has_pdf, source_badge
+
+
+def _current_version(pdir: Path) -> str | None:
+    """Tolerant `lib_atomic.current_version`: a malformed current.json reads as no version."""
+    try:
+        return current_version(pdir)
+    except ValueError:
+        return None
 
 STALE_DAYS_DEFAULT = 180
 
@@ -79,16 +88,6 @@ def _parse_iso(ts: str | None) -> datetime | None:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
-
-
-def _current_version(pdir: Path) -> str | None:
-    current_path = pdir / "current.json"
-    if not current_path.exists():
-        return None
-    obj = _load_json(current_path)
-    if not isinstance(obj, dict):
-        return None
-    return obj.get("version")
 
 
 def lint_flags(

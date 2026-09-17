@@ -18,15 +18,13 @@ status string per PMID against the CURRENT live value in meta.json.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from lib_selector import paper_meta
 
 
 def current_status(library_root: Path, pmid: str) -> str:
-    meta_path = library_root / "papers" / pmid / "meta.json"
-    if not meta_path.exists():
-        return "unknown"
-    meta = json.loads(meta_path.read_text())
+    meta = paper_meta(library_root, pmid) or {}
     return (meta.get("retraction_status") or {}).get("status", "unknown")
 
 

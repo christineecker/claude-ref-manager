@@ -17,8 +17,8 @@ import json
 import sys
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
-from project import READING_STATES, _paper_source_counts, _project_dir, _load
+from lib_atomic import atomic_write_json, read_json
+from project import READING_STATES, _paper_source_counts, _project_dir
 from lib_schema import SchemaError
 
 
@@ -32,7 +32,7 @@ def set_state(
     if status is not None and status not in READING_STATES:
         raise SchemaError(f"status must be one of {READING_STATES}")
 
-    doc = _load(papers_path, {"papers": []})
+    doc = read_json(papers_path, {"papers": []})
     for m in doc["papers"]:
         if m["pmid"] == pmid:
             if status is not None:
@@ -47,7 +47,7 @@ def set_state(
 
 
 def show(library_root: Path, slug: str, pmid: str | None) -> dict:
-    doc = _load(_project_dir(library_root, slug) / "papers.yaml", {"papers": []})
+    doc = read_json(_project_dir(library_root, slug) / "papers.yaml", {"papers": []})
     papers = [m for m in doc["papers"] if m["pmid"] == pmid] if pmid else doc["papers"]
     summary = {"to_screen": 0, "to_read": 0, "reading": 0, "read": 0}
     for m in doc["papers"]:

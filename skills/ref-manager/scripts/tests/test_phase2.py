@@ -24,12 +24,11 @@ import project  # noqa: E402
 import person as person_mod  # noqa: E402
 import search  # noqa: E402
 import export  # noqa: E402
-import cite  # noqa: E402
 import pubmed_query  # noqa: E402
-import screen  # noqa: E402
 import publications  # noqa: E402
 import report  # noqa: E402
 import status  # noqa: E402
+from lib_inventory import rows as inventory_rows  # noqa: E402
 import queue as queue_mod  # noqa: E402
 from lib_atomic import atomic_write_json  # noqa: E402
 from lib_selector import resolve, SelectorError  # noqa: E402
@@ -71,7 +70,7 @@ class TestSelectorReportsBeforeWork(TempLibrary):
         result = resolve(self.library_root, pmids=["1001"])
         self.assertEqual(result["pmids"], ["1001"])
         self.assertEqual(result["report"]["by_extraction_tier"]["abstract"], 1)
-        self.assertEqual(result["report"]["by_human_verification_state"], {"not_yet_tracked": 1})
+        self.assertEqual(result["report"]["by_human_verification_state"], {"reviewed": 0, "unreviewed": 1})
         # Phase 11: retraction_status is real (from meta.json) as of phase 4,
         # not a placeholder -- a freshly-added paper has never been checked,
         # so it correctly reports "unknown", not a fabricated "none".
@@ -169,7 +168,7 @@ class TestStatusDashboard(TempLibrary):
 
         buf = StringIO()
         with redirect_stdout(buf):
-            status._print_recent_papers(self.library_root)
+            status._print_recent_papers(inventory_rows(self.library_root))
         output = buf.getvalue()
         self.assertIn("[pdf-backed]", output)
 
@@ -188,7 +187,7 @@ class TestStatusDashboard(TempLibrary):
 
         buf = StringIO()
         with redirect_stdout(buf):
-            status._print_recent_papers(self.library_root)
+            status._print_recent_papers(inventory_rows(self.library_root))
         output = buf.getvalue()
         self.assertIn("[pdf-backed+figures]", output)
 

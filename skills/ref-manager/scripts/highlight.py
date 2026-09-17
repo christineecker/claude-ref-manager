@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, pmid_lock
+from lib_atomic import atomic_write_json, pmid_lock, now_iso
 
 
 def highlights_path(library_root: Path, pmid: str) -> Path:
@@ -52,7 +51,7 @@ def add(
         "text": text,
         "color": color,
         "note": note,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": now_iso(),
     }
     with pmid_lock(library_root, pmid):
         items = load(library_root, pmid)

@@ -16,7 +16,42 @@ import fcntl
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def now_iso() -> str:
+    """UTC timestamp every record's created_at/checked_at/timestamp uses."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def now_stamp() -> str:
+    """Filesystem-safe UTC stamp for snapshot/staging names."""
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def read_json(path: Path, default=None):
+    """Parse a JSON file, or return `default` when it does not exist.
+    Malformed JSON still raises -- callers that must tolerate it (viewers,
+    lint) catch ValueError themselves."""
+    return json.loads(path.read_text()) if path.exists() else default
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def write_jsonl(path: Path, rows: list[dict]) -> None:
+    text = "\n".join(json.dumps(r, sort_keys=True) for r in rows)
+    atomic_write_text(path, text + "\n" if rows else text)
+
+
+def current_version(paper_dir: Path) -> str | None:
+    """The version id papers/<pmid>/current.json points at, or None."""
+    obj = read_json(paper_dir / "current.json")
+    return obj.get("version") if isinstance(obj, dict) else None
 
 
 def atomic_write_bytes(path: Path, data: bytes) -> None:

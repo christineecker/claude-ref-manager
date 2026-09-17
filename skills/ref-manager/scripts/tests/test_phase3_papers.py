@@ -24,8 +24,6 @@ import add  # noqa: E402
 import init_repo  # noqa: E402
 import note  # noqa: E402
 import export_papers  # noqa: E402
-import open_in_papers  # noqa: E402
-import papers_snapshot  # noqa: E402
 from lib_selector import SelectorError  # noqa: E402
 
 

@@ -29,7 +29,6 @@ import contextlib
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -37,22 +36,10 @@ import tempfile
 from pathlib import Path
 
 from lib_atomic import atomic_write_bytes, atomic_write_json, commit_version, pmid_lock
-from lib_ids import gen_opaque_id
+from lib_ids import gen_opaque_id, normalize_title
 from convert import convert_pdf
 
 PDFTOTEXT_PAGES = 2
-
-
-def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _normalize(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
 
 
 def _pdf_head_text(pdf_path: Path) -> str | None:
@@ -73,13 +60,13 @@ def _check_identity(meta: dict, pdf_text: str | None) -> tuple[bool, str]:
     if pdf_text is None:
         return False, "pdftotext unavailable or failed -- identity NOT verified against content"
 
-    norm_text = _normalize(pdf_text)
+    norm_text = normalize_title(pdf_text)
     doi = meta.get("doi")
-    if doi and _normalize(doi) in norm_text:
+    if doi and normalize_title(doi) in norm_text:
         return True, f"DOI {doi!r} found in first {PDFTOTEXT_PAGES} page(s) of text"
 
     title = meta.get("title") or ""
-    title_words = _normalize(title).split()
+    title_words = normalize_title(title).split()
     # require a run of >=6 consecutive title words to appear verbatim, since
     # short substrings match too many unrelated PDFs
     if len(title_words) >= 6:

@@ -87,8 +87,13 @@ svg.chart .v{fill:var(--ink);font-weight:500}
 .fchip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .fchip .x{font-family:"IBM Plex Mono",monospace}
 .result{font-size:.8rem;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.quick{display:inline-flex;gap:6px;align-items:center}
+.quick .fchip{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--muted);padding:4px 10px}
+.quick .fchip:hover{border-color:var(--accent);color:var(--accent)}
+.quick .fchip .x{display:none;color:var(--muted)}
+.quick .fchip[aria-pressed="true"]{border-color:var(--accent-soft);background:var(--accent-soft);color:var(--accent)}
+.quick .fchip[aria-pressed="true"] .x{display:inline}
 .views{display:flex;gap:6px;align-items:center}
-.views select{font:inherit;font-size:.82rem;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 .views button{font-size:.8rem;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 9px;cursor:pointer}
 .views button:hover{border-color:var(--accent);color:var(--accent)}
 
@@ -439,6 +444,109 @@ tr.kbd-active td:first-child{box-shadow:inset 3px 0 0 var(--accent),inset 0 1px 
 .nextbody code{font-size:.74rem;color:var(--accent);overflow-x:auto;white-space:nowrap;display:block}
 .nextbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:680px){.nextlist>li{grid-template-columns:22px 1fr}.nextbtns{grid-column:2;justify-content:flex-start}}
+
+/* Overview panel: health, source coverage and pipeline in one card (mockup B) */
+.brand{align-items:center}
+.appicon{width:30px;height:30px;border-radius:7px;display:block}
+.overview{display:grid;grid-template-columns:minmax(220px,.8fr) 1fr 1fr;gap:0;padding:16px 18px}
+.ovcol{display:grid;gap:12px;align-content:start;min-width:0;padding:0 20px}
+.ovcol:first-child{padding-left:0}
+.ovcol:last-child{padding-right:0}
+.ovcol+.ovcol{border-left:1px solid var(--line)}
+.ovkv{font-size:.82rem;color:var(--muted)}
+.ovkv span:nth-child(even){color:var(--ink)}
+.ovkv .good{color:var(--good)}
+.ovkv .warn{color:var(--warn)}
+.legend.onecol{grid-template-columns:1fr}
+.legend button.zero{opacity:.5}
+.legend .pct{font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:var(--muted);min-width:34px;text-align:right}
+.funnel{display:grid;grid-template-columns:minmax(110px,auto) 1fr 28px;gap:9px 10px;align-items:center;font-size:.84rem}
+.funnel .bar{height:12px;border-radius:3px;background:var(--hover);overflow:hidden}
+.funnel .bar i{display:block;height:100%;background:var(--accent);opacity:.9}
+.funnel .bar.drop i{background:var(--warn)}
+.funnel .n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
+.funnel .n.drop{color:var(--warn)}
+.funnelnote{font-size:.78rem;color:var(--muted)}
+.funnelnote b{font-weight:500;color:var(--warn)}
+.funnelnote code{font-size:.74rem;margin-left:6px}
+@media (max-width:980px){.overview{grid-template-columns:1fr}.ovcol{padding:12px 0}.ovcol+.ovcol{border-left:0;border-top:1px solid var(--line)}}
+
+/* Middle row: lint trend + intake panel (mockup "Add papers") */
+.midrow{grid-template-columns:1fr 1.4fr}
+@media (max-width:980px){.midrow{grid-template-columns:1fr}}
+.trendhead{display:flex;align-items:baseline;gap:8px;min-height:1.6em}
+.trendhead .big{font-family:"IBM Plex Mono",monospace;font-size:1.7rem;font-weight:500;line-height:1}
+.trendhead .big.warn{color:var(--warn)}
+.trendhead .big.good{color:var(--good)}
+.trendhead .delta{font-size:.8rem;color:var(--muted)}
+.trendhead .delta b{font-weight:500}
+.trendhead .delta b.down{color:var(--good)}
+.trendhead .delta b.up{color:var(--warn)}
+.trendkv{font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+.trendkv:empty{display:none}
+.trendkv button{all:unset;cursor:pointer;color:var(--muted)}
+.trendkv button:hover{color:var(--accent)}
+.trendkv span:nth-child(even){color:var(--ink)}
+.trendkv span.crit{color:var(--crit)}
+
+.intake[data-busy="true"]{border-color:var(--accent)}
+.intake h2 span.busy{color:var(--accent)}
+.intakezone{padding:18px 16px;gap:6px}
+.intakezone svg{width:26px;height:26px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.intakezone span{font-size:.8rem}
+.intake.dragging .intakezone{border-color:var(--accent);background:var(--accent-soft)}
+.intake[data-busy="true"] .intakezone{padding:8px 12px;flex-direction:row;display:flex;justify-content:center}
+.intake[data-busy="true"] .intakezone svg{width:14px;height:14px}
+.intake[data-busy="true"] .intakezone span{display:none}
+.intake[data-busy="true"] .intakezone b{font-size:.8rem;font-weight:400;color:var(--muted)}
+.intakeform{display:flex;gap:8px}
+.intakeform input{flex:1;min-width:0;font-size:.8rem;background:var(--ground);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.intakefoot{display:flex;align-items:center;gap:12px;font-size:.8rem;color:var(--muted)}
+.intakefoot label{display:inline-flex;gap:6px;align-items:center}
+.linkbtn{all:unset;cursor:pointer;color:var(--accent);font-size:.8rem;margin-left:auto}
+.linkbtn:hover{text-decoration:underline}
+.intakestatic{font-size:.8rem;color:var(--muted)}
+.intakestatic code{color:var(--accent)}
+.intake[data-static="true"] .intakezone,.intake[data-static="true"] .intakeform,.intake[data-static="true"] .intakefoot{display:none}
+.intakelist{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.intakelist:empty{display:none}
+.intakelist>li{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;padding:7px 8px;border-radius:6px}
+.intakelist>li[data-state="running"]{background:var(--hover)}
+.intakelist .ico{width:16px;height:16px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.intakelist .ico.done{stroke:var(--good)}
+.intakelist .ico.exists{stroke:var(--muted)}
+.intakelist .ico.running{stroke:var(--accent);animation:spin 1s linear infinite}
+.intakelist .ico.warn{stroke:var(--warn)}
+.intakelist .ico.fail{stroke:var(--crit)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.intakebody{display:grid;gap:2px;min-width:0}
+.intakebody .name{font-size:.86rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.intakebody .trail{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.intakebody .trail.warn{color:var(--warn)}
+.intakebody .trail.fail{color:var(--crit)}
+.intakebody .bar{height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.intakebody .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
+.intakeact{display:flex;gap:6px;align-items:center}
+.intakeact input{width:90px;font-family:"IBM Plex Mono",monospace;font-size:.76rem;background:var(--ground);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.intakeact a{font-size:.78rem;text-decoration:none}
+@media (max-width:680px){.intakelist>li{grid-template-columns:18px 1fr}.intakeact{grid-column:2}}
+
+/* Next actions: one row when healthy, full list when there is work */
+.nexthead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;min-height:28px}
+.nexthead .spacer{flex:1}
+.nextsummary{display:inline-flex;align-items:center;gap:8px;font-size:.88rem}
+.nextsummary svg{width:16px;height:16px;fill:none;stroke:var(--good);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nextscope{display:inline-flex;gap:6px;align-items:center;font-size:.8rem;color:var(--muted)}
+.nexthead .hint{font-size:.72rem;color:var(--muted)}
+.nexttoggle{width:28px;height:28px}
+.nexttoggle svg{transition:transform .15s}
+.nexttoggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+.nextpanel[data-empty="true"] .nextlist{display:none}
+.nextpanel[data-empty="true"] .nexttoggle{display:none}
+.nextpanel[data-empty="true"]{padding-block:10px}
+.nextpanel[data-empty="false"] .nextsummary{color:var(--muted)}
+.nextpanel[data-empty="false"][data-collapsed="true"] .nextlist{display:none}
 
 .selsummary{font-size:.78rem;opacity:.75}
 .abgroup{display:inline-flex;flex-wrap:wrap;gap:6px}

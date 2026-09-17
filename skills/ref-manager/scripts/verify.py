@@ -21,20 +21,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
+from lib_atomic import atomic_write_json, now_iso
 from lib_ids import gen_opaque_id
 from lib_schema import validate_correction, SchemaError
 from lib_verify_link import (
     corrections_path, load_corrections, load_registry, revalidate_corrections,
     apply_reject_to_registry,
 )
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _append_correction(library_root: Path, pmid: str, correction: dict) -> dict:
@@ -69,7 +64,7 @@ def review_claim(
         "replacement_value": replacement_value,
         "rationale": rationale,
         "reviewer": reviewer,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
         "evidence_locator": registry["claims"][claim_id].get("locator", ""),
         "status": "active",
     }
@@ -108,7 +103,7 @@ def review_grant_link(
         "decision": decision,
         "reviewer": reviewer,
         "rationale": rationale,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
     }
     grant.setdefault("publication_links", [])
     grant["publication_links"] = [
@@ -125,7 +120,7 @@ def review_grant_link(
         "replacement_value": link,
         "rationale": rationale,
         "reviewer": reviewer,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
         "evidence_locator": evidence_locator,
         "status": "active",
     }
@@ -160,7 +155,7 @@ def review_author_contribution(
     entry = {
         "author_index": author_index, "flag": flag,
         "evidence_statement": evidence_statement, "reviewer": reviewer,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
     }
     auth.setdefault("contribution_flags", [])
     auth["contribution_flags"] = [
@@ -178,7 +173,7 @@ def review_author_contribution(
         "replacement_value": entry,
         "rationale": evidence_statement,
         "reviewer": reviewer,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
         "evidence_locator": f"authorship.json#author[{author_index}]",
         "status": "active",
     }
@@ -210,7 +205,7 @@ def review_person_identity(library_root: Path, pmid: str, person_slug: str, auth
         "replacement_value": {"person": person_slug, "pmid": pmid, "author_index": author_index},
         "rationale": rationale,
         "reviewer": reviewer,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
         "evidence_locator": f"authorship.json#author[{author_index}]",
         "status": "active",
     }
@@ -241,7 +236,7 @@ def review_appraisal(
         "replacement_value": replacement_value,
         "rationale": rationale,
         "reviewer": reviewer,
-        "timestamp": _now(),
+        "timestamp": now_iso(),
         "evidence_locator": f"appraisal:{checklist}:{domain_key}",
         "status": "active",
     }

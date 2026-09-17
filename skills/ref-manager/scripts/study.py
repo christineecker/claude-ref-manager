@@ -45,18 +45,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, library_lock
+from lib_atomic import library_lock, now_iso, read_jsonl, write_jsonl
 from lib_ids import allocate_slug, SlugError
 from lib_schema import validate_study
 
 CONFIDENCES = ("confirmed", "likely", "uncertain")
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 _JSONL_FILENAMES = {"study": "studies.jsonl", "dataset": "datasets.jsonl", "method": "methods.jsonl"}
@@ -68,25 +63,12 @@ def _jsonl_path(library_root: Path, kind: str) -> Path:
     return library_root / "studies" / _JSONL_FILENAMES[kind]
 
 
-def _read_jsonl(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-
-
-def _write_jsonl(path: Path, rows: list[dict]) -> None:
-    text = "\n".join(json.dumps(r, sort_keys=True) for r in rows)
-    text += "\n" if rows else ""
-    from lib_atomic import atomic_write_text
-    atomic_write_text(path, text)
-
-
 def _append_row(library_root: Path, kind: str, row: dict) -> dict:
     path = _jsonl_path(library_root, kind)
     with library_lock(library_root):
-        rows = _read_jsonl(path)
+        rows = read_jsonl(path)
         rows.append(row)
-        _write_jsonl(path, rows)
+        write_jsonl(path, rows)
     return row
 
 
@@ -98,7 +80,7 @@ def create_study(library_root: Path, study_id: str, pmids: list[str], confidence
     if not evidence or not evidence.strip():
         raise SlugError("evidence is required: why these PMIDs are the same investigation (§3b)")
     allocate_slug(library_root, "study", study_id)
-    now = _now()
+    now = now_iso()
     row = {
         "study_id": study_id, "pmids": sorted(set(pmids)),
         "confidence": confidence, "evidence": evidence,
@@ -112,7 +94,7 @@ def create_dataset(library_root: Path, dataset_id: str, name: str, pmids: list[s
     allocate_slug(library_root, "dataset", dataset_id)
     row = {
         "dataset_id": dataset_id, "name": name, "pmids": sorted(set(pmids or [])),
-        "notes": notes, "created_at": _now(),
+        "notes": notes, "created_at": now_iso(),
     }
     return _append_row(library_root, "dataset", row)
 
@@ -122,7 +104,7 @@ def create_method(library_root: Path, method_id: str, name: str, pmids: list[str
     allocate_slug(library_root, "method", method_id)
     row = {
         "method_id": method_id, "name": name, "pmids": sorted(set(pmids or [])),
-        "context": context, "source_locator": source_locator, "created_at": _now(),
+        "context": context, "source_locator": source_locator, "created_at": now_iso(),
     }
     return _append_row(library_root, "method", row)
 
@@ -132,22 +114,22 @@ def study_for_pmid(library_root: Path, pmid: str) -> dict | None:
     A PMID is expected to belong to at most one study in this phase's
     design -- if the fixtures ever need multi-study membership, that's a
     documented extension point, not silently supported today."""
-    for row in _read_jsonl(_jsonl_path(library_root, "study")):
+    for row in read_jsonl(_jsonl_path(library_root, "study")):
         if pmid in row.get("pmids", []):
             return row
     return None
 
 
 def list_studies(library_root: Path) -> list[dict]:
-    return _read_jsonl(_jsonl_path(library_root, "study"))
+    return read_jsonl(_jsonl_path(library_root, "study"))
 
 
 def list_datasets(library_root: Path) -> list[dict]:
-    return _read_jsonl(_jsonl_path(library_root, "dataset"))
+    return read_jsonl(_jsonl_path(library_root, "dataset"))
 
 
 def list_methods(library_root: Path) -> list[dict]:
-    return _read_jsonl(_jsonl_path(library_root, "method"))
+    return read_jsonl(_jsonl_path(library_root, "method"))
 
 
 def main() -> int:

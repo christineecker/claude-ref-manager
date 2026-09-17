@@ -38,20 +38,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, atomic_write_text
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_ids import gen_opaque_id
 from project import linked_triages
 
 
 def _project_dir(library_root: Path, slug: str) -> Path:
     return library_root / "projects" / slug
-
-
-def _load_json(path: Path, default):
-    return json.loads(path.read_text()) if path.exists() else default
 
 
 def _load_query_run(library_root: Path, query_slug: str, run_id: str | None) -> dict | None:
@@ -207,7 +202,7 @@ def build_flow(library_root: Path, project_slug: str, query_specs: list[tuple[st
 
     flow = {
         "project": project_slug,
-        "data_cutoff": datetime.now(timezone.utc).isoformat(),
+        "data_cutoff": now_iso(),
         "identified": {
             "per_source": {k: {"count": v["count"], "runs": v["runs"]} for k, v in identified["per_source"].items()},
             "total_raw": identified["total_identified_raw"] if query_specs else "unknown",

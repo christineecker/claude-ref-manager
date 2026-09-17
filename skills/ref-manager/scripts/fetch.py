@@ -50,8 +50,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, commit_version, pmid_lock
+from lib_atomic import atomic_write_json, commit_version, pmid_lock, read_json, current_version
 from lib_ids import gen_opaque_id
+from init_repo import load_config
 from convert import convert_jats, convert_html, convert_plain_text
 from funding_extract import extract_funding_observations
 from attach_figures import download_auto as download_figure_assets
@@ -60,12 +61,8 @@ UNPAYWALL_TIMEOUT = 15
 FETCH_VERSION_SOURCES = {"pmc_jats", "publisher_html", "plain_text"}
 
 
-def _sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
 def _preserve_raw(paper_dir: Path, data: bytes, filename: str) -> str:
-    h = _sha256(data)
+    h = hashlib.sha256(data).hexdigest()
     raw_dir = paper_dir / "raw" / h
     raw_dir.mkdir(parents=True, exist_ok=True)
     dest = raw_dir / filename
@@ -74,19 +71,11 @@ def _preserve_raw(paper_dir: Path, data: bytes, filename: str) -> str:
     return h
 
 
-def _read_json(path: Path) -> dict | None:
-    try:
-        return json.loads(path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
-
-
 def _current_fetch_manifest(paper_dir: Path) -> tuple[str, dict] | None:
-    current = _read_json(paper_dir / "current.json")
-    if not current or not current.get("version"):
+    version_id = current_version(paper_dir)
+    if not version_id:
         return None
-    version_id = current["version"]
-    manifest = _read_json(paper_dir / "versions" / version_id / "manifest.json")
+    manifest = read_json(paper_dir / "versions" / version_id / "manifest.json")
     if not manifest or manifest.get("source") not in FETCH_VERSION_SOURCES:
         return None
     return version_id, manifest
@@ -101,7 +90,7 @@ def _prune_old_fetch_versions(paper_dir: Path, keep_version: str) -> None:
             continue
         if not candidate.is_dir():
             continue
-        manifest = _read_json(candidate / "manifest.json")
+        manifest = read_json(candidate / "manifest.json")
         if not manifest or manifest.get("source") not in FETCH_VERSION_SOURCES:
             continue
         # Only completed acquisition versions have both a manifest and source.md.
@@ -272,10 +261,7 @@ def main() -> int:
         print(f"error: no library at {library_root}", file=sys.stderr)
         return 1
 
-    config_path = Path.home() / ".config" / "ref-manager" / "config.json"
-    unpaywall_email = None
-    if config_path.exists():
-        unpaywall_email = json.loads(config_path.read_text()).get("unpaywall_email")
+    unpaywall_email = (load_config() or {}).get("unpaywall_email")
 
     records = json.loads(Path(args.input_file).read_text())
     if not isinstance(records, list):

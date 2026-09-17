@@ -29,11 +29,11 @@ import hashlib
 import json
 import shutil
 import threading
-from datetime import datetime, timezone
 from pathlib import Path
 
 import lib_inventory
 import lib_schema
+from lib_atomic import now_iso
 
 # bucket -> (weight, label template, pmid command or None, why)
 # A None command means the bucket has no command that takes a pmid list;
@@ -170,36 +170,11 @@ def _coverage(rows: list[dict]) -> dict:
     return counts
 
 
-def _project_counts(rows: list[dict]) -> list[dict]:
-    projects: dict[str, dict] = {}
-    for r in rows:
-        for p in r.get("projects") or []:
-            slug = p.get("slug")
-            if not slug:
-                continue
-            entry = projects.setdefault(slug, {"slug": slug, "papers": 0, "full_text": 0, "with_claims": 0,
-                                               "needs_fetch": 0, "needs_extract": 0})
-            entry["papers"] += 1
-            entry["full_text"] += bool(r.get("has_fulltext"))
-            entry["with_claims"] += bool(r.get("claims_active"))
-            entry["needs_fetch"] += not r.get("has_fulltext") and not r.get("has_pdf")
-            entry["needs_extract"] += "missing_claim_registry" in (r.get("lint_flags") or [])
-    return [projects[k] for k in sorted(projects)]
-
-
-def summary(rows: list[dict], lint_report: dict, snapshots: list[dict], *, scope: str | None = None,
+def summary(rows: list[dict], lint_report: dict, snapshots: list[dict], *,
             include_pmids: bool = False, data_sources: dict | None = None) -> dict:
-    """`/api/summary`. `scope="project"` / `scope="issue"` return just that
-    breakdown (issue scope lists pmids per bucket); the default is the
-    compact overview that drives the next-action panel."""
-    generated_at = datetime.now(timezone.utc).isoformat()
+    """`/api/summary`: the compact overview that drives the next-action panel."""
+    generated_at = now_iso()
     issues = lint_report.get("issues") or {}
-    if scope == "project":
-        return {"generated_at": generated_at, "projects": _project_counts(rows)}
-    if scope == "issue":
-        return {"generated_at": generated_at,
-                "issues": {b: sorted(p) for b, p in issues.items() if p}}
-
     lint_summary = lint_report.get("summary") or {}
     last = snapshots[-1] if snapshots else None
     return {
@@ -220,7 +195,6 @@ def summary(rows: list[dict], lint_report: dict, snapshots: list[dict], *, scope
         ),
         "top_actions": next_actions(rows, lint_report, include_pmids=include_pmids,
                                     limit=None if include_pmids else MAX_ACTIONS),
-        "projects": _project_counts(rows),
         "snapshots": {"count": len(snapshots), "latest": last and {
             "stamp": last.get("stamp"), "issues_total": (last.get("summary") or {}).get("issues_total"),
         }},
@@ -265,7 +239,7 @@ def health(library_root: Path, loaders: dict) -> tuple[dict, int]:
         "ok": not failed,
         "status": status,
         "library_root": str(library_root),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_iso(),
         "data_sources": sources,
         "counts": {
             "rows": len(values["rows"]) if isinstance(values.get("rows"), list) else None,
@@ -388,7 +362,7 @@ def knowledge(library_root: Path, rows: list[dict]) -> dict:
         for r in _read_jsonl(library_root / "graph" / "relations.jsonl")
         if r.get("relation_id")
     ]
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = now_iso()
     return {
         "reviews": _reviews(library_root),
         "generated_at": generated_at,

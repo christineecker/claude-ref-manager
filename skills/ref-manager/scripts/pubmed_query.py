@@ -22,11 +22,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from lib_atomic import atomic_write_json
-from lib_ids import allocate_slug, gen_opaque_id, SlugError, slug_exists
+from lib_atomic import atomic_write_json, now_iso
+from lib_ids import allocate_slug, gen_opaque_id, SlugError
 
 
 def _path(library_root: Path, slug: str) -> Path:
@@ -54,7 +53,7 @@ def new_run(library_root: Path, slug: str, query_text: str, source: str, pmids: 
         "run_id": gen_opaque_id("run-"),
         "query": query_text,
         "source": source,
-        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "retrieved_at": now_iso(),
         "pmids": pmids,
     }
     doc["runs"].append(run)
@@ -73,7 +72,7 @@ def rerun(library_root: Path, slug: str, pmids: list[str]) -> dict:
         "run_id": gen_opaque_id("run-"),
         "query": last["query"],  # exact stored expression, not re-derived
         "source": last["source"],
-        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "retrieved_at": now_iso(),
         "pmids": pmids,
     }
     doc["runs"].append(run)

@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-17 · [`0012be6`](https://github.com/christineecker/claude-ref-manager/commit/0012be6) docs: align plugin version (0.4.0) across docs; remove implemented plan
 - 2026-09-17 · [`5947cc7`](https://github.com/christineecker/claude-ref-manager/commit/5947cc7) ci: pin setup-uv to v10.1.0
 - 2026-09-17 · [`32f3cd1`](https://github.com/christineecker/claude-ref-manager/commit/32f3cd1) ci: move workflow actions to Node 24 releases and test on Node 24
 - 2026-09-17 · [`426c5e9`](https://github.com/christineecker/claude-ref-manager/commit/426c5e9) ci: install pandoc and uv for the conversion tests
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-16 · [`6ed94ae`](https://github.com/christineecker/claude-ref-manager/commit/6ed94ae) docs: remove plan docs
 - 2026-09-16 · [`b004d0d`](https://github.com/christineecker/claude-ref-manager/commit/b004d0d) docs: fix D-number gap in decision tables
 - 2026-09-16 · [`c0eb24f`](https://github.com/christineecker/claude-ref-manager/commit/c0eb24f) feat: /ref:read opens live PDF+notes viewer instead of md reconstruction
-- 2026-09-16 · [`e7fde72`](https://github.com/christineecker/claude-ref-manager/commit/e7fde72) docs: PhD-friendly command explanations + file-structure trees in tutorials
 <!-- changelog:end -->

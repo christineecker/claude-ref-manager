@@ -301,9 +301,10 @@ class TestViewerUxWiring(DashboardFixture):
 
     # P0.4 -- drawer focus behavior.
     def test_drawer_focus_management_wired(self):
+        # The panel is docked (not modal), so there is no Tab-trap -- focus
+        # moves into it on open and back to the triggering element on close.
         self.assertIn("lastFocusedBeforeDrawer = document.activeElement", self.app_js)
         self.assertIn("function drawerFocusables()", self.app_js)
-        self.assertIn('if (e.key !== "Tab") return;', self.app_js)
         self.assertIn("lastFocusedBeforeDrawer.focus()", self.app_js)
 
     # P1.1 -- saved views/presets, localStorage-only.
@@ -345,12 +346,11 @@ class TestViewerUxWiring(DashboardFixture):
         self.assertIn("function needsFetchPdf(row)", self.app_js)
         self.assertIn("function needsAudit(row)", self.app_js)
 
-    # P2.1/P2.2 -- pagination for the papers table and coverage matrix.
+    # P2.1/P2.2 -- pagination for the papers table (the coverage matrix was
+    # folded into it as a per-row strip in cd76d6c, so one pager covers both).
     def test_table_and_matrix_are_paginated(self):
         self.assertIn("var PAGE_SIZE = 100;", self.app_js)
-        self.assertIn("var MATRIX_PAGE_SIZE = 200;", self.app_js)
         self.assertIn('id="pager"', self.index_html)
-        self.assertIn('id="matrix-pager"', self.index_html)
 
     # P2.3 -- mobile card layout.
     def test_mobile_card_layout_present(self):
@@ -360,7 +360,7 @@ class TestViewerUxWiring(DashboardFixture):
     # P2.4 -- accessibility.
     def test_accessibility_affordances_present(self):
         self.assertIn('aria-live="polite"', self.index_html)
-        self.assertIn('wrap.setAttribute("aria-hidden", "true")', self.app_js)
+        self.assertIn('"aria-hidden": "true"', self.app_js)
 
     # Rows carry the fields the new client-side predicates need
     # (needsFetchPdf/needsAudit/project quick-commands) -- a schema

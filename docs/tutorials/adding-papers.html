@@ -29,14 +29,14 @@
 <header class="page">
   <p class="eyebrow">Tutorial</p>
   <h1>Paper ingest: shortest paths</h1>
-  <p class="lede">You have a research question, a stack of PDFs, or a Slack link someone sent you at 11pm — and none of them are in your library yet. This tutorial is the fast way in. For PICO intake, use <code>/ref:search-add-fetch</code>: it searches, saves, adds, and fetches full text in one run, so you go from question to readable papers before your coffee gets cold.</p>
+  <p class="lede">You have a research question, a stack of PDFs, or a Slack link someone sent you at 11pm — and none of them are in your library yet. This tutorial is the fast way in. For PICO intake, use <code>/ref:pubmed-add-fetch</code>: it searches, saves, adds, and fetches full text in one run, so you go from question to readable papers before your coffee gets cold. This tutorial stops once papers are in the library with text attached — for turning that text into structured, quote-backed <a href="extracting-claims.html">claims</a>, see the next tutorial.</p>
 </header>
 
 <section>
 <h2>PICO to fetched papers (one command)</h2>
 <figure>
 <div class="svg-wrap">
-<svg viewBox="0 0 980 330" role="img" aria-label="Single-command PICO intake with search-add-fetch: query build, search, save run, add, and fetch.">
+<svg viewBox="0 0 980 330" role="img" aria-label="Single-command PICO intake with pubmed-add-fetch: query build, search, save run, add, and fetch.">
   <defs>
     <marker id="mArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
   </defs>
@@ -76,7 +76,7 @@
   </g>
 
   <rect x="20" y="138" width="938" height="176" rx="10" fill="none" stroke="currentColor" stroke-dasharray="4 3"/>
-  <text x="36" y="164" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="600">/ref:search-add-fetch "&lt;PICO or query&gt;" --slug &lt;slug&gt; [--create] [--limit N]</text>
+  <text x="36" y="164" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="600">/ref:pubmed-add-fetch "&lt;PICO or query&gt;" --slug &lt;slug&gt; [--create] [--limit N]</text>
 
   <g font-family="IBM Plex Sans,sans-serif" font-size="12" fill="currentColor">
     <text x="36" y="194">stage output:</text>
@@ -123,7 +123,7 @@
 
     <rect x="220" y="128" width="182" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
     <text x="232" y="154">PICO/question</text>
-    <text x="232" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:search-add-fetch</text>
+    <text x="232" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:pubmed-add-fetch</text>
 
     <rect x="416" y="128" width="182" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
     <text x="428" y="154">Article URL</text>
@@ -337,7 +337,7 @@ fetch:
 <section>
 <h2>Minimal recipes</h2>
 <p>Copy, paste, adjust the slug. Done.</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:pubmed-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
 <span class="p">›</span> <span class="cmd">/ref:update-queries asd-tdcs</span>
 <span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 40691132</span>
 <span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/papers/</span></pre>
@@ -350,7 +350,7 @@ fetch:
   </defs>
   <rect x="24" y="30" width="286" height="82" rx="9" fill="var(--accent-soft)" stroke="var(--accent)"/>
   <text x="40" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">1) first run</text>
-  <text x="40" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:search-add-fetch ... --slug S --create</text>
+  <text x="40" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:pubmed-add-fetch ... --slug S --create</text>
   <text x="40" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">writes queries/S.yaml + selected papers</text>
 
   <rect x="346" y="30" width="286" height="82" rx="9" fill="none" stroke="currentColor"/>
@@ -361,7 +361,7 @@ fetch:
   <rect x="668" y="30" width="286" height="82" rx="9" fill="var(--amber-soft)" stroke="var(--amber)"/>
   <text x="684" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">3) ingest changes</text>
   <text x="684" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">run /ref:add-fetch on newly added PMIDs</text>
-  <text x="684" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">or rerun search-add-fetch with a limit</text>
+  <text x="684" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">or rerun pubmed-add-fetch with a limit</text>
 
   <line x1="310" y1="71" x2="346" y2="71" stroke="currentColor" stroke-width="1.5" marker-end="url(#m3)"/>
   <line x1="632" y1="71" x2="668" y2="71" stroke="currentColor" stroke-width="1.5" marker-end="url(#m3)"/>
@@ -372,7 +372,7 @@ fetch:
 
 <nav class="pager" aria-label="Tutorial pages">
   <a href="index.html"><small>Previous</small>Tutorials</a>
-  <a href="maintenance.html" style="text-align:right"><small>Next</small>Maintenance loop</a>
+  <a href="extracting-claims.html" style="text-align:right"><small>Next</small>Extracting claims</a>
 </nav>
 
 </main>

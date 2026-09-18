@@ -34,6 +34,7 @@ Steps:
 - `/ref:add-pdf <path...>` — identify PDFs by DOI/PMID clues, add PubMed records, then attach the files
 - `/ref:add-fetch <pmid...>` — convenience wrapper: add missing records, then fetch full text for records that exist
 - `/ref:add-url <url...>` — identify articles by URL (DOI/PMID/PMCID clues or page metadata), add records, then fetch
+- `/ref:pubmed-add-fetch` — search PubMed, save the run, add selected PMIDs, then fetch full text
 - `/ref:import <item...>` — source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach
 - `/ref:fetch <pmid...>` — acquire full text in priority order and convert it to `source.md`, per-PMID results
 - `/ref:fetch-pdf <pmid...>` — download free PMC OA PDFs and attach them through the PDF pipeline
@@ -48,7 +49,6 @@ Steps:
 - `/ref:pubmed-query <question>` — translate a prompt or PICO into a PubMed query without running it
 - `/ref:search-pubmed` — turn a question into a PubMed query, save the run immutably, and open its Triage tab
 - `/ref:triage <slug>` — screen a saved search in the dashboard: Include adds papers, optional project link, load more in batches of 100, `apply` fetches pending full text
-- `/ref:search-add-fetch` — search PubMed, save the run, add selected PMIDs, then fetch full text
 - `/ref:update-queries <slug>` — manually re-run a saved query and append a new run
 - `/ref:related <pmid>` — snowball backward through references and forward via PubMed
 

@@ -47,6 +47,7 @@
       <dt><a href="acquire.html#add-pdf">/ref:add-pdf &lt;path…&gt;</a></dt><dd>identify PDFs by DOI/PMID clues, add PubMed records, then attach the files</dd>
       <dt><a href="acquire.html#add-fetch">/ref:add-fetch &lt;pmid…&gt;</a></dt><dd>convenience wrapper: add missing records, then fetch full text for records that exist</dd>
       <dt><a href="acquire.html#add-url">/ref:add-url &lt;url…&gt;</a></dt><dd>identify articles by URL (DOI/PMID/PMCID clues or page metadata), add records, then fetch</dd>
+      <dt><a href="acquire.html#pubmed-add-fetch">/ref:pubmed-add-fetch</a></dt><dd>search PubMed, save the run, add selected PMIDs, then fetch full text</dd>
       <dt><a href="acquire.html#import">/ref:import &lt;item…&gt;</a></dt><dd>source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach</dd>
       <dt><a href="acquire.html#fetch">/ref:fetch &lt;pmid…&gt;</a></dt><dd>acquire full text in priority order and convert it to <code>source.md</code>, per-PMID results</dd>
       <dt><a href="acquire.html#fetch-pdf">/ref:fetch-pdf &lt;pmid…&gt;</a></dt><dd>download free PMC OA PDFs and attach them through the PDF pipeline</dd>
@@ -64,7 +65,6 @@
       <dt><a href="find.html#ask">/ref:ask &lt;question&gt;</a></dt><dd>retrieve evidence and write one grounded answer with <code>[^pmid]</code> citations</dd>
       <dt><a href="find.html#pubmed-query">/ref:pubmed-query &lt;question&gt;</a></dt><dd>translate a prompt or PICO into a PubMed query without running it</dd>
       <dt><a href="find.html#search-pubmed">/ref:search-pubmed</a></dt><dd>turn a question into a PubMed query, save the run immutably, and open its Triage tab</dd>
-      <dt><a href="find.html#search-add-fetch">/ref:search-add-fetch</a></dt><dd>search PubMed, save the run, add selected PMIDs, then fetch full text</dd>
       <dt><a href="find.html#update-queries">/ref:update-queries &lt;slug&gt;</a></dt><dd>manually re-run a saved query and append a new run</dd>
       <dt><a href="find.html#triage">/ref:triage &lt;slug&gt;</a></dt><dd>screen a saved search in the dashboard; Include adds papers, optional project link, batches of 100</dd>
       <dt><a href="find.html#related">/ref:related &lt;pmid&gt;</a></dt><dd>snowball backward through references and forward via PubMed</dd>

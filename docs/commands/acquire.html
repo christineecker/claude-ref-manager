@@ -33,6 +33,7 @@
     <li><a href="#add-pdf"><code>/ref:add-pdf</code></a></li>
     <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
     <li><a href="#add-url"><code>/ref:add-url</code></a></li>
+    <li><a href="#pubmed-add-fetch"><code>/ref:pubmed-add-fetch</code></a></li>
     <li><a href="#import"><code>/ref:import</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
     <li><a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></li>
@@ -354,6 +355,44 @@ Example: /ref:add 12345678</span>
   <p class="writes"><code>url_identify.py &lt;url…&gt;</code>, <code>lib_intake.py classify --repo … &lt;clue&gt;</code> for the pre-lookup duplicate check, PubMed MCP lookup/confirmation, <code>add.py add --repo … --metadata-file …</code>, then the same fetch path as <code>/ref:fetch</code>.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#fetch"><code>/ref:fetch</code></a> · <a href="#import"><code>/ref:import</code></a></p>
+</article>
+
+<!-- ================= pubmed-add-fetch ================= -->
+<article class="cmd" id="pubmed-add-fetch">
+  <div class="cmd-head"><h3>/ref:pubmed-add-fetch</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Run a prompt/PICO PubMed search, save the full run, then add and fetch a bounded set of PMIDs.</p>
+  <div class="synopsis">/ref:pubmed-add-fetch &lt;question or query&gt; --slug &lt;slug&gt; [--create] [--limit &lt;N&gt;] [--broad|--specific]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;question or query&gt;</dt><dd>Natural language/PICO or an explicit PubMed expression.</dd>
+    <dt>--slug &lt;slug&gt;</dt><dd>Required. Names the immutable saved search run.</dd>
+    <dt>--create</dt><dd>Required for a new slug.</dd>
+    <dt>--limit &lt;N&gt;</dt><dd>Number of returned PMIDs to ingest. Default <code>20</code>; values above <code>100</code> require confirmation.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Builds or accepts the exact PubMed query, then runs PubMed MCP <code>search_articles</code>.</li>
+    <li>Saves the complete search run through <code>pubmed_query.py new-run</code> before limiting.</li>
+    <li>Takes the first <code>N</code> PMIDs, adds metadata through <code>add.py</code>, then fetches full text through <code>fetch.py</code>.</li>
+    <li>Prints separate <code>search</code>, <code>save-run</code>, <code>add</code>, and <code>fetch</code> stage outputs.</li>
+  </ol>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, then the same paper files as <a href="#add"><code>/ref:add</code></a> and <a href="#fetch"><code>/ref:fetch</code></a> for selected PMIDs.</p>
+  <h4>Example</h4>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:pubmed-add-fetch "autism tDCS sham social cognition" --slug autism-tdcs --create --limit 20</span>
+<span class="o">search:
+found: 42
+selected: 20
+
+add:
+40665956: added (citekey=luckhardt2025transcranial)
+
+fetch:
+40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes">PubMed MCP <code>search_articles</code> → <code>pubmed_query.py new-run</code> → PubMed MCP <code>get_article_metadata</code> → <code>add.py</code> → full-text acquisition ladder → <code>fetch.py</code>.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="find.html#pubmed-query"><code>/ref:pubmed-query</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="#add-fetch"><code>/ref:add-fetch</code></a></p>
 </article>
 
 <!-- ================= import ================= -->

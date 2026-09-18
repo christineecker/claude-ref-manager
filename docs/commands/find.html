@@ -33,7 +33,6 @@
     <li><a href="#ask"><code>/ref:ask</code></a></li>
     <li><a href="#pubmed-query"><code>/ref:pubmed-query</code></a></li>
     <li><a href="#search-pubmed"><code>/ref:search-pubmed</code></a></li>
-    <li><a href="#search-add-fetch"><code>/ref:search-add-fetch</code></a></li>
     <li><a href="#update-queries"><code>/ref:update-queries</code></a></li>
     <li><a href="#triage"><code>/ref:triage</code></a></li>
     <li><a href="#related"><code>/ref:related</code></a></li>
@@ -313,7 +312,7 @@
   <h4>Under the hood</h4>
   <p class="writes">No script and no network call. The query is produced by the command layer so the user can inspect or edit it before running <a href="#search-pubmed"><code>/ref:search-pubmed</code></a>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="#search-add-fetch"><code>/ref:search-add-fetch</code></a></p>
+  <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="acquire.html#pubmed-add-fetch"><code>/ref:pubmed-add-fetch</code></a></p>
 </article>
 
 <article class="cmd" id="search-pubmed">
@@ -356,43 +355,6 @@
   <p class="writes">MCP <code>search_articles</code> → <code>pubmed_query.py new-run --repo … --slug … --query-text "…" --source pubmed --pmids-file … [--create]</code>. The script also has <code>show</code> and <code>list</code> actions.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#update-queries"><code>/ref:update-queries</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
-</article>
-
-<article class="cmd" id="search-add-fetch">
-  <div class="cmd-head"><h3>/ref:search-add-fetch</h3><div class="chips"><span class="tag phase">phase 3</span><span class="tag net">PubMed MCP</span></div></div>
-  <p class="summary">Run a prompt/PICO PubMed search, save the full run, then add and fetch a bounded set of PMIDs.</p>
-  <div class="synopsis">/ref:search-add-fetch &lt;question or query&gt; --slug &lt;slug&gt; [--create] [--limit &lt;N&gt;] [--broad|--specific]</div>
-  <h4>Arguments</h4>
-  <dl class="args">
-    <dt>&lt;question or query&gt;</dt><dd>Natural language/PICO or an explicit PubMed expression.</dd>
-    <dt>--slug &lt;slug&gt;</dt><dd>Required. Names the immutable saved search run.</dd>
-    <dt>--create</dt><dd>Required for a new slug.</dd>
-    <dt>--limit &lt;N&gt;</dt><dd>Number of returned PMIDs to ingest. Default <code>20</code>; values above <code>100</code> require confirmation.</dd>
-  </dl>
-  <h4>What happens</h4>
-  <ol>
-    <li>Builds or accepts the exact PubMed query, then runs PubMed MCP <code>search_articles</code>.</li>
-    <li>Saves the complete search run through <code>pubmed_query.py new-run</code> before limiting.</li>
-    <li>Takes the first <code>N</code> PMIDs, adds metadata through <code>add.py</code>, then fetches full text through <code>fetch.py</code>.</li>
-    <li>Prints separate <code>search</code>, <code>save-run</code>, <code>add</code>, and <code>fetch</code> stage outputs.</li>
-  </ol>
-  <h4>Reads &amp; writes</h4>
-  <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, then the same paper files as <a href="acquire.html#add"><code>/ref:add</code></a> and <a href="acquire.html#fetch"><code>/ref:fetch</code></a> for selected PMIDs.</p>
-  <h4>Example</h4>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-add-fetch "autism tDCS sham social cognition" --slug autism-tdcs --create --limit 20</span>
-<span class="o">search:
-found: 42
-selected: 20
-
-add:
-40665956: added (citekey=luckhardt2025transcranial)
-
-fetch:
-40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
-  <h4>Under the hood</h4>
-  <p class="writes">PubMed MCP <code>search_articles</code> → <code>pubmed_query.py new-run</code> → PubMed MCP <code>get_article_metadata</code> → <code>add.py</code> → full-text acquisition ladder → <code>fetch.py</code>.</p>
-  <h4>See also</h4>
-  <p class="writes"><a href="#pubmed-query"><code>/ref:pubmed-query</code></a> · <a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="acquire.html#add-fetch"><code>/ref:add-fetch</code></a></p>
 </article>
 
 <article class="cmd" id="update-queries">

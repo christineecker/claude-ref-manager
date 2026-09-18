@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-18 · [`2a1fc70`](https://github.com/christineecker/claude-ref-manager/commit/2a1fc70) refactor: rename /ref:search-add-fetch to /ref:pubmed-add-fetch
 - 2026-09-18 · [`09a25d6`](https://github.com/christineecker/claude-ref-manager/commit/09a25d6) docs: add teachme workspace for paper-repo maintenance course
 - 2026-09-17 · [`57dd57d`](https://github.com/christineecker/claude-ref-manager/commit/57dd57d) Add dashboard planning and graph visualization docs
 - 2026-09-17 · [`cd76d6c`](https://github.com/christineecker/claude-ref-manager/commit/cd76d6c) feat(dashboard): fold coverage matrix into Papers table; docked ReadCube-style paper panel
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-17 · [`5783b81`](https://github.com/christineecker/claude-ref-manager/commit/5783b81) feat: dashboard insights, next actions, shareable views, PDF upload
 - 2026-09-17 · [`a61852f`](https://github.com/christineecker/claude-ref-manager/commit/a61852f) docs: dashboard feature requests and improvements plan
 - 2026-09-16 · [`0912d26`](https://github.com/christineecker/claude-ref-manager/commit/0912d26) feat: PubMed search triage tab with batch metadata loading
-- 2026-09-16 · [`39b1a8c`](https://github.com/christineecker/claude-ref-manager/commit/39b1a8c) feat: full-screen PDF reader with text-layer highlighting and export
 <!-- changelog:end -->

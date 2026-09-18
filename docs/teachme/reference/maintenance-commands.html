@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Maintenance Command Cheat Sheet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--rule); padding: 0.5rem 0.6rem; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td code { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<p class="kicker">Reference &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>Maintenance Command Cheat Sheet</h1>
+<p class="lede">The six commands that keep a library healthy, in the order you'd normally reach for them.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <code>commands/{init,status,lint,audit,repair-fulltext,maintain}.md</code> &mdash;
+  these spec files are authoritative; the scripts under <code>skills/ref-manager/scripts/</code> are the ground truth
+  when the docs are ambiguous. See <a href="../lessons/0002-maintenance-loop.html">Lesson 0002</a> for the narrative version.
+</div>
+
+<table>
+  <tr><th>Command</th><th>Purpose</th><th>Reads</th><th>Writes</th><th>Key flags</th></tr>
+  <tr>
+    <td><code>/ref:init &lt;path&gt;</code></td>
+    <td>Create the library skeleton. Run once per library.</td>
+    <td>&mdash;</td>
+    <td><code>log.md</code>, top-level dirs, <code>~/.config/ref-manager/config.json</code></td>
+    <td>&mdash;</td>
+  </tr>
+  <tr>
+    <td><code>/ref:status</code></td>
+    <td>One-line health state + what to run next. The "glance" tool.</td>
+    <td>Whole library (counts only)</td>
+    <td>&mdash; (read-only)</td>
+    <td><code>--verbosity quick|normal|verbose</code></td>
+  </tr>
+  <tr>
+    <td><code>/ref:lint</code></td>
+    <td>Deep read-only sweep: missing metadata, abstract-only, OA-pending,
+      missing claim registries, stale retraction checks, stale catalog. The "diagnose" tool.</td>
+    <td>Whole library</td>
+    <td><code>maintenance/&lt;UTC-timestamp&gt;.json</code> (only with <code>--snapshot</code>)</td>
+    <td><code>--stale-days N</code>, <code>--json</code>, <code>--snapshot</code>, <code>--diff [snapshot]</code></td>
+  </tr>
+  <tr>
+    <td><code>/ref:audit</code></td>
+    <td>Re-check retraction/errata status against PubMed. <code>--citations</code>
+      switches to recording dated PMC cited-by counts instead. <strong>No selector = whole
+      library</strong> (unique among selector-taking commands).</td>
+    <td>PubMed metadata (retraction mode) or NCBI ELink <code>pmc_pmc_citedby</code> (citations mode)</td>
+    <td><code>papers/&lt;pmid&gt;/...</code> retraction status; <code>citations.json</code>
+      (append-only, never overwritten &mdash; D25)</td>
+    <td><code>[selector]</code>, <code>--citations</code>, <code>show-citations</code></td>
+  </tr>
+  <tr>
+    <td><code>/ref:repair-fulltext</code></td>
+    <td>Batch-fix the <code>metadata_only</code> / <code>abstract_only</code> / <code>oa_pending</code>
+      buckets lint found, by re-running the <code>/ref:fetch</code> acquisition workflow per PMID.
+      The "fix" tool. Resume-safe across runs.</td>
+    <td><code>lint.py --json</code> output; <code>repair_state.py read</code></td>
+    <td>Full text via <code>fetch.py</code>; <code>maintenance/repair-fulltext-state.json</code>
+      via <code>repair_state.py merge</code> (atomic, lock-protected)</td>
+    <td><code>--limit N</code> (default 20), <code>--retry-failed</code>, <code>--stale-days N</code>, <code>[selector]</code></td>
+  </tr>
+  <tr>
+    <td><code>/ref:maintain</code></td>
+    <td>Orchestration wrapper: runs status &rarr; lint (snapshotted) &rarr; index rebuild
+      &rarr; audit, in one command, then prints concrete next steps. Does not replace any
+      of the commands it wraps &mdash; each is still useful standalone.</td>
+    <td>Same as the stages it runs</td>
+    <td>Same as the stages it runs, plus a lint snapshot every time</td>
+    <td><code>--stale-days N</code>, <code>--no-index</code>, <code>--no-audit</code>,
+      <code>--verbosity quick|normal|verbose</code></td>
+  </tr>
+</table>
+
+<h2>The loop, in one line</h2>
+<p>
+  <code>/ref:status</code> to glance &rarr; <code>/ref:lint</code> to diagnose &rarr;
+  <code>/ref:repair-fulltext</code> and <code>/ref:audit</code> to fix &rarr;
+  <code>/ref:maintain</code> to do all four in sequence when you don't need to inspect each stage separately.
+</p>
+
+<h2>Rules that don't show up in the flags</h2>
+<ul>
+  <li>Nothing here ever silently overwrites a frozen artifact. If <code>/ref:audit</code> flips a
+    paper's retraction status, any saved <code>/ref:brief</code>/<code>/ref:compare</code>/<code>/ref:summarize</code>
+    that used it is flagged as <code>potentially_stale_artifacts</code> &mdash; refreshing it is a
+    separate, explicit <code>--refresh</code> call.</li>
+  <li><code>/ref:repair-fulltext</code> never invents success: a paper with no real OA full text
+    legitimately stays <code>abstract_only</code>/<code>oa_location_found</code> across runs.</li>
+  <li><code>/ref:audit --citations</code> counts are PMC-indexed citing articles only &mdash;
+    an undercount of total literature citations, never presented as a total.</li>
+</ul>
+
+<div class="nav-links">
+  See also: <a href="../lessons/0001-paper-repo-anatomy.html">Lesson 0001 &mdash; Paper Repo Anatomy</a>
+  (what these commands are reading/writing on disk), <a href="../lessons/0002-maintenance-loop.html">Lesson 0002 &mdash; The Maintenance Loop</a>.
+</div>
+
+</body>
+</html>

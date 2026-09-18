@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Maintenance Loop</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 0002 &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>The Maintenance Loop</h1>
+<p class="lede">Which commands keep a library healthy, what each one actually touches, and how they chain together.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <code>commands/maintain.md</code>, <code>commands/lint.md</code>,
+  <code>commands/status.md</code>, <code>commands/audit.md</code>, <code>commands/repair-fulltext.md</code>.
+  These are the actual shipped specs, not PLAN.md &mdash; where they diverge, this lesson follows the specs.
+  Full detail table: <a href="../reference/maintenance-commands.html">Maintenance Command Cheat Sheet</a>.
+</div>
+
+<h2>Two questions, two tools</h2>
+<p>
+  Maintenance splits into <em>glance</em> and <em>diagnose</em>, and the repo gives you a separate
+  command for each rather than one that tries to do both:
+</p>
+<ul>
+  <li><strong><code>/ref:status</code></strong> &mdash; a one-line health state (<code>healthy</code>,
+    <code>needs full text</code>, <code>no active project</code>, &hellip;), a short "needs attention"
+    list, and up to three suggested next actions. Fast, meant for orienting at the start of a session.</li>
+  <li><strong><code>/ref:lint</code></strong> &mdash; the real sweep. Read-only, but exhaustive: every
+    PMID missing a title/year/journal/DOI, every paper stuck at <code>metadata_only</code>/
+    <code>abstract_only</code>/<code>oa_pending</code>, every stale retraction check, whether the
+    catalog index is even present or has drifted from the files on disk (<code>catalog_stale</code>).</li>
+</ul>
+<p>
+  <code>status</code> is derived from the same counts <code>lint</code> would give you in full &mdash;
+  it's a summary, not a separate check. Run <code>status</code> to decide whether it's worth running
+  <code>lint</code> at all.
+</p>
+
+<h2>Once you know what's wrong, two more tools fix it</h2>
+<ul>
+  <li><strong><code>/ref:repair-fulltext</code></strong> takes <code>lint</code>'s
+    <code>metadata_only</code>/<code>abstract_only</code>/<code>oa_pending</code> buckets and works
+    through them, one PMID at a time, using the same acquisition path <code>/ref:fetch</code> uses.
+    It's bounded (<code>--limit</code>, default 20) and resume-safe: a state file
+    (<code>maintenance/repair-fulltext-state.json</code>, owned exclusively by <code>repair_state.py</code>)
+    tracks what was attempted and when, so re-running after an interruption makes forward progress
+    instead of re-hammering the same failures.</li>
+  <li><strong><code>/ref:audit</code></strong> re-checks retraction/errata status against PubMed.
+    It's the one selector-taking command in the whole plugin where <em>no selector means the whole
+    library</em>, not an error &mdash; because this is explicitly a maintenance sweep, not a scoped
+    artifact. A second mode, <code>--citations</code>, records dated PMC "cited by" counts via a
+    direct NCBI ELink call (there's no MCP tool that returns real citation counts &mdash; this was
+    confirmed by checking, not assumed).</li>
+</ul>
+
+<div class="callout">
+  <strong>What "fix" doesn't mean:</strong> <code>repair-fulltext</code> never invents a success. A
+  paper with no legitimate open-access full text just stays <code>abstract_only</code> across runs
+  &mdash; that's the correct outcome, not a bug to chase. And when <code>audit</code> flips a paper's
+  retraction status, it doesn't quietly patch every document that ever cited it: it names the
+  <code>potentially_stale_artifacts</code> (a saved brief, comparison, summary) and leaves refreshing
+  them to an explicit <code>--refresh</code> call. Nothing frozen gets silently overwritten.
+</div>
+
+<h2>The orchestrator</h2>
+<p>
+  <code>/ref:maintain</code> runs <code>status</code> &rarr; <code>lint --snapshot</code> &rarr;
+  index rebuild (<code>catalog.py rebuild</code>, plus <code>relation.py refresh</code> if a concept
+  graph exists) &rarr; <code>audit</code>'s retraction sweep, in that order, then prints a short
+  <code>next:</code> list of concrete follow-up commands based on what it found. It is explicitly
+  documented as <em>not</em> a replacement for any of the four commands it wraps &mdash; each stays
+  useful on its own, and each stage is independent, so one stage failing doesn't block the later
+  read-only ones.
+</p>
+<p>
+  The one thing <code>maintain</code> adds beyond "run four commands in sequence": every
+  <code>lint</code> run it triggers is snapshotted to <code>maintenance/</code>, which is what makes
+  <code>/ref:lint --diff</code> possible later &mdash; comparing today's gaps against last week's.
+</p>
+
+<pre><code>/ref:maintain
+  status.py                          -&gt; health line
+  lint.py --snapshot                 -&gt; gap buckets, written to maintenance/
+  catalog.py rebuild                 -&gt; index refresh (skippable: --no-index)
+  relation.py refresh                -&gt;   (only if graph/relations.jsonl exists)
+  audit retraction sweep + propagate -&gt; status changes (skippable: --no-audit)
+  next: -&gt; concrete follow-up commands</code></pre>
+
+<div class="quiz" data-quiz="q1" data-answer="b">
+  <p class="q">You run <code>/ref:maintain</code> with no flags. It reports 3 papers now flagged <code>retracted</code>
+    that weren't before. What happens to your existing saved <code>/ref:brief</code> that cites one of them?</p>
+  <div class="choices">
+    <label><input type="radio" name="q1" value="a"> It's silently regenerated with a warning added.</label>
+    <label><input type="radio" name="q1" value="b"> Nothing changes to the saved brief itself; it's listed under <code>potentially_stale_artifacts</code> and needs an explicit <code>--refresh</code> to update.</label>
+    <label><input type="radio" name="q1" value="c"> The brief is deleted so it can't be cited by mistake.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; frozen artifacts are never auto-refreshed or overwritten. Staleness is surfaced, not fixed for you.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; a frozen artifact's prior version is never overwritten. It shows up in <code>potentially_stale_artifacts</code>, and refreshing it is a separate, explicit call.</p>
+</div>
+
+<div class="quiz" data-quiz="q2" data-answer="c">
+  <p class="q"><code>/ref:lint</code> reports 40 papers as <code>abstract_only</code>. You run
+    <code>/ref:repair-fulltext</code> with the default <code>--limit 20</code>, then run it again
+    immediately with no flags. What happens on the second run?</p>
+  <div class="choices">
+    <label><input type="radio" name="q2" value="a"> It re-attempts the same first 20 PMIDs, since no state is kept between runs.</label>
+    <label><input type="radio" name="q2" value="b"> It fails, because a repair run already happened today.</label>
+    <label><input type="radio" name="q2" value="c"> It skips PMIDs that failed or stayed abstract-only in the last 24h (unless <code>--retry-failed</code>) and makes progress on the remaining ones &mdash; resume-safe by design.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; <code>repair_state.py</code> tracks attempts per PMID so re-runs make forward progress instead of repeating recent failures.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; the whole point of the resume state file is that a second run doesn't repeat yesterday's (or the last 24h's) failures; it moves on to the next candidates instead.</p>
+</div>
+
+<p class="ask-agent">Want to see this loop run for real against a scratch library, or trace exactly what
+<code>audit.py propagate</code> does to a <code>corrections.json</code>/brief manifest? Ask your agent.</p>
+
+<div class="nav-links">
+  Reference: <a href="../reference/maintenance-commands.html">Maintenance Command Cheat Sheet</a>.
+  Previous: <a href="0001-paper-repo-anatomy.html">Lesson 0001 &mdash; Paper Repo Anatomy</a>.
+  Next up: the acquire &rarr; extract pipeline (still queued from Lesson 0001), or a deeper look at
+  <code>/ref:verify</code>'s correction-overlay rules if you'd rather go there first &mdash; say which.
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.quiz').forEach(function (quiz) {
+    var inputs = quiz.querySelectorAll('input[type=radio]');
+    var correct = quiz.querySelector('.feedback.correct');
+    var incorrect = quiz.querySelector('.feedback.incorrect');
+    var answer = quiz.getAttribute('data-answer');
+    inputs.forEach(function (input) {
+      input.addEventListener('change', function () {
+        var isCorrect = input.value === answer;
+        correct.classList.toggle('show', isCorrect);
+        incorrect.classList.toggle('show', !isCorrect);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

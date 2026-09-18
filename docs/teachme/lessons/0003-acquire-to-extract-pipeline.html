@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Acquire-to-Extract Pipeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 0003 &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>The Acquire-to-Extract Pipeline</h1>
+<p class="lede">A PMID's full walk from bare number to structured claims: <code>/ref:init</code> &rarr; <code>/ref:add</code> &rarr; <code>/ref:fetch</code> &rarr; <code>/ref:extract</code>.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <code>commands/{init,add,fetch,extract}.md</code> and
+  <code>agents/ref-extractor.md</code> &mdash; the actual shipped specs. Quick-reference version:
+  <a href="../reference/pipeline-commands.html">Pipeline Command Cheat Sheet</a>. This lesson builds on
+  <a href="0001-paper-repo-anatomy.html">Lesson 0001</a> (what gets written where) &mdash; if
+  <code>raw/&lt;sha256&gt;/</code>, <code>current.json</code>, or <code>versions/&lt;v-id&gt;/</code>
+  aren't familiar yet, skim that first.
+</div>
+
+<h2>The shape of the pipeline</h2>
+<p>Four stages, each one command, each one only doing its own job:</p>
+
+<pre><code>/ref:init &lt;path&gt;      -&gt; creates the library skeleton, once
+/ref:add &lt;pmid...&gt;    -&gt; resolves PMID -&gt; metadata, creates papers/&lt;pmid&gt;/
+/ref:fetch &lt;pmid...&gt;  -&gt; acquires full text into a new versions/&lt;v-id&gt;/
+/ref:extract &lt;pmid...&gt; -&gt; reads full text (or abstract) -&gt; claims.json</code></pre>
+
+<p>
+  Every stage after <code>init</code> is independent and re-runnable. <code>fetch</code> augments a
+  record that <code>add</code> already created; it never creates one from scratch. <code>extract</code>
+  never blocks on missing full text &mdash; an abstract-only paper still extracts, just from less
+  evidence. This is deliberate: you can stop after any stage and the paper is still usable, just at a
+  lower evidence tier.
+</p>
+
+<h2>Stage 1 &mdash; <code>/ref:init &lt;path&gt;</code></h2>
+<p>
+  Run once per library. Creates <code>log.md</code> and the top-level directories at
+  <code>&lt;path&gt;</code>, then records that path in <code>~/.config/ref-manager/config.json</code>.
+  Every other command reads the library location from that config file &mdash; you never pass
+  <code>--repo</code> yourself again after this.
+</p>
+<div class="callout">
+  <strong>One library is "active" at a time.</strong> Re-running <code>/ref:init</code> against a
+  different path without <code>--force</code> refuses to reconfigure &mdash; a safety rail against
+  accidentally pointing every future command at the wrong library.
+</div>
+
+<h2>Stage 2 &mdash; <code>/ref:add &lt;pmid...&gt;</code></h2>
+<p>
+  PMID is the identity key for this whole system &mdash; nothing exists until it has resolved to one.
+  <code>add</code> calls the PubMed metadata tool for every given PMID in a single batched call, then
+  normalizes each result (title, abstract, authors <em>in PubMed's original order</em>, journal, year,
+  DOI, PMCID, grants) and commits it.
+</p>
+<p>This is what actually appears on disk after <code>add</code>:</p>
+<pre><code>papers/&lt;pmid&gt;/
+  meta.json         # title, year, doi, pmcid, citekey, extraction_tier
+  authorship.json   # ordered author list
+  funding.json       # from any grants PubMed reported
+  raw/&lt;sha256&gt;/response.json   # the metadata envelope exactly as resolved</code></pre>
+<p>
+  Note what's <em>not</em> there yet: no <code>versions/</code> directory, no <code>current.json</code>.
+  A freshly-added paper is metadata-only. If PubMed returned no abstract, the paper is still
+  <code>added</code> &mdash; flagged metadata-only, not treated as an error. Each PMID in a batch
+  succeeds or fails independently; one bad ID never blocks the rest.
+</p>
+
+<h2>Stage 3 &mdash; <code>/ref:fetch &lt;pmid...&gt;</code></h2>
+<p>
+  <code>fetch</code> requires the paper to already exist (<code>meta.json</code> from <code>add</code>)
+  &mdash; it augments, never creates. It tries sources in a strict priority order, stopping at the
+  first that succeeds:
+</p>
+<div class="callout">
+  <strong>Fetch does not call add for you.</strong> Run <code>/ref:fetch</code> on a PMID that was
+  never <code>add</code>ed and it fails loudly, per-PMID, with
+  <code>pmid &lt;id&gt; has no meta.json -- run /ref:add first</code>
+  (<code>fetch.py</code>'s own check, before it tries any source). Other PMIDs in the same batch are
+  unaffected &mdash; this is the same one-failure-never-blocks-the-rest independence every stage in
+  this pipeline has, just triggered by a missing prerequisite instead of a bad source. The two stages
+  stay deliberately separate rather than fetch silently adding what's missing: <code>add</code> is
+  the identity-resolution step (PLAN.md's RESOLVE+DEDUP), and collapsing it into fetch would let a
+  full-text acquisition quietly create a paper record with no explicit resolution step behind it.
+</div>
+<ol>
+  <li><strong>PMC JATS XML</strong> (if the paper has a PMCID) &mdash; the highest-fidelity path:
+    section headings, tables, math, and figure locators all survive. It's also the <em>only</em> path
+    that produces <code>figures.json</code>, so it's always tried first.</li>
+  <li><strong>PubMed's full-text tool</strong> as a fallback when JATS isn't available or doesn't
+    parse &mdash; this returns pre-extracted plain text, not markup, so structure is lost but the
+    words survive.</li>
+  <li><strong>Unpaywall</strong> (a single deterministic REST call, keyed on the paper's DOI) &mdash;
+    if it finds an open-access PDF location, that's recorded as <code>oa_location_found</code>, not
+    downloaded automatically. You'd follow up with <code>/ref:fetch-pdf</code> or <code>/ref:attach</code>.</li>
+  <li><strong>Publisher HTML</strong>, fetched and handed in by whoever is running the command.</li>
+  <li><strong>Nothing worked</strong> &mdash; the paper stays <code>abstract_only</code>. This is a
+    legitimate, expected outcome, not a failure state.</li>
+</ol>
+<p>A successful fetch writes a new version:</p>
+<pre><code>papers/&lt;pmid&gt;/
+  raw/&lt;new-sha256&gt;/source.jats            # the raw source, content-addressed
+  versions/&lt;new-v-id&gt;/
+    manifest.json    # source: pmc_jats | publisher_html | plain_text
+    source.md         # the converted full text
+    figures.json       # only for the JATS path
+  current.json        # pointer flipped to the new version</code></pre>
+<p>
+  Re-running <code>fetch</code> on a paper whose source hasn't changed reports
+  <code>duplicate_noop</code> and writes nothing new &mdash; it hashes the incoming source and compares
+  against the current version's <code>raw_hash</code> first (you saw this content-addressing pattern
+  already in <a href="0001-paper-repo-anatomy.html">Lesson 0001</a>'s PDF quiz). When a fetch <em>does</em>
+  change the source, the old fetch-created version directory is pruned &mdash; but the raw bytes under
+  <code>raw/&lt;sha256&gt;/</code> are never deleted, so the evidence trail survives even after cleanup.
+</p>
+
+<h2>Stage 4 &mdash; <code>/ref:extract &lt;pmid...&gt;</code></h2>
+<p>
+  This is the one stage that isn't a deterministic script call. Classifying study type and normalizing
+  a finding into PICO+ fields needs real reading judgment, so <code>extract</code> fans out one
+  <code>ref-extractor</code> subagent per PMID, <strong>in parallel</strong> &mdash; every paper's
+  extraction is independent, so one paper's malformed output or missing full text never blocks another's.
+</p>
+<p>Each subagent gets exactly one paper's <code>title</code>, <code>abstract</code>, and
+  <code>full_text</code> (or <code>null</code> if this paper never made it past Stage 2/3 &mdash;
+  abstract-tier extraction still runs, per D4) and must return <em>one</em> JSON object:
+</p>
+<pre><code>{
+  "pmid": "...", "study_type": "rct|cohort|...|unknown",
+  "study_type_confidence": "confident|uncertain",
+  "claims": [
+    {
+      "locator": "...", "evidence_span": "&lt;direct quote&gt;", "evidence_tier": "abstract|full",
+      "population": "...", "intervention": "...", "comparator": "...", "outcome": "...",
+      "timepoint": "...", "direction": "...", "effect_value": "...", "effect_measure": "...",
+      "uncertainty_interval": "...", "study_design": "...",
+      "cohort_identity": "...", "adjustment_context": "..."
+    }
+  ]
+}</code></pre>
+<p>
+  Two rules worth internalizing, because they're what keep this trustworthy rather than just plausible:
+</p>
+<ul>
+  <li><strong>Any field the subagent can't determine is the literal string <code>"unknown"</code></strong>
+    &mdash; never omitted, never guessed. A missing key would look like the extractor forgot to check;
+    <code>"unknown"</code> makes the gap visible and machine-checkable.</li>
+  <li><strong>Every claim carries an <code>evidence_span</code></strong> &mdash; a direct quote, not a
+    paraphrase &mdash; so a human reviewer can verify the normalization against the source text without
+    re-reading the whole paper.</li>
+</ul>
+<p>
+  The calling command adds provenance the subagent has no access to (a <code>source_hash</code> of the
+  text it was given, a fresh <code>retraction_status</code> check) before committing via
+  <code>extract.py</code>, which writes <code>claims.json</code> and <code>claim_registry.json</code>
+  into the current version directory. Re-extracting a paper whose new claim has the same locator as an
+  old one but materially different content <em>supersedes</em> the old claim &mdash; a new
+  <code>claim_id</code> is minted, the old one is kept with <code>superseded_by</code> set. Nothing is
+  ever deleted; you saw this same immutable-history instinct in the <code>raw/</code> directory back in
+  Lesson 0001.
+</p>
+
+<h2>Watch it end to end</h2>
+<p>
+  Every claim above is grounded in the command specs, but reading about it and watching it happen are
+  different kinds of learning. Ask your agent to run these four commands in sequence against a real (or
+  scratch) library and narrate what each one writes to disk as it goes &mdash; that turns this from
+  something you've read into something you've seen.
+</p>
+
+<div class="quiz" data-quiz="q1" data-answer="c">
+  <p class="q">A paper has no PMCID at all. You run <code>/ref:fetch</code> on it. What's the <em>first</em> thing it can still try?</p>
+  <div class="choices">
+    <label><input type="radio" name="q1" value="a"> PMC JATS XML, since PMC can look it up by PMID alone.</label>
+    <label><input type="radio" name="q1" value="b"> Nothing &mdash; it goes straight to abstract-only.</label>
+    <label><input type="radio" name="q1" value="c"> PubMed's full-text tool, then Unpaywall by DOI, then publisher HTML &mdash; only the JATS step is skipped, since it needs a PMCID.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; only the first path (JATS via PMC) needs a PMCID. Everything after it still runs in order.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; JATS is the only step that requires a PMCID. Without one, fetch just moves straight to PubMed's full-text tool, then Unpaywall (by DOI), then publisher HTML, before finally giving up.</p>
+</div>
+
+<div class="quiz" data-quiz="q2" data-answer="b">
+  <p class="q">You have a fresh PMID that's never been touched by this library. You run
+    <code>/ref:fetch &lt;pmid&gt;</code> directly, skipping <code>/ref:add</code>. What happens?</p>
+  <div class="choices">
+    <label><input type="radio" name="q2" value="a"> Fetch silently runs add first, then proceeds as normal.</label>
+    <label><input type="radio" name="q2" value="b"> That PMID fails with "no meta.json -- run /ref:add first"; other PMIDs in the same batch are unaffected.</label>
+    <label><input type="radio" name="q2" value="c"> Fetch creates a minimal <code>meta.json</code> from whatever source it finds, then continues.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; fetch augments an existing record, it never creates one. The two stages stay separate so identity resolution (add) is always an explicit step.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; fetch checks for <code>meta.json</code> first and fails that PMID loudly if it's missing, rather than creating or resolving identity itself. You still need <code>/ref:add</code> first.</p>
+</div>
+
+<div class="quiz" data-quiz="q3" data-answer="a">
+  <p class="q">A <code>ref-extractor</code> subagent can't determine a claim's <code>timepoint</code> from the text. What should it put in that field?</p>
+  <div class="choices">
+    <label><input type="radio" name="q3" value="a"> The literal string <code>"unknown"</code> &mdash; the key stays, nothing is guessed.</label>
+    <label><input type="radio" name="q3" value="b"> An empty string, so it's clear nothing was found.</label>
+    <label><input type="radio" name="q3" value="c"> Omit the key entirely, since it doesn't apply.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; every PICO+ field is required to be present, and "unknown" is the honest, explicit way to say "not determinable," never a guess and never a missing key.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; omitting the key or leaving it blank both hide the fact that the extractor genuinely couldn't tell. The contract requires the literal string <code>"unknown"</code> so the gap is visible and checkable.</p>
+</div>
+
+<p class="ask-agent">Want me to actually run <code>/ref:init</code>/<code>/ref:add</code>/<code>/ref:fetch</code>/<code>/ref:extract</code> against a scratch library right now and show you the real files each stage produces? Just ask &mdash; I'll check with you before touching your active library at <code>~/.config/ref-manager/config.json</code>.</p>
+
+<div class="nav-links">
+  Reference: <a href="../reference/pipeline-commands.html">Pipeline Command Cheat Sheet</a>.
+  Previous: <a href="0002-maintenance-loop.html">Lesson 0002 &mdash; The Maintenance Loop</a>
+  (what happens once papers like these start accumulating gaps).
+  Next up: the claim data model itself &mdash; <code>lib_schema.py</code>, the Claim v2 shape, and how
+  <code>/ref:verify</code> corrections overlay onto <code>claims.json</code> without ever editing it directly.
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.quiz').forEach(function (quiz) {
+    var inputs = quiz.querySelectorAll('input[type=radio]');
+    var correct = quiz.querySelector('.feedback.correct');
+    var incorrect = quiz.querySelector('.feedback.incorrect');
+    var answer = quiz.getAttribute('data-answer');
+    inputs.forEach(function (input) {
+      input.addEventListener('change', function () {
+        var isCorrect = input.value === answer;
+        correct.classList.toggle('show', isCorrect);
+        incorrect.classList.toggle('show', !isCorrect);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pipeline Command Cheat Sheet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--rule); padding: 0.5rem 0.6rem; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td code { white-space: nowrap; }
+  ol.priority { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+  ol.priority li { margin-bottom: 0.2rem; }
+</style>
+</head>
+<body>
+
+<p class="kicker">Reference &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>Pipeline Command Cheat Sheet</h1>
+<p class="lede">Init &rarr; add &rarr; fetch &rarr; extract, at a glance.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <code>commands/{init,add,fetch,extract}.md</code>,
+  <code>agents/ref-extractor.md</code>. See <a href="../lessons/0003-acquire-to-extract-pipeline.html">Lesson 0003</a>
+  for the narrative version.
+</div>
+
+<table>
+  <tr><th>Command</th><th>Requires</th><th>Does</th><th>Writes</th><th>Result lines</th></tr>
+  <tr>
+    <td><code>/ref:init &lt;path&gt;</code></td>
+    <td>&mdash;</td>
+    <td>Create library skeleton at <code>&lt;path&gt;</code>; record it as active.</td>
+    <td><code>log.md</code>, top-level dirs, <code>~/.config/ref-manager/config.json</code></td>
+    <td>&mdash;</td>
+  </tr>
+  <tr>
+    <td><code>/ref:add &lt;pmid...&gt;</code></td>
+    <td>Active library</td>
+    <td>Batch-resolve PMIDs via PubMed metadata; normalize; commit.</td>
+    <td><code>papers/&lt;pmid&gt;/{meta,authorship,funding}.json</code>,
+      <code>raw/&lt;sha256&gt;/response.json</code></td>
+    <td><code>added</code> / <code>already_present</code> / <code>failed</code>
+      (per PMID, independent)</td>
+  </tr>
+  <tr>
+    <td><code>/ref:fetch &lt;pmid...&gt;</code></td>
+    <td><code>meta.json</code> (from <code>add</code>)</td>
+    <td>Try sources in priority order (below); convert + commit the first that works.</td>
+    <td><code>raw/&lt;new-sha256&gt;/source.*</code>,
+      <code>versions/&lt;v-id&gt;/{manifest,source.md,figures.json}</code>,
+      flips <code>current.json</code></td>
+    <td><code>acquired</code> / <code>duplicate_noop</code> / <code>oa_location_found</code> /
+      <code>abstract_only</code> / <code>failed</code></td>
+  </tr>
+  <tr>
+    <td><code>/ref:extract &lt;pmid...&gt;</code></td>
+    <td>Title + (full text or abstract)</td>
+    <td>One <code>ref-extractor</code> subagent per PMID, in parallel; classify study type,
+      normalize claims to PICO+.</td>
+    <td><code>versions/&lt;v-id&gt;/{claims.json,claim_registry.json}</code></td>
+    <td><code>extracted</code> / <code>failed</code> (per PMID, independent)</td>
+  </tr>
+</table>
+
+<h2><code>/ref:fetch</code>'s source priority</h2>
+<ol class="priority">
+  <li><strong>PMC JATS XML</strong> &mdash; needs a PMCID. Only path yielding <code>figures.json</code>. Tried first.</li>
+  <li><strong>PubMed full-text tool</strong> &mdash; fallback, pre-extracted plain text (structure lost).</li>
+  <li><strong>Unpaywall</strong> (by DOI) &mdash; finds a location, doesn't download; reports <code>oa_location_found</code>.</li>
+  <li><strong>Publisher HTML</strong> &mdash; fetched by the calling agent, handed in.</li>
+  <li><strong>None worked</strong> &mdash; <code>abstract_only</code>. Expected, not a failure.</li>
+</ol>
+
+<h2>Rules that don't show up in the flags</h2>
+<ul>
+  <li>Every field a <code>ref-extractor</code> subagent can't determine is the literal string
+    <code>"unknown"</code> &mdash; never omitted, never guessed.</li>
+  <li>Every claim carries a direct-quote <code>evidence_span</code>, not a paraphrase.</li>
+  <li>A re-extraction that changes a claim at the same locator <em>supersedes</em> it
+    (new <code>claim_id</code>; old one kept with <code>superseded_by</code>) &mdash; nothing is deleted.</li>
+  <li><code>fetch</code>'s <code>duplicate_noop</code> mirrors the content-addressed <code>raw/&lt;sha256&gt;/</code>
+    pattern from <a href="../lessons/0001-paper-repo-anatomy.html">Lesson 0001</a>: identical source, no new version.</li>
+  <li>Every command here processes each PMID independently &mdash; one failure never blocks the batch.</li>
+  <li><code>fetch</code> does not run <code>add</code> for you. A PMID with no <code>meta.json</code> fails
+    that PMID with <code>no meta.json -- run /ref:add first</code>, checked before any source is tried.</li>
+</ul>
+
+<div class="nav-links">
+  See also: <a href="../lessons/0001-paper-repo-anatomy.html">Lesson 0001 &mdash; Paper Repo Anatomy</a>,
+  <a href="../lessons/0002-maintenance-loop.html">Lesson 0002 &mdash; The Maintenance Loop</a>,
+  <a href="../lessons/0003-acquire-to-extract-pipeline.html">Lesson 0003 &mdash; The Acquire-to-Extract Pipeline</a>,
+  <a href="maintenance-commands.html">Maintenance Command Cheat Sheet</a>.
+</div>
+
+</body>
+</html>

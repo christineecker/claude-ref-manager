@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Paper Repo Anatomy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 0001 &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>Paper Repo Anatomy</h1>
+<p class="lede">What a library actually contains on disk, and who is allowed to write each file.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <a href="../../concepts.html">docs/concepts.html</a>, section &ldquo;Library layout.&rdquo;
+  Everything below is taken from there &mdash; it in turn is derived from the actual scripts in
+  <code>skills/ref-manager/scripts/</code>, not from PLAN.md, so where code and plan disagree, the doc (and this lesson) follow the code.
+</div>
+
+<h2>The one command that creates the skeleton</h2>
+<p>
+  <code>/ref:init &lt;path&gt;</code> runs <code>init_repo.py</code>. That's it &mdash; it creates
+  <code>log.md</code> and the top-level directories, then records the library root in
+  <code>~/.config/ref-manager/config.json</code>. Nothing below the top level exists yet;
+  every other file is created lazily, on first write, by whichever command needs it.
+</p>
+
+<h2>Anatomy of one paper</h2>
+<p>Everything about a single PMID lives under <code>papers/&lt;pmid&gt;/</code>:</p>
+
+<pre><code>papers/&lt;pmid&gt;/
+  meta.json          # bibliographic authority, citekey, extraction_tier   (add.py)
+  authorship.json    # ordered author list, raw_order_preserved           (add.py)
+  funding.json       # funding observations + state                      (add.py, fetch.py)
+  raw/&lt;sha256&gt;/       # immutable, content-addressed
+    response.json    # metadata envelope as resolved                     (add.py)
+    source.jats | source.html | source.plain_text                        (fetch.py)
+    source.pdf, attachment.json                                          (attach.py)
+  current.json       # {"version": "v-..."} — atomic pointer
+  versions/&lt;v-id&gt;/
+    manifest.json    # source/converter/hash, or extractor/model/prompt versions
+    source.md        # converted full text
+    figures/
+    figures.json     # figure assets, captions, cached vision entries
+    claims.json      # claims emitted by this extraction run
+    claim_registry.json  # cross-version claim history, supersession links
+    notes.md         # /ref:note — never touched by extraction
+    annotations.json # /ref:pull-annotations — upsert, tombstones on upstream delete
+    corrections.json # /ref:verify review overlays
+    citations.json   # append-only cited-by observations (D25)
+    related.json      # /ref:related snowball candidates</code></pre>
+
+<p>
+  Three things worth burning into memory, because they explain a lot of the rest of the codebase:
+</p>
+<ol>
+  <li><strong><code>raw/&lt;sha256&gt;/</code> is immutable and content-addressed.</strong> Re-fetching the same source never overwrites it &mdash; a new hash gets a new directory. This is how the repo avoids ever silently losing an earlier version of a source document.</li>
+  <li><strong><code>current.json</code> is an atomic pointer</strong>, not the data itself. It just says which <code>versions/&lt;v-id&gt;/</code> is "current." Extraction re-runs create a new version directory and flip the pointer — they don't mutate an old version in place.</li>
+  <li><strong>Ownership is per-file, not per-directory.</strong> <code>notes.md</code> is yours — extraction commands are documented to never touch it. <code>claims.json</code> is extraction's — you don't hand-edit it, you go through <code>/ref:verify</code> (which writes to <code>corrections.json</code>, an overlay, rather than editing claims directly).
+</ol>
+
+<div class="callout">
+  <strong>Why an overlay instead of editing <code>claims.json</code> directly?</strong>
+  It keeps every claim traceable to the extraction run that produced it, while still letting a human
+  correct it. If <code>corrections.json</code> didn't exist, a manual fix would look indistinguishable
+  from a model output — you'd lose the ability to ask "was this claim ever model-generated, or did a
+  human always believe this?"
+</div>
+
+<h2>Everything above the <code>papers/</code> level</h2>
+<p>Briefly, so you know where to look before diving into a specific tutorial later:</p>
+<ul>
+  <li><code>projects/&lt;slug&gt;/</code> &mdash; a project's scope, questions, paper membership, screening decisions, and every batch output (<code>tables/</code>, <code>summaries/</code>, <code>briefs/</code>, <code>reviews/</code>, <code>checks/</code>, <code>prisma/</code>) each in its own <code>&lt;batch&gt;/</code> directory with a <code>manifest.json</code>.</li>
+  <li><code>people/&lt;slug&gt;.json</code> &mdash; name variants and ORCID matches, split into confirmed/candidate/rejected.</li>
+  <li><code>labs/</code> and <code>grant...</code> directories exist in the skeleton but nothing writes to them yet as of this doc.</li>
+</ul>
+
+<div class="quiz" data-quiz="q1">
+  <p class="q">You re-fetch a paper's PDF a second time. What happens to the first PDF?</p>
+  <div class="choices">
+    <label><input type="radio" name="q1" value="a"> It gets overwritten with the new PDF.</label>
+    <label><input type="radio" name="q1" value="b"> It stays untouched under its own <code>raw/&lt;sha256&gt;/</code> directory; the new fetch gets a new hash directory.</label>
+    <label><input type="radio" name="q1" value="c"> It moves into <code>versions/&lt;v-id&gt;/</code> automatically.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right — <code>raw/</code> is content-addressed and immutable. Nothing in it is ever overwritten.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite — <code>raw/&lt;sha256&gt;/</code> is immutable and content-addressed, so a re-fetch never overwrites an existing hash directory; it just adds a new one.</p>
+</div>
+
+<div class="quiz" data-quiz="q2">
+  <p class="q">You want to correct a claim you believe the extractor got wrong. Where does that correction get written?</p>
+  <div class="choices">
+    <label><input type="radio" name="q2" value="a"> Directly into <code>claims.json</code>.</label>
+    <label><input type="radio" name="q2" value="b"> Into <code>corrections.json</code>, via <code>/ref:verify</code>.</label>
+    <label><input type="radio" name="q2" value="c"> Into <code>notes.md</code>.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right — corrections are a separate overlay so the original claim's provenance stays intact.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite — <code>claims.json</code> is extraction-owned; corrections go through <code>/ref:verify</code> into <code>corrections.json</code> as an overlay, so the original model output stays traceable.</p>
+</div>
+
+<p class="ask-agent">Something here unclear, or want to see the actual output of <code>init_repo.py</code> or <code>add.py</code> run against a scratch library? Ask your agent — that's what it's there for.</p>
+
+<div class="nav-links">
+  Next up: <a href="0003-acquire-to-extract-pipeline.html">Lesson 0003 &mdash; The Acquire-to-Extract Pipeline</a>
+  (how a PMID goes from bare ID to <code>claims.json</code>). Also see
+  <a href="0002-maintenance-loop.html">Lesson 0002 &mdash; The Maintenance Loop</a>.
+  Reference: none yet for this lesson &mdash; will add a directory-anatomy cheat sheet if a later lesson needs it.
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.quiz').forEach(function (quiz) {
+    var inputs = quiz.querySelectorAll('input[type=radio]');
+    var correct = quiz.querySelector('.feedback.correct');
+    var incorrect = quiz.querySelector('.feedback.incorrect');
+    inputs.forEach(function (input) {
+      input.addEventListener('change', function () {
+        var isCorrect = input.value === 'b';
+        correct.classList.toggle('show', isCorrect);
+        incorrect.classList.toggle('show', !isCorrect);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

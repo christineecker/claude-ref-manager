@@ -16,6 +16,12 @@ window.RefDashInsights = function (ctx) {
   var fetchJSON = ctx.fetchJSON, describeFetchError = ctx.describeFetchError;
   var filteredRows = ctx.filteredRows, filtersActive = ctx.filtersActive, applyPmidFilter = ctx.applyPmidFilter;
   var openDrawer = ctx.openDrawer, selectTab = ctx.selectTab, syncUrl = ctx.syncUrl;
+  // Phase 2 (nav redesign): the pill row (#ins-nav) moved into the section
+  // sidebar (app.js renderInsightsSidebar()); this callback keeps it in
+  // sync with `ins.view` however it changes (sidebar click, "Show in
+  // graph", a gap-grid drill-down, ...) without insights.js reaching back
+  // into app.js's DOM directly.
+  var renderInsightsSidebar = ctx.renderInsightsSidebar || function () {};
 
   // ------------------------------------------------------------ insights
   //
@@ -188,19 +194,16 @@ window.RefDashInsights = function (ctx) {
     return { rows: rowsT, cols: colsT, cells: cells };
   }
 
-  function renderInsightNav() {
-    var nav = document.getElementById("ins-nav");
-    clear(nav);
-    INSIGHT_VIEWS.forEach(function (v) {
-      nav.appendChild(el("button", {
-        text: v.label, attrs: { type: "button", "aria-pressed": String(ins.view === v.id) },
-        on: { click: function () { ins.view = v.id; ins.detail = null; renderInsights(); syncUrl(); } },
-      }));
-    });
+  function setView(id) {
+    if (!INSIGHT_VIEWS.some(function (v) { return v.id === id; })) return;
+    ins.view = id;
+    ins.detail = null;
+    renderInsights();
+    syncUrl();
   }
 
   function renderInsights() {
-    renderInsightNav();
+    renderInsightsSidebar();
     var body = document.getElementById("ins-body");
     var scopeLine = document.getElementById("ins-scope");
     if (!KNOW) {
@@ -2737,6 +2740,7 @@ window.RefDashInsights = function (ctx) {
     ins: ins,
     INSIGHT_VIEWS: INSIGHT_VIEWS,
     render: renderInsights,
+    setView: setView,
     showInGraph: showInGraph,
     // a live refresh: refetch /api/knowledge bypassing the server memo and
     // drop every structure derived from the old payload

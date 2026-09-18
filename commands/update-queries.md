@@ -28,5 +28,5 @@ Steps:
      them to a temp JSON file and run `triage.py load-batch --repo <library_root> --slug <slug> --pmids-file <temp-file>`.
    - If it has more than 100, tell the user the count and ask before loading the
      first 100 the same way.
-   - Tell the user they show under **New since last run** in the Triage tab, and
+   - Tell the user they show under **New since last run** in the Queries section, and
      that decisions on PMIDs the new run dropped are kept (marked "not in latest run").

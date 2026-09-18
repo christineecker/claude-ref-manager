@@ -493,6 +493,239 @@ class TestTriageRoutes(ServeFixture):
         self.assertEqual(json.loads(body)["results"][0]["result"], "queued")
         self.assertEqual(self._get_json("/api/triage/asd-ct")["counts"]["pending"], 2)
 
+class TestProjectsRoute(ServeFixture):
+    """DASHBOARD_NAV_IMPLEMENTATION_PLAN.md phase 3 §3.1/§3.7:
+    GET /api/projects and GET /api/project/<slug>/screening."""
+
+    PMIDS = ["30000001", "30000002"]
+
+    def setUp(self):
+        super().setUp()
+        import project
+        import pubmed_query
+        import screen
+        import triage
+
+        self.screen = screen
+        pubmed_query.new_run(self.library_root, "asd-ct", "autism", "pubmed", self.PMIDS, True)
+        project.create(self.library_root, "proj-a", "scope text", template="thesis-chapter")
+        project.add_question(self.library_root, "proj-a", "q1", "Does X affect Y?")
+        project.add_paper(self.library_root, "proj-a", "30000001", "high", 1, "to_read")
+        triage.init(self.library_root, "asd-ct", project="proj-a")
+
+        def fetcher(pmids):
+            return [{"pmid": p, "title": f"T{p}", "abstract": "A.", "authors": [], "journal": "J",
+                      "year": "2024", "doi": None, "pmcid": None, "grants": [],
+                      "publication_types": [], "mesh_terms": []} for p in pmids], []
+
+        triage.load_batch(self.library_root, "asd-ct", 2, fetcher=fetcher)
+
+    def _get_json(self, path):
+        status, body, _h = self._request("GET", path, headers=self._auth_headers())
+        self.assertEqual(status, 200, body)
+        return json.loads(body)
+
+    def test_projects_payload(self):
+        payload = self._get_json("/api/projects")
+        self.assertEqual(len(payload), 1)
+        p = payload[0]
+        self.assertEqual(p["slug"], "proj-a")
+        self.assertEqual(p["scope"], "scope text")
+        self.assertEqual(p["template"], "thesis-chapter")
+        self.assertTrue(p["next_steps"])  # copied from project.py's TEMPLATES
+        self.assertEqual([q["id"] for q in p["questions"]], ["q1"])
+        self.assertEqual(p["summary"]["paper_count"], 1)
+        self.assertEqual(len(p["queries"]), 1)
+        q = p["queries"][0]
+        self.assertEqual(q["slug"], "asd-ct")
+        self.assertEqual(q["total"], 2)
+        self.assertEqual(q["undecided"], 2)
+
+    def test_screening_log_pagination(self):
+        self.screen.decide(self.library_root, "proj-a", "30000001", "included", "good fit", None)
+        self.screen.decide(self.library_root, "proj-a", "30000002", "excluded", "wrong population", None)
+        page = self._get_json("/api/project/proj-a/screening?limit=1")
+        self.assertEqual(page["total"], 2)
+        self.assertEqual(len(page["records"]), 1)
+        self.assertEqual(page["records"][0]["pmid"], "30000002")  # newest first
+        page2 = self._get_json("/api/project/proj-a/screening?limit=1&offset=1")
+        self.assertEqual(page2["records"][0]["pmid"], "30000001")
+
+    def test_validation(self):
+        self.assertEqual(self._request("GET", "/api/projects")[0], 403)  # no token
+        self.assertEqual(self._request("GET", "/api/project/Bad_Slug/screening", headers=self._auth_headers())[0], 400)
+        self.assertEqual(self._request("GET", "/api/project/nope/screening", headers=self._auth_headers())[0], 404)
+
+
+class TestProjectReportsRoute(ServeFixture):
+    """DASHBOARD_NAV_IMPLEMENTATION_PLAN.md phase 4: GET /api/project/<slug>/reports
+    and .../report/<kind>/<id>. Fabricates each writer's on-disk output
+    directly (manifest.json + its body file) rather than running the real
+    summarize/compare/prisma/appraise/brief pipelines -- phase 4 only reads
+    those files, so this exercises dashboard.py's own card/freshness/body
+    logic, matching test_dashboard.py's convention of hand-writing fixture
+    JSON for the pipeline stages it doesn't itself own."""
+
+    def setUp(self):
+        super().setUp()
+        import time
+
+        self.pdir = self.library_root / "projects" / "proj-a"
+        (self.pdir).mkdir(parents=True, exist_ok=True)
+        (self.pdir / "project.yaml").write_text(json.dumps({"slug": "proj-a", "scope": None, "questions": []}))
+        (self.pdir / "papers.yaml").write_text(json.dumps({"papers": [
+            {"pmid": "11111", "reading_status": None}, {"pmid": "55555", "reading_status": None},
+        ]}))
+
+        # summary: fresh (both member pmids present)
+        sdir = self.pdir / "summaries" / "b1"
+        sdir.mkdir(parents=True)
+        (sdir / "manifest.json").write_text(json.dumps({"pmids": ["11111", "55555"], "resolved_at": "2026-01-01T00:00:00Z"}))
+        (sdir / "summary.md").write_text("# Summary\n\nBody.\n")
+
+        # brief: stale (missing 55555)
+        bkdir = self.pdir / "briefs" / "keyA"
+        bsdir = bkdir / "snap1"
+        bsdir.mkdir(parents=True)
+        (bkdir / "latest.json").write_text(json.dumps({"snapshot_id": "snap1"}))
+        (bsdir / "manifest.json").write_text(json.dumps({"provenance": {"pmids": ["11111"]}, "resolved_at": "2026-01-01T00:00:00Z"}))
+        (bsdir / "answer.md").write_text("Answer text.")
+        (bsdir / "evidence.json").write_text("[]")
+
+        # table: fresh
+        tdir = self.pdir / "tables" / "t1"
+        tdir.mkdir(parents=True)
+        (tdir / "manifest.json").write_text(json.dumps({"pmids": ["11111", "55555"], "resolved_at": "2026-01-01T00:00:00Z"}))
+        (tdir / "table.json").write_text(json.dumps([{"pmid": "11111"}]))
+
+        # prisma: fresh initially (snapshot newer than screening.jsonl)
+        prisma_root = self.pdir / "prisma"
+        psdir = prisma_root / "snap1"
+        psdir.mkdir(parents=True)
+        (prisma_root / "latest.json").write_text(json.dumps({"snapshot_id": "snap1"}))
+        (psdir / "manifest.json").write_text(json.dumps({"data_cutoff": "2026-01-01T00:00:00Z"}))
+        (psdir / "flow.md").write_text("# PRISMA\n")
+
+        # review: fresh
+        rdir = self.pdir / "reviews" / "r1"
+        rdir.mkdir(parents=True)
+        (rdir / "manifest.json").write_text(json.dumps({"pmids": ["11111", "55555"], "resolved_at": "2026-01-01T00:00:00Z"}))
+        (rdir / "grade.json").write_text(json.dumps({"certainty": "moderate"}))
+
+        time.sleep(0.02)
+
+    def _get_json(self, path):
+        status, body, _h = self._request("GET", path, headers=self._auth_headers())
+        self.assertEqual(status, 200, body)
+        return json.loads(body)
+
+    def test_fresh_and_stale_cards(self):
+        cards = self._get_json("/api/project/proj-a/reports")
+        by_kind = {c["kind"]: c for c in cards}
+        self.assertEqual(by_kind["summary"]["state"], "fresh")
+        self.assertEqual(by_kind["brief"]["state"], "stale")
+        self.assertIn("1 project paper(s)", by_kind["brief"]["why"])
+        self.assertEqual(by_kind["table"]["state"], "fresh")
+        self.assertEqual(by_kind["prisma"]["state"], "fresh")
+        self.assertEqual(by_kind["review"]["state"], "fresh")
+        self.assertEqual(by_kind["gaps"]["state"], "live")
+        self.assertEqual(by_kind["insights"]["state"], "live")
+
+    def test_prisma_goes_stale_after_new_screening(self):
+        (self.pdir / "screening.jsonl").write_text(json.dumps({"pmid": "11111", "decision": "included", "reason": "x", "timestamp": "now"}) + "\n")
+        cards = self._get_json("/api/project/proj-a/reports")
+        by_kind = {c["kind"]: c for c in cards}
+        self.assertEqual(by_kind["prisma"]["state"], "stale")
+
+    def test_report_bodies(self):
+        summary = self._get_json("/api/project/proj-a/report/summary/b1")
+        self.assertIn("Body.", summary["body"])
+        brief = self._get_json("/api/project/proj-a/report/brief/keyA")
+        self.assertEqual(brief["answer"], "Answer text.")
+        table = self._get_json("/api/project/proj-a/report/table/t1")
+        self.assertEqual(table["rows"], [{"pmid": "11111"}])
+        prisma = self._get_json("/api/project/proj-a/report/prisma/snap1")
+        self.assertIn("PRISMA", prisma["body"])
+        review = self._get_json("/api/project/proj-a/report/review/r1")
+        self.assertEqual(review["grade"]["certainty"], "moderate")
+        gaps = self._get_json("/api/project/proj-a/report/gaps/live")
+        self.assertIn("single_study_fragile", gaps)
+        self.assertIn("unresolved_conflicts", gaps)
+
+    def test_no_output_yet_gives_command_only_card(self):
+        (self.pdir / "summaries" / "b1" / "manifest.json").unlink()
+        import shutil
+        shutil.rmtree(self.pdir / "summaries")
+        cards = self._get_json("/api/project/proj-a/reports")
+        by_kind = {c["kind"]: c for c in cards}
+        self.assertEqual(by_kind["summary"]["state"], "none")
+        self.assertIn("/ref:summarize", by_kind["summary"]["command"])
+        self.assertIsNone(by_kind["summary"]["id"])
+
+    def test_validation(self):
+        self.assertEqual(self._request("GET", "/api/project/proj-a/reports")[0], 403)
+        self.assertEqual(self._request("GET", "/api/project/nope/reports", headers=self._auth_headers())[0], 404)
+        self.assertEqual(self._request("GET", "/api/project/proj-a/report/summary/..", headers=self._auth_headers())[0], 400)
+        self.assertEqual(self._request("GET", "/api/project/proj-a/report/summary/nope", headers=self._auth_headers())[0], 404)
+
+
+class TestProjectQuestionAssignRoutes(ServeFixture):
+    """DASHBOARD_NAV_IMPLEMENTATION_PLAN.md phase 5 §5/§6: single + bulk
+    question-assign POSTs."""
+
+    def setUp(self):
+        super().setUp()
+        import project
+
+        project.create(self.library_root, "proj-a", None)
+        project.add_question(self.library_root, "proj-a", "q1", "Does X affect Y?")
+        project.add_paper(self.library_root, "proj-a", "11111", None, None, None)
+        project.add_paper(self.library_root, "proj-a", "55555", None, None, None)
+
+    def _post(self, path, payload, *, origin=None, token=True):
+        headers = {"Content-Type": "application/json", "Origin": origin or f"http://127.0.0.1:{self.port}"}
+        if token:
+            headers["X-Ref-Token"] = self.token
+        return self._request("POST", path, headers=headers, body=json.dumps(payload).encode("utf-8"))
+
+    def test_single_assign(self):
+        status, body, _h = self._post("/api/project/proj-a/paper/11111", {"add": ["q1"]})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(json.loads(body)["questions"], ["q1"])
+        status, body, _h = self._post("/api/project/proj-a/paper/11111", {"remove": ["q1"]})
+        self.assertEqual(json.loads(body)["questions"], [])
+
+    def test_single_assign_unknown_qid_rejected(self):
+        status, body, _h = self._post("/api/project/proj-a/paper/11111", {"add": ["nope"]})
+        self.assertEqual(status, 409, body)
+
+    def test_bulk_assign(self):
+        status, body, _h = self._post("/api/project/proj-a/papers", {"pmids": ["11111", "55555"], "add": ["q1"]})
+        self.assertEqual(status, 200, body)
+        results = json.loads(body)["results"]
+        self.assertEqual([r["result"] for r in results], ["updated", "updated"])
+
+    def test_bulk_assign_one_bad_pmid_does_not_sink_batch(self):
+        status, body, _h = self._post("/api/project/proj-a/papers", {"pmids": ["11111", "99999"], "add": ["q1"]})
+        self.assertEqual(status, 200, body)
+        results = json.loads(body)["results"]
+        self.assertEqual(results[0]["result"], "updated")
+        self.assertEqual(results[1]["result"], "failed")
+
+    def test_token_and_origin_checks(self):
+        self.assertEqual(self._post("/api/project/proj-a/paper/11111", {"add": ["q1"]}, token=False)[0], 403)
+        self.assertEqual(self._post("/api/project/proj-a/paper/11111", {"add": ["q1"]}, origin="http://evil.example")[0], 403)
+        self.assertEqual(self._post("/api/project/proj-a/papers", {"pmids": ["11111"], "add": ["q1"]}, token=False)[0], 403)
+        self.assertEqual(self._post("/api/project/proj-a/papers", {"pmids": ["11111"], "add": ["q1"]}, origin="http://evil.example")[0], 403)
+
+    def test_validation(self):
+        self.assertEqual(self._post("/api/project/proj-a/paper/badpmid", {"add": ["q1"]})[0], 400)
+        self.assertEqual(self._post("/api/project/nope/paper/11111", {"add": ["q1"]})[0], 404)
+        self.assertEqual(self._post("/api/project/proj-a/paper/11111", {"add": "q1"})[0], 400)
+        self.assertEqual(self._post("/api/project/proj-a/papers", {"pmids": []})[0], 400)
+        self.assertEqual(self._post("/api/project/proj-a/papers", {"pmids": ["11111"], "add": [123]})[0], 400)
+
+
 class TestHealthSummaryKnowledgeRoutes(ServeFixture):
     """DASHBOARD_IMPROVEMENTS_IMPLEMENTATION_PLAN.md §4 + FR-09..FR-17's payload."""
 

@@ -7,6 +7,10 @@ Parse `$ARGUMENTS` for:
   project can hold many distinct saved questions). Not the same as the opaque
   snapshot ID minted on every save — see `brief.py`'s module docstring.
 - `--project <slug>` — optional; omit for a library-wide brief.
+- `--question-id <qid>` — optional (requires `--project`): link this brief to one of the
+  project's own questions (`add-question`), so the dashboard's Summary can show "brief:
+  `<key>`" against that question instead of guessing from the free-text `<question>`/`--key`
+  (phase 5 §3). Distinct from `<question>`/`--key`, which are unchanged.
 - an optional §5c selector to constrain retrieval, same as `/ref:ask`.
 - `--refresh` — re-run retrieval + synthesis and report the diff instead of
   reusing the frozen snapshot.
@@ -33,7 +37,7 @@ Steps:
    selector resolution (if any) to temp files too.
 5. Print, then run:
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/brief.py" save --repo <library_root> --key <key> [--project <slug>] --question "<question>" --answer-file <answer-temp-file> --evidence-file <candidates-temp-file> [--resolution-file <resolution-temp-file>] [--unresolved <q1> <q2> ...] [--refresh]
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/brief.py" save --repo <library_root> --key <key> [--project <slug>] --question "<question>" [--question-id <qid>] --answer-file <answer-temp-file> --evidence-file <candidates-temp-file> [--resolution-file <resolution-temp-file>] [--unresolved <q1> <q2> ...] [--refresh]
    ```
 6. Print the script's own output verbatim. On a refresh, it reports
    `added_support_claim_ids`, `new_pmids`, and `withdrawn_evidence` (claims that

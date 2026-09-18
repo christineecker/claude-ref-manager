@@ -8,268 +8,380 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <img class="appicon" src="icon.svg" alt="">
-      <h1>Paper library</h1>
-      <span class="path" id="lib-path"></span>
-    </div>
-    <span class="spacer"></span>
-    <button class="hpill" id="api-health" type="button" hidden aria-controls="health-details"><i></i><span></span></button>
-    <span class="meta-line mono" id="generated-line"></span>
+<div class="shell">
+
+  <!-- ============ LABELLED RAIL (D1) ============ -->
+  <nav class="rail" aria-label="Sections" id="rail">
+    <img class="appicon" src="icon.svg" alt="">
+    <button type="button" id="tab-papers" data-sec="library" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 12h16M10 7.5h4M10 16.5h4"></path></svg><span class="rl">Library</span><span class="count" id="c-papers" hidden></span></button>
+    <button type="button" id="tab-overview" data-sec="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 1 18 0"></path><path d="M12 12l4-5"></path><circle cx="12" cy="12" r="1.4"></circle><path d="M5 18h14"></path></svg><span class="rl">Overview</span><span class="pip" id="rail-pip-next" hidden></span></button>
+    <button type="button" id="tab-projects" data-sec="projects"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span class="rl">Projects</span><span class="count" id="c-projects" hidden></span></button>
+    <button type="button" id="tab-triage" data-sec="queries"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><span class="rl">Queries</span><span class="pip dot" id="rail-dot-queries" hidden></span><span class="count" id="c-triage" hidden></span></button>
+    <button type="button" id="tab-insights" data-sec="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="2.2"></circle><circle cx="12" cy="6" r="2.2"></circle><circle cx="18" cy="15" r="2.2"></circle><path d="M7.2 15.2l3.6-7.2M13.6 7.7l3.2 5.4"></path></svg><span class="rl">Insights</span></button>
+    <span class="grow"></span>
+    <button class="iconbtn addbtn" id="btn-add" type="button" data-busy="false" aria-haspopup="dialog" aria-expanded="false" hidden title="Add papers"><svg viewBox="0 0 24 24" aria-hidden="true" id="add-ico"><path d="M12 5v14M5 12h14"></path></svg><span class="rl">Add</span></button>
+    <button class="hpill status" id="api-health" type="button" hidden aria-controls="health-details"><i class="sdot dot"></i><span class="rl" id="api-health-label"></span></button>
     <button class="iconbtn" id="btn-refresh" type="button" hidden title="Re-fetch rows from the live server" aria-label="Refresh">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg><span class="rl">Refresh</span>
     </button>
-  </header>
-
-  <div class="errbanner" id="errbanner" role="alert" hidden></div>
-
-  <section class="panel overview" aria-label="Library overview">
-    <div class="ovcol" aria-labelledby="h-health">
-      <h2 id="h-health">Health <span id="health-count"></span></h2>
-      <div class="state"><i class="dot" id="health-dot"></i><b id="health-label"></b></div>
-      <div class="kv ovkv" id="health-kv"></div>
-      <ul class="attn" id="attn"></ul>
-      <div class="healthdetails" id="health-details" hidden></div>
-    </div>
-
-    <div class="ovcol" aria-labelledby="h-source">
-      <h2 id="h-source">Source coverage <span id="src-total"></span></h2>
-      <div class="stack" id="stack"></div>
-      <div class="legend" id="legend"></div>
-    </div>
-
-    <div class="ovcol" aria-labelledby="h-funnel">
-      <h2 id="h-funnel">Pipeline <span>papers per stage</span></h2>
-      <div class="funnel" id="funnel" role="img" aria-label="Pipeline funnel"></div>
-      <div class="funnelnote" id="funnel-note"></div>
-    </div>
-  </section>
-
-  <section class="panel nextpanel" aria-labelledby="h-next" data-empty="false">
-    <div class="nexthead">
-      <h2 id="h-next">Next actions</h2>
-      <span class="nextsummary" id="next-summary"></span>
-      <span class="spacer"></span>
-      <label class="nextscope"><input type="checkbox" id="next-scope"> limit to the current Papers filters</label>
-      <span class="hint mono" id="next-caption"></span>
-      <button class="iconbtn nexttoggle" id="next-toggle" type="button" aria-expanded="false" aria-controls="next-actions" aria-label="Expand next actions">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
-      </button>
-    </div>
-    <ol class="nextlist" id="next-actions"></ol>
-  </section>
-
-  <div class="grid g2 midrow">
-    <section class="panel" aria-labelledby="h-trend">
-      <h2 id="h-trend">Open lint issues <span id="trend-caption"></span></h2>
-      <div class="trendhead" id="trend-head"></div>
-      <svg class="chart" id="trend" viewBox="0 0 560 150" role="img" aria-label="Lint issues over time"></svg>
-      <div class="kv trendkv" id="trend-buckets"></div>
-    </section>
-
-    <section class="panel intake" id="intake" aria-labelledby="h-intake" data-busy="false">
-      <h2 id="h-intake">Add papers <span id="intake-caption"></span></h2>
-      <ol class="intakelist" id="intake-list"></ol>
-      <div class="dropzone intakezone" id="intake-zone" tabindex="0" role="button" aria-label="Drop PDFs, PMIDs or PubMed links here, or click to choose PDFs">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4"></path><path d="m7 9 5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
-        <b>Drop PDFs, PMIDs or PubMed links</b>
-        <span>or paste them below · one per line is fine</span>
-      </div>
-      <form class="intakeform" id="intake-form">
-        <input type="text" id="intake-text" class="mono" placeholder="32587456, https://pubmed.ncbi.nlm.nih.gov/40123456/ …" aria-label="Paste PMIDs, DOIs or PubMed links" autocomplete="off">
-        <button type="submit" class="cmdbtn" id="intake-add">Add</button>
-      </form>
-      <div class="intakefoot">
-        <label><input type="checkbox" id="intake-fulltext" checked> extract full text after adding</label>
-        <button type="button" class="linkbtn" id="intake-clear" hidden>clear done</button>
-      </div>
-      <div class="intakestatic" id="intake-static" hidden>Run <code>/ref:dashboard</code> (serve mode) to add papers here.</div>
-    </section>
-  </div>
-
-  <nav class="tabs" role="tablist" id="tabs">
-    <button role="tab" id="tab-papers" data-tab="papers" aria-selected="true">Papers<span class="count" id="c-papers"></span></button>
-    <button role="tab" id="tab-projects" data-tab="projects" aria-selected="false">Projects<span class="count" id="c-projects"></span></button>
-    <button role="tab" id="tab-insights" data-tab="insights" aria-selected="false">Insights</button>
-    <button role="tab" id="tab-maint" data-tab="maint" aria-selected="false">Maintenance</button>
-    <button role="tab" id="tab-triage" data-tab="triage" aria-selected="false" hidden>Triage<span class="count" id="c-triage"></span></button>
   </nav>
 
-  <section id="p-papers" class="grid" style="gap:10px">
-    <div class="toolbar">
-      <input type="search" id="q" placeholder="Search title, authors, citekey, journal, PMID" aria-label="Search papers">
-      <select id="proj" aria-label="Project">
-        <option value="all">All projects</option>
-      </select>
-      <span class="quick" role="group" aria-label="Quick filters">
-        <button class="fchip" type="button" data-missing="pdf" aria-pressed="false" title="Show papers without an attached PDF"><span>missing: pdf</span><span class="x" aria-hidden="true">×</span></button>
-        <button class="fchip" type="button" data-missing="fulltext" aria-pressed="false" title="Show papers without full text"><span>missing: full-text</span><span class="x" aria-hidden="true">×</span></button>
-      </span>
-      <span id="activefilters" class="toolbar"></span>
-      <span class="views">
-        <button id="view-link" type="button" title="Copy a link that reopens these filters">Copy link</button>
-      </span>
-      <span class="result" id="result" role="status" aria-live="polite"></span>
-    </div>
-    <div class="tablewrap">
-      <table class="papers">
-        <thead><tr>
-          <th class="sel"><input type="checkbox" id="selall" aria-label="Select all visible"></th>
-          <th class="clip" title="PDF attached"><button data-sort="has_pdf" aria-label="Sort by PDF attached"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8"/></svg></button></th>
-          <th class="au"><button data-sort="authors_short">Authors</button></th>
-          <th class="la"><button data-sort="last_author">Last author</button></th>
-          <th><button data-sort="title">Title</button></th>
-          <th class="journal"><button data-sort="journal">Journal</button></th>
-          <th class="num"><button data-sort="year">Year</button></th>
-          <th class="cov">
-            <button data-sort="coverage">Coverage</button>
-            <div class="covhead" id="covhead" role="group" aria-label="Coverage columns -- click one to show papers missing it"></div>
-          </th>
-          <th class="num" title="Notes"><button data-sort="notes_count" aria-label="Sort by notes">N</button></th>
-          <th class="num"><button data-sort="claims_active">Claims</button></th>
-        </tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-    <div class="pager" id="pager"></div>
-    <div class="covlegend">
-      <span><b>bold</b> = to read</span>
-      <span><i class="on"></i> present</span>
-      <span><i class="off"></i> missing</span>
-      <span><i class="ret"></i> retracted</span>
-      <span class="mono" id="covlegend-cols"></span>
-    </div>
-    <div class="actionbar" id="actionbar" hidden>
-      <span><span class="n" id="seln"></span> selected</span>
-      <span class="selsummary" id="selsummary"></span>
-      <span class="abgroup" role="group" aria-label="Export">
-        <button id="exp-pmids" type="button" title="Download (and copy) the selected PMIDs">Export PMIDs</button>
-        <button id="exp-csv" type="button" title="Download the selected papers as CSV (e)">Export CSV <kbd>e</kbd></button>
-        <button id="copy-cmds" type="button" title="Copy every command below as one block (c)">Copy all commands <kbd>c</kbd></button>
-      </span>
-      <span class="abbreak"></span>
-      <code id="cmd-fetch"></code><button data-copy="cmd-fetch">Copy</button>
-      <code id="cmd-extract"></code><button data-copy="cmd-extract">Copy</button>
-      <code id="cmd-fetchpdf"></code><button data-copy="cmd-fetchpdf">Copy</button>
-      <code id="cmd-audit"></code><button data-copy="cmd-audit">Copy</button>
-      <button id="clearsel">Clear</button>
-    </div>
-  </section>
+  <!-- ============ SECTION SIDEBAR ============ -->
+  <aside class="side" aria-label="Section navigation" id="side">
+    <div class="side-head"><h1 id="side-title">Library</h1><span class="ct mono" id="side-count"></span></div>
+    <div class="side-scroll" id="side-scroll">
 
-  <section id="p-projects" class="projgrid" hidden></section>
+      <div class="side-panel" data-sec="library">
+        <ul class="side-list" id="side-lib-presets">
+          <li><button type="button" data-preset="all"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 12h16M10 7.5h4M10 16.5h4"></path></svg><span class="lbl">All papers</span><span class="n" id="n-lib-all"></span></button></li>
+          <li><button type="button" data-preset="toread"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v18l-7-4-7 4z"></path></svg><span class="lbl">To read</span><span class="n" id="n-lib-toread"></span></button></li>
+          <li><button type="button" data-preset="recent"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="lbl">Added last 7 days</span><span class="n" id="n-lib-recent"></span></button></li>
+        </ul>
+        <div class="side-group"><span>Needs work</span></div>
+        <ul class="side-list" id="side-lib-needs">
+          <li><button type="button" data-missing="pdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8"></path></svg><span class="lbl">Missing PDF</span><span class="n" id="n-lib-nopdf"></span></button></li>
+          <li><button type="button" data-missing="fulltext"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l6 6v14H6z"></path><path d="M14 2v6h6"></path></svg><span class="lbl">Missing full text</span><span class="n" id="n-lib-nofull"></span></button></li>
+          <li><button type="button" data-issue-preset="retracted"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"></path><path d="M12 10v5M12 18h.01"></path></svg><span class="lbl">Retracted</span><span class="n warn" id="n-lib-retracted"></span></button></li>
+        </ul>
+        <div class="side-group"><span>Filter by project</span></div>
+        <ul class="side-list" id="side-lib-projects"></ul>
+      </div>
 
-  <section id="p-insights" class="grid ins" hidden>
-    <div class="panel ins-head">
-      <div class="ins-nav" role="group" aria-label="Insight view" id="ins-nav"></div>
-      <div class="ins-scope">
-        <span id="ins-scope" role="status" aria-live="polite"></span>
-        <label><input type="checkbox" id="ins-follow" checked> follow the Papers filters</label>
-        <label>Year <input type="number" id="ins-yfrom" placeholder="from" min="1800" max="2100" aria-label="Year from"></label>
-        <label>&ndash; <input type="number" id="ins-yto" placeholder="to" min="1800" max="2100" aria-label="Year to"></label>
+      <div class="side-panel" data-sec="overview" hidden>
+        <ul class="side-list" id="side-ov-list">
+          <li><button type="button" data-ov="status"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span class="lbl">Status</span></button></li>
+          <li><button type="button" data-ov="next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"></path></svg><span class="lbl">Next actions</span><span class="n" id="n-ov-next"></span></button></li>
+          <li><button type="button" data-ov="lint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"></path><path d="M12 10v5M12 18h.01"></path></svg><span class="lbl">Lint &amp; changes</span><span class="n" id="n-ov-lint"></span></button></li>
+        </ul>
       </div>
-    </div>
-    <div id="ins-body" class="ins-body"></div>
-  </section>
 
-  <section id="p-triage" class="grid tri" hidden>
-    <div class="panel tri-head">
-      <div class="tri-headrow">
-        <select id="t-pick" aria-label="Saved search"></select>
-        <span class="tri-runmeta" id="t-runmeta"></span>
+      <div class="side-panel" data-sec="projects" hidden>
+        <ul class="side-list" id="side-projects-list"></ul>
       </div>
-      <div class="tri-query" id="t-query"></div>
-      <div class="tri-link">
-        <label for="t-project">Project</label>
-        <select id="t-project"></select>
-        <span class="tri-hint" id="t-projhint"></span>
-        <button type="button" class="cmdbtn" id="t-export" title="Copy a command that exports this search's included papers to Papers.app">Copy export command</button>
-      </div>
-    </div>
-    <div class="grid g3">
-      <section class="panel"><h2>Screening <span id="t-dec-total"></span></h2><div class="tri-bar" id="t-decbar"></div><div class="tri-legend" id="t-declegend"></div></section>
-      <section class="panel"><h2>Library <span id="t-lib-total"></span></h2><div class="tri-bar" id="t-libbar"></div><div class="tri-legend" id="t-liblegend"></div></section>
-      <section class="panel"><h2>Open access <span id="t-oa-total"></span></h2><div class="tri-bar" id="t-oabar"></div><div class="tri-legend" id="t-oalegend"></div></section>
-    </div>
-    <div class="panel tri-filters">
-      <div class="toolbar" id="t-chips" role="group" aria-label="Filter by status"></div>
-      <div class="tri-frow">
-        <input type="search" id="t-q" placeholder="Words to match; -word to leave out (e.g. cortical -rat)" aria-label="Filter triage rows by words">
-        <select id="t-qscope" aria-label="Where to match words">
-          <option value="all">in title, abstract, MeSH, authors, journal</option>
-          <option value="title">in title</option>
-          <option value="abstract">in abstract</option>
-          <option value="mesh">in MeSH terms</option>
-          <option value="authors">in authors</option>
-        </select>
-      </div>
-      <div class="tri-frow">
-        <label>Year <input type="number" id="t-yfrom" placeholder="from" min="1800" max="2100" aria-label="Year from"></label>
-        <label>– <input type="number" id="t-yto" placeholder="to" min="1800" max="2100" aria-label="Year to"></label>
-        <select id="t-type" aria-label="Article type"><option value="">Any article type</option></select>
-        <select id="t-journal" aria-label="Journal"><option value="">Any journal</option></select>
-        <select id="t-libstate" aria-label="Library state">
-          <option value="">Any library state</option>
-          <option value="none">Not added</option>
-          <option value="in">In library</option>
-          <option value="nopdf">In library, no PDF</option>
-          <option value="pdf">Has PDF</option>
-          <option value="noabstract">No abstract in PubMed</option>
-        </select>
-        <button type="button" class="cmdbtn" id="t-fclear">Clear filters</button>
-      </div>
-      <div class="tri-bulk" id="t-bulk" aria-live="polite"></div>
-    </div>
-    <div class="toolbar">
-      <span class="result" id="t-result" role="status" aria-live="polite"></span>
-    </div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr>
-          <th style="width:32px"><input type="checkbox" id="t-selall" aria-label="Select all visible"></th>
-          <th>PMID</th>
-          <th>Paper</th>
-          <th class="num">Year</th>
-          <th>Access</th>
-          <th>Library</th>
-          <th>Decision</th>
-        </tr></thead>
-        <tbody id="t-rows"></tbody>
-      </table>
-    </div>
-    <div class="pager" id="t-pager"></div>
-    <div class="tri-strip" id="t-batch" aria-live="polite"></div>
-    <div class="tri-strip tri-pending" id="t-pending" hidden></div>
-    <div class="actionbar" id="t-actionbar" hidden>
-      <span><span class="n" id="t-seln"></span> selected</span>
-      <button type="button" data-tdec="included">Include + add <kbd>i</kbd></button>
-      <button type="button" data-tdec="pending">Maybe <kbd>m</kbd></button>
-      <button type="button" data-tdec="excluded">Exclude <kbd>x</kbd></button>
-      <button type="button" data-tdec="cleared">Clear decision</button>
-      <span class="tri-reasons" id="t-reasons" role="group" aria-label="Decide with a reason"></span>
-      <span class="tri-spacer"></span>
-      <button type="button" data-tjob="pdf">Get PDFs</button>
-      <button type="button" data-tjob="full_text">Fetch full text</button>
-      <button type="button" id="t-clearsel">Deselect</button>
-      <span class="tri-status" id="t-status" role="status" aria-live="polite"></span>
-    </div>
-  </section>
 
-  <section id="p-maint" class="grid g2" hidden>
-    <div class="panel">
-      <h2>Lint buckets <span id="maint-caption"></span></h2>
-      <div id="sparks"></div>
+      <div class="side-panel" data-sec="queries" hidden>
+        <ul class="side-list" id="side-queries-list"></ul>
+      </div>
+
+      <div class="side-panel" data-sec="insights" hidden>
+        <ul class="side-list" id="side-insights-list"></ul>
+      </div>
+
     </div>
-    <div class="panel">
-      <h2>Changed since previous snapshot</h2>
-      <ul class="changes" id="changes"></ul>
+    <div class="side-meta mono" id="side-meta">
+      <span id="lib-path"></span>
+      <br>
+      <span id="generated-line"></span>
     </div>
-    <div class="panel">
-      <h2>Changed papers</h2>
-      <ul class="changes" id="changes-by-paper"></ul>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main" id="main-scroll">
+    <div class="errbanner" id="errbanner" role="alert" hidden></div>
+    <div class="banner" id="change-banner" hidden><b>Library changed on disk.</b><span>A command may have finished in Claude Code.</span><span class="spacer"></span><button class="cmdbtn primary" id="banner-refresh" type="button">Refresh</button></div>
+    <div class="wrap">
+
+      <!-- ---------- OVERVIEW (Status / Next actions / Lint & changes -- maintenance merged in, D5) ---------- -->
+      <div class="view" id="v-overview" hidden>
+        <div class="mainhead"><h2 id="ov-heading" tabindex="-1">Status</h2><span class="spacer"></span><span class="meta-line mono" id="generated-line-ov"></span></div>
+
+        <div class="ovpage" data-ov="status">
+          <section class="panel overview" aria-label="Library overview">
+            <div class="ovcol" aria-labelledby="h-health">
+              <h2 id="h-health">Health <span id="health-count"></span></h2>
+              <div class="state"><i class="dot" id="health-dot"></i><b id="health-label"></b></div>
+              <div class="kv ovkv" id="health-kv"></div>
+              <ul class="attn" id="attn"></ul>
+              <div class="healthdetails" id="health-details" hidden></div>
+            </div>
+
+            <div class="ovcol" aria-labelledby="h-source">
+              <h2 id="h-source">Source coverage <span id="src-total"></span></h2>
+              <div class="stack" id="stack"></div>
+              <div class="legend" id="legend"></div>
+            </div>
+
+            <div class="ovcol" aria-labelledby="h-funnel">
+              <h2 id="h-funnel">Pipeline <span>papers per stage</span></h2>
+              <div class="funnel" id="funnel" role="img" aria-label="Pipeline funnel"></div>
+              <div class="funnelnote" id="funnel-note"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="ovpage" data-ov="next" hidden>
+          <section class="panel nextpanel" aria-labelledby="h-next" data-empty="false">
+            <div class="nexthead">
+              <h2 id="h-next">Next actions</h2>
+              <span class="nextsummary" id="next-summary"></span>
+              <span class="spacer"></span>
+              <label class="nextscope"><input type="checkbox" id="next-scope"> limit to the current Papers filters</label>
+              <span class="hint mono" id="next-caption"></span>
+              <button class="iconbtn nexttoggle" id="next-toggle" type="button" aria-expanded="false" aria-controls="next-actions" aria-label="Expand next actions">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+            </div>
+            <ol class="nextlist" id="next-actions"></ol>
+          </section>
+        </div>
+
+        <div class="ovpage" data-ov="lint" hidden>
+          <section class="panel" aria-labelledby="h-trend">
+            <h2 id="h-trend">Open lint issues <span id="trend-caption"></span></h2>
+            <div class="trendhead" id="trend-head"></div>
+            <svg class="chart" id="trend" viewBox="0 0 560 150" role="img" aria-label="Lint issues over time"></svg>
+            <div class="kv trendkv" id="trend-buckets"></div>
+          </section>
+
+          <section id="p-maint" class="grid g2">
+            <div class="panel">
+              <h2>Lint buckets <span id="maint-caption"></span></h2>
+              <div id="sparks"></div>
+            </div>
+            <div class="panel">
+              <h2>Changed since previous snapshot</h2>
+              <ul class="changes" id="changes"></ul>
+            </div>
+            <div class="panel">
+              <h2>Changed papers</h2>
+              <ul class="changes" id="changes-by-paper"></ul>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ---------- LIBRARY ---------- -->
+      <div class="view" id="v-library">
+        <div class="mainhead"><h2 id="lib-heading" tabindex="-1">All papers</h2><span class="crumb" id="lib-crumb"></span><span class="spacer"></span><span class="result" id="result" role="status" aria-live="polite"></span></div>
+        <section id="p-papers" class="grid" style="gap:10px">
+          <div class="toolbar">
+            <input type="search" id="q" placeholder="Search title, authors, citekey, journal, PMID" aria-label="Search papers">
+            <select id="proj" aria-label="Project" hidden>
+              <option value="all">All projects</option>
+            </select>
+            <span class="quick" role="group" aria-label="Quick filters" hidden>
+              <button class="fchip" type="button" data-missing="pdf" aria-pressed="false" title="Show papers without an attached PDF"><span>missing: pdf</span><span class="x" aria-hidden="true">×</span></button>
+              <button class="fchip" type="button" data-missing="fulltext" aria-pressed="false" title="Show papers without full text"><span>missing: full-text</span><span class="x" aria-hidden="true">×</span></button>
+            </span>
+            <span id="activefilters" class="toolbar"></span>
+            <span class="views">
+              <button id="view-link" type="button" title="Copy a link that reopens these filters">Copy link</button>
+            </span>
+          </div>
+          <div class="tablewrap">
+            <table class="papers">
+              <thead><tr>
+                <th class="sel"><input type="checkbox" id="selall" aria-label="Select all visible"></th>
+                <th class="clip" title="PDF attached"><button data-sort="has_pdf" aria-label="Sort by PDF attached"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8"/></svg></button></th>
+                <th class="au"><button data-sort="authors_short">Authors</button></th>
+                <th class="la"><button data-sort="last_author">Last author</button></th>
+                <th><button data-sort="title">Title</button></th>
+                <th class="journal"><button data-sort="journal">Journal</button></th>
+                <th class="num"><button data-sort="year">Year</button></th>
+                <th class="cov">
+                  <button data-sort="coverage">Coverage</button>
+                  <div class="covhead" id="covhead" role="group" aria-label="Coverage columns -- click one to show papers missing it"></div>
+                </th>
+                <th class="num" title="Notes"><button data-sort="notes_count" aria-label="Sort by notes">N</button></th>
+                <th class="num"><button data-sort="claims_active">Claims</button></th>
+              </tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager"></div>
+          <div class="covlegend">
+            <span><b>bold</b> = to read</span>
+            <span><i class="on"></i> present</span>
+            <span><i class="off"></i> missing</span>
+            <span><i class="ret"></i> retracted</span>
+            <span class="mono" id="covlegend-cols"></span>
+          </div>
+          <div class="actionbar" id="actionbar" hidden>
+            <span><span class="n" id="seln"></span> selected</span>
+            <span class="selsummary" id="selsummary"></span>
+            <span class="abgroup" role="group" aria-label="Export">
+              <button id="exp-pmids" type="button" title="Download (and copy) the selected PMIDs">Export PMIDs</button>
+              <button id="exp-csv" type="button" title="Download the selected papers as CSV (e)">Export CSV <kbd>e</kbd></button>
+              <button id="copy-cmds" type="button" title="Copy every command below as one block (c)">Copy all commands <kbd>c</kbd></button>
+            </span>
+            <span class="abbreak"></span>
+            <code id="cmd-fetch"></code><button data-copy="cmd-fetch">Copy</button>
+            <code id="cmd-extract"></code><button data-copy="cmd-extract">Copy</button>
+            <code id="cmd-fetchpdf"></code><button data-copy="cmd-fetchpdf">Copy</button>
+            <code id="cmd-audit"></code><button data-copy="cmd-audit">Copy</button>
+            <button id="clearsel">Clear</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- PROJECTS ---------- -->
+      <!-- D6: the sidebar tree shows only projects + their linked queries;
+           the fixed Summary/Papers/Queries/Reports/Screening-log children
+           are in-page subtabs here, not mirrored in the tree. #p-projects
+           (the plain card grid) still renders when no project is selected. -->
+      <div class="view" id="v-projects" hidden>
+        <div class="mainhead"><h2 id="proj-heading" tabindex="-1">Projects</h2><span class="spacer"></span></div>
+        <section id="p-projects" class="projgrid"></section>
+        <div id="proj-folder" hidden>
+          <div class="subtabs" id="proj-subtabs" role="tablist" aria-label="Project sections">
+            <button type="button" data-psub="summary" role="tab">Summary</button>
+            <button type="button" data-psub="papers" role="tab">Papers</button>
+            <button type="button" data-psub="queries" role="tab">Queries</button>
+            <button type="button" data-psub="reports" role="tab">Reports</button>
+            <button type="button" data-psub="screening" role="tab">Screening log</button>
+          </div>
+          <div class="psubpage" data-psub="summary" id="proj-summary"></div>
+          <section class="psubpage" data-psub="papers" id="proj-papers" hidden></section>
+          <!-- the single screening-view instance re-parents here when its
+               project subtab is active (§5 risk: never two live mounts) -->
+          <div class="psubpage tri" data-psub="queries" id="proj-queries-mount" hidden></div>
+          <div class="psubpage" data-psub="reports" id="proj-reports" hidden></div>
+          <div class="psubpage" data-psub="screening" id="proj-screening" hidden></div>
+        </div>
+      </div>
+
+      <!-- ---------- INSIGHTS ---------- -->
+      <div class="view ins" id="v-insights" hidden>
+        <div class="mainhead"><h2 tabindex="-1">Insights</h2><span class="spacer"></span></div>
+        <section id="p-insights" class="grid ins">
+          <div class="panel ins-head">
+            <div class="ins-scope">
+              <span id="ins-scope" role="status" aria-live="polite"></span>
+              <label><input type="checkbox" id="ins-follow" checked> follow the Library filters</label>
+              <label>Year <input type="number" id="ins-yfrom" placeholder="from" min="1800" max="2100" aria-label="Year from"></label>
+              <label>&ndash; <input type="number" id="ins-yto" placeholder="to" min="1800" max="2100" aria-label="Year to"></label>
+            </div>
+          </div>
+          <div id="ins-body" class="ins-body"></div>
+        </section>
+      </div>
+
+      <!-- ---------- QUERIES (screening) ---------- -->
+      <!-- D7: every query, grouped ("Not in a project" first, then one
+           group per project); a linked query's row re-parents #p-triage
+           into its project folder instead of rendering it here. -->
+      <div class="view tri" id="v-queries" hidden>
+        <div class="mainhead"><h2 tabindex="-1">Queries</h2><span class="spacer"></span></div>
+        <ul class="qlist" id="q-grouped-list"></ul>
+        <div id="triage-home">
+        <section id="p-triage" class="grid tri">
+          <div class="panel tri-head">
+            <div class="tri-headrow">
+              <select id="t-pick" aria-label="Saved search"></select>
+              <span class="tri-runmeta" id="t-runmeta"></span>
+            </div>
+            <div class="tri-query" id="t-query"></div>
+            <div class="tri-link">
+              <label for="t-project">Project</label>
+              <select id="t-project"></select>
+              <span class="tri-hint" id="t-projhint"></span>
+              <button type="button" class="cmdbtn" id="t-export" title="Copy a command that exports this search's included papers to Papers.app">Copy export command</button>
+            </div>
+          </div>
+          <div class="grid g3">
+            <section class="panel"><h2>Screening <span id="t-dec-total"></span></h2><div class="tri-bar" id="t-decbar"></div><div class="tri-legend" id="t-declegend"></div></section>
+            <section class="panel"><h2>Library <span id="t-lib-total"></span></h2><div class="tri-bar" id="t-libbar"></div><div class="tri-legend" id="t-liblegend"></div></section>
+            <section class="panel"><h2>Open access <span id="t-oa-total"></span></h2><div class="tri-bar" id="t-oabar"></div><div class="tri-legend" id="t-oalegend"></div></section>
+          </div>
+          <div class="panel tri-filters">
+            <div class="toolbar" id="t-chips" role="group" aria-label="Filter by status"></div>
+            <div class="tri-frow">
+              <input type="search" id="t-q" placeholder="Words to match; -word to leave out (e.g. cortical -rat)" aria-label="Filter triage rows by words">
+              <select id="t-qscope" aria-label="Where to match words">
+                <option value="all">in title, abstract, MeSH, authors, journal</option>
+                <option value="title">in title</option>
+                <option value="abstract">in abstract</option>
+                <option value="mesh">in MeSH terms</option>
+                <option value="authors">in authors</option>
+              </select>
+            </div>
+            <div class="tri-frow">
+              <label>Year <input type="number" id="t-yfrom" placeholder="from" min="1800" max="2100" aria-label="Year from"></label>
+              <label>– <input type="number" id="t-yto" placeholder="to" min="1800" max="2100" aria-label="Year to"></label>
+              <select id="t-type" aria-label="Article type"><option value="">Any article type</option></select>
+              <select id="t-journal" aria-label="Journal"><option value="">Any journal</option></select>
+              <select id="t-libstate" aria-label="Library state">
+                <option value="">Any library state</option>
+                <option value="none">Not added</option>
+                <option value="in">In library</option>
+                <option value="nopdf">In library, no PDF</option>
+                <option value="pdf">Has PDF</option>
+                <option value="noabstract">No abstract in PubMed</option>
+              </select>
+              <button type="button" class="cmdbtn" id="t-fclear">Clear filters</button>
+            </div>
+            <div class="tri-bulk" id="t-bulk" aria-live="polite"></div>
+          </div>
+          <div class="toolbar">
+            <span class="result" id="t-result" role="status" aria-live="polite"></span>
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr>
+                <th style="width:32px"><input type="checkbox" id="t-selall" aria-label="Select all visible"></th>
+                <th>PMID</th>
+                <th>Paper</th>
+                <th class="num">Year</th>
+                <th>Access</th>
+                <th>Library</th>
+                <th>Decision</th>
+              </tr></thead>
+              <tbody id="t-rows"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="t-pager"></div>
+          <div class="tri-strip" id="t-batch" aria-live="polite"></div>
+          <div class="tri-strip tri-pending" id="t-pending" hidden></div>
+          <div class="actionbar" id="t-actionbar" hidden>
+            <span><span class="n" id="t-seln"></span> selected</span>
+            <button type="button" data-tdec="included">Include + add <kbd>i</kbd></button>
+            <button type="button" data-tdec="pending">Maybe <kbd>m</kbd></button>
+            <button type="button" data-tdec="excluded">Exclude <kbd>x</kbd></button>
+            <button type="button" data-tdec="cleared">Clear decision</button>
+            <span class="tri-reasons" id="t-reasons" role="group" aria-label="Decide with a reason"></span>
+            <span class="tri-spacer"></span>
+            <button type="button" data-tjob="pdf">Get PDFs</button>
+            <button type="button" data-tjob="full_text">Fetch full text</button>
+            <button type="button" id="t-clearsel">Deselect</button>
+            <span class="tri-status" id="t-status" role="status" aria-live="polite"></span>
+          </div>
+        </section>
+        </div>
+      </div>
+
     </div>
-  </section>
+  </main>
+</div>
+
+<!-- ============ GLOBAL INTAKE: rail "Add" popover (D3) ============ -->
+<div class="pop intake" id="intake" role="dialog" aria-label="Add papers" data-busy="false" hidden>
+  <div class="pophead"><b id="h-intake">Add papers</b><span class="mono" id="intake-caption"></span><button type="button" aria-label="Close" id="intake-close">×</button></div>
+  <label class="target"><span>Add to</span><select id="intake-target" aria-label="Where to add the papers"></select></label>
+  <ol class="intakelist" id="intake-list"></ol>
+  <div class="dropzone intakezone" id="intake-zone" tabindex="0" role="button" aria-label="Drop PDFs, PMIDs or PubMed links here, or click to choose PDFs">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4"></path><path d="m7 9 5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+    <b>Drop PDFs, PMIDs or PubMed links</b>
+    <span>or paste them below · one per line is fine</span>
+  </div>
+  <form class="intakeform" id="intake-form">
+    <input type="text" id="intake-text" class="mono" placeholder="32587456, https://pubmed.ncbi.nlm.nih.gov/40123456/ …" aria-label="Paste PMIDs, DOIs or PubMed links" autocomplete="off">
+    <button type="submit" class="cmdbtn" id="intake-add">Add</button>
+  </form>
+  <div class="intakefoot">
+    <label><input type="checkbox" id="intake-fulltext" checked> extract full text after adding</label>
+    <button type="button" class="linkbtn" id="intake-clear" hidden>clear done</button>
+  </div>
+  <div class="intakestatic" id="intake-static" hidden>Run <code>/ref:dashboard</code> (serve mode) to add papers here.</div>
+</div>
+
+<!-- whole-window drop overlay: names the target before anything is sent (D3) -->
+<div class="dropover" id="drop-overlay" hidden>
+  <div class="dropbox">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4"></path><path d="m7 9 5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+    <b>Drop to add papers</b>
+    <span class="to">Add to <strong id="drop-target-label">All papers</strong></span>
+    <small>Change the target under “Add” in the rail.</small>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden>Copied</div>

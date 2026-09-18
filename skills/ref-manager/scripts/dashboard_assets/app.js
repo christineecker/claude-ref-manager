@@ -89,6 +89,11 @@
 
   var SNAPSHOTS = DATA.snapshots || [];
 
+  // Phase 3 folder tree/Queries grouping (DASHBOARD_NAV_IMPLEMENTATION_PLAN.md
+  // §3.3-§3.6): `/api/projects` payload, embedded at build time in static
+  // mode and refetched (loadProjects()) alongside /api/rows in live mode.
+  var PROJECTS = DATA.projects || [];
+
   // Live mode has no build-time lint report / coverage matrix embedded in
   // DATA (§7 gap fixed here) -- LINT/MATRIX_COLUMNS/MATRIX_ROWS are filled
   // from DATA at static-build time and refetched via /api/lint + /api/matrix
@@ -538,37 +543,486 @@
     });
   }
 
-  // -------------------------------------------------------------- tabs
+  // ------------------------------------------------------ app shell / nav
+  //
+  // D1/D2/D5: rail (Library/Overview/Projects/Queries/Insights) + a
+  // per-section sidebar, replacing the old tab strip. `activeTab` and the
+  // old TABS names are kept as an internal shim so every renderer, keydown
+  // gate and URL-encode check that was written against "papers"/"triage"/
+  // "maint"/etc keeps working unchanged; `selectTab(name)` is the same
+  // shim in the other direction, for old call sites that still ask for a
+  // tab by its old name.
 
-  var TABS = ["papers", "projects", "insights", "maint", "triage"];
+  var SECTIONS = ["library", "overview", "projects", "queries", "insights"];
+  var TAB_OF_SECTION = { library: "papers", overview: "overview", projects: "projects", queries: "triage", insights: "insights" };
+  var LEGACY_TAB_TO_SECTION = { papers: "library", projects: "projects", insights: "insights", maint: "overview", triage: "queries" };
+
   var activeTab = "papers";
-  function selectTab(name) {
-    if (TABS.indexOf(name) < 0) return;
-    activeTab = name;
-    TABS.forEach(function (t) {
-      document.getElementById("tab-" + t).setAttribute("aria-selected", String(t === name));
-      document.getElementById("p-" + t).hidden = t !== name;
-    });
-    syncUrl();
+  var nav = { section: "library", item: { library: "all", overview: "status", projects: null }, sub: null };
+
+  // Phase 3 §5 risk: the triage/screening view (#p-triage) is a single
+  // id-based DOM subtree, so it's re-parented -- never cloned -- into
+  // whichever mount is currently on screen. `mountedTriageOwner` names the
+  // current owner only for bookkeeping; the DOM location is the truth.
+  var mountedTriageOwner = "queries-section";
+  function mountTriageInto(containerId, ownerId) {
+    var node = document.getElementById("p-triage");
+    var target = document.getElementById(containerId);
+    if (!node || !target) return;
+    if (node.parentNode !== target) target.appendChild(node);
+    mountedTriageOwner = ownerId;
   }
+  function ensureTriageMountForSection() {
+    if (nav.section === "queries") mountTriageInto("triage-home", "queries-section");
+    else if (nav.section === "projects" && nav.item.projects && nav.sub === "queries") {
+      mountTriageInto("proj-queries-mount", "project:" + nav.item.projects);
+    }
+  }
+
   function renderTabContent(name) {
-    if (name === "projects") renderProjects();
-    if (name === "maint") renderMaintenance();
-    if (name === "triage") renderTriageTab();
+    if (name === "projects") renderProjectsMain();
+    if (name === "overview") renderMaintenance(); // lint buckets + changed-since lists (D5: merged into Overview > Lint & changes)
+    if (name === "triage") { ensureTriageMountForSection(); renderTriageTab(); }
     if (name === "insights") INSIGHTS.render();
   }
-  // P0.1: whichever tab is on screen when a manual refresh lands must be
+  // P0.1: whichever section is on screen when a manual refresh lands must be
   // redrawn from the fresh data immediately -- not just next time it's
   // clicked -- so maintenance/projects never show stale snapshots.
   function rerenderActiveTab() {
     renderTabContent(activeTab);
   }
-  document.getElementById("tabs").addEventListener("click", function (e) {
-    var btn = e.target.closest("button[data-tab]");
-    if (!btn) return;
-    selectTab(btn.dataset.tab);
-    renderTabContent(btn.dataset.tab);
+
+  function applyOverviewSub(sub) {
+    nav.item.overview = sub;
+    document.querySelectorAll(".ovpage").forEach(function (n) { n.hidden = n.dataset.ov !== sub; });
+    var label = { status: "Status", next: "Next actions", lint: "Lint & changes" }[sub] || "Status";
+    var h = document.getElementById("ov-heading");
+    if (h) h.textContent = label;
+    document.title = label + " — Overview · Paper library";
+  }
+
+  // D12: `sec`/`item`/`sub` change with pushState (so Back walks section
+  // history); everything else (filters/sort/search) keeps replaceState via
+  // syncUrl(), unchanged.
+  function showSection(sec, opts) {
+    opts = opts || {};
+    if (SECTIONS.indexOf(sec) < 0) sec = "library";
+    nav.section = sec;
+    activeTab = TAB_OF_SECTION[sec];
+    document.querySelectorAll("#rail [data-sec]").forEach(function (b) {
+      if (b.dataset.sec === sec) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+    SECTIONS.forEach(function (s) { var v = document.getElementById("v-" + s); if (v) v.hidden = s !== sec; });
+    renderTabContent(sec === "overview" ? "overview" : activeTab);
+    if (sec === "overview") applyOverviewSub(nav.item.overview || "status");
+    renderSidebar();
+    if (opts.push) pushNavState();
+    syncUrl();
+    if (!opts.silent) {
+      var main = document.getElementById("main-scroll");
+      if (main) main.scrollTop = 0;
+      var h = document.querySelector(".view:not([hidden]) .mainhead h2");
+      if (h) h.focus({ preventScroll: true });
+      if (narrowScreen()) document.body.classList.remove("side-open");
+    }
+  }
+
+  // Old-name shim: existing call sites (applyIssueFilter, project cards,
+  // triage links, ...) still call selectTab("papers"|"triage"|...).
+  function selectTab(name) {
+    var sec = LEGACY_TAB_TO_SECTION.hasOwnProperty(name) ? LEGACY_TAB_TO_SECTION[name] : name;
+    if (SECTIONS.indexOf(sec) < 0) return;
+    showSection(sec, { push: true });
+  }
+
+  function narrowScreen() {
+    try { return matchMedia("(max-width:680px)").matches; } catch (e) { return false; }
+  }
+
+  function pushNavState() {
+    try { history.pushState({ sec: nav.section, item: nav.item[nav.section] || null, sub: nav.sub }, ""); } catch (e) { /* file:// or unsupported */ }
+  }
+
+  window.addEventListener("popstate", function (e) {
+    var s = e.state;
+    if (s && s.sec) {
+      nav.item[s.sec] = s.item || nav.item[s.sec];
+      nav.sub = s.sub || null;
+      showSection(s.sec, { silent: true });
+    } else {
+      // no state (initial load entry, or a page from before this history
+      // scheme existed) -- fall back to decoding the current URL.
+      applyViewState(decodeViewState(location.search));
+    }
   });
+
+  // D13/O2: clicking the active rail icon (or `[`) toggles the sidebar;
+  // persisted in localStorage. Below 1180px it auto-collapses while the
+  // paper drawer is open and restores on close -- manual toggle always wins.
+  var SIDE_COLLAPSE_KEY = "ref-dash-side-collapsed";
+  var sideManualOverride = null; // true/false once the user has toggled manually this session; null = follow the drawer-width heuristic
+  function readSideCollapsed() {
+    try { return localStorage.getItem(SIDE_COLLAPSE_KEY) === "1"; } catch (e) { return false; }
+  }
+  function writeSideCollapsed(v) {
+    try { localStorage.setItem(SIDE_COLLAPSE_KEY, v ? "1" : "0"); } catch (e) { /* private mode etc */ }
+  }
+  function applySideCollapsed(v) {
+    document.body.classList.toggle("side-collapsed", !!v);
+  }
+  function toggleSidebar() {
+    if (narrowScreen()) { document.body.classList.toggle("side-open"); return; }
+    var next = !document.body.classList.contains("side-collapsed");
+    sideManualOverride = next;
+    writeSideCollapsed(next);
+    applySideCollapsed(next);
+  }
+  applySideCollapsed(readSideCollapsed());
+  function autoCollapseForDrawer(open) {
+    if (sideManualOverride !== null) return; // manual toggle always wins (O2)
+    if (!open) { applySideCollapsed(readSideCollapsed()); return; }
+    try { if (matchMedia("(max-width:1180px)").matches) applySideCollapsed(true); } catch (e) { /* ignore */ }
+  }
+
+  document.getElementById("rail").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-sec]");
+    if (!btn) return;
+    if (btn.dataset.sec === nav.section) { toggleSidebar(); return; }
+    showSection(btn.dataset.sec, { push: true });
+    if (narrowScreen()) document.body.classList.add("side-open");
+  });
+
+  // -------------------------------------------------------------- sidebar
+  //
+  // Library's smart lists are presets over the existing `state` (no new
+  // filter engine, D…/§3 phase1.3): applying one just sets state.* the same
+  // way the old toolbar chips/select did. Highlighting is derived the other
+  // way, from state back to the matching preset id, so there is never a
+  // second source of truth -- if the user edits filters until no preset
+  // matches, nothing is highlighted and the header shows "filtered · Clear".
+
+  function currentLibraryPreset() {
+    if (state.query) return null;
+    var smart = state.chips.filter(function (c) { return c.id.indexOf("smart:") === 0; }).map(function (c) { return c.id; });
+    var hasIssueChip = state.chips.some(function (c) { return c.id.indexOf("issue:") === 0; });
+    if (hasIssueChip || sourceFilterSet) return null;
+    if (state.project !== "all") {
+      return (!state.missing && !smart.length) ? "p:" + state.project : null;
+    }
+    if (state.missing === "pdf" && !smart.length) return "nopdf";
+    if (state.missing === "fulltext" && !smart.length) return "nofull";
+    if (state.missing) return null;
+    if (smart.length === 1) {
+      if (smart[0] === "smart:toread") return "toread";
+      if (smart[0] === "smart:recent") return "recent";
+      if (smart[0] === "smart:retracted") return "retracted";
+    }
+    return smart.length ? null : "all";
+  }
+
+  function applyLibraryPreset(id) {
+    state.chips = state.chips.filter(function (c) { return c.id.indexOf("smart:") !== 0; });
+    sourceFilterSet = null;
+    var projSel = document.getElementById("proj");
+    if (id.indexOf("p:") === 0) {
+      state.missing = null;
+      state.project = id.slice(2);
+    } else {
+      state.project = "all";
+      if (id !== "nopdf" && id !== "nofull") state.missing = null;
+    }
+    if (projSel) projSel.value = state.project;
+    if (id === "toread") {
+      state.chips.push({ id: "smart:toread", label: "to read", pred: isToRead });
+    } else if (id === "recent") {
+      var cutoff = Date.now() - 7 * 86400000;
+      // No library-wide "added" date exists on a row (only per-project
+      // membership has added_at) -- checked_at (ISO, sorts lexicographically
+      // in date order) is the closest per-row signal without an API change.
+      state.chips.push({
+        id: "smart:recent", label: "added last 7 days",
+        pred: function (r) { var t = Date.parse(r.checked_at || ""); return !isNaN(t) && t >= cutoff; },
+      });
+      state.sort = { field: "checked_at", dir: "desc" };
+    } else if (id === "retracted") {
+      state.chips.push({ id: "smart:retracted", label: "retracted", pred: retractionFlagged });
+    }
+    currentPage = 0;
+    if (id === "nopdf") setMissingFilter("pdf");
+    else if (id === "nofull") setMissingFilter("fulltext");
+    else { renderChips(); renderTable(); }
+  }
+
+  function renderLibraryCrumb() {
+    var crumb = document.getElementById("lib-crumb");
+    var heading = document.getElementById("lib-heading");
+    if (!crumb || !heading) return;
+    clear(crumb);
+    var preset = currentLibraryPreset();
+    var LABELS = { all: "All papers", toread: "To read", recent: "Added last 7 days", nopdf: "Missing PDF", nofull: "Missing full text", retracted: "Retracted" };
+    if (preset && preset.indexOf("p:") === 0) {
+      var slug = preset.slice(2);
+      heading.textContent = slug;
+      crumb.appendChild(el("span", { text: "project filter · " }));
+      crumb.appendChild(el("button", { text: "Open project →", attrs: { type: "button" }, on: { click: function () { showSection("projects", { push: true }); } } }));
+    } else if (preset) {
+      heading.textContent = LABELS[preset] || "Library";
+    } else {
+      heading.textContent = "Library";
+      crumb.appendChild(el("span", { text: "filtered · " }));
+      crumb.appendChild(el("button", {
+        text: "Clear", attrs: { type: "button" },
+        on: { click: function () { document.getElementById("q").value = ""; state.query = ""; applyLibraryPreset("all"); } },
+      }));
+    }
+    document.title = heading.textContent + " — Library · Paper library";
+  }
+
+  function renderLibrarySidebar() {
+    var preset = currentLibraryPreset();
+    var rowsLen = ROWS.length;
+    document.getElementById("n-lib-all").textContent = String(rowsLen);
+    document.getElementById("n-lib-toread").textContent = String(ROWS.filter(isToRead).length);
+    var cutoff = Date.now() - 7 * 86400000;
+    document.getElementById("n-lib-recent").textContent = String(ROWS.filter(function (r) { var t = Date.parse(r.checked_at || ""); return !isNaN(t) && t >= cutoff; }).length);
+    var nopdf = MATRIX_COLUMNS_LIVE.indexOf("pdf") >= 0 ? MATRIX_ROWS_LIVE.filter(function (m) { return !m.pdf; }).length : 0;
+    var nofull = MATRIX_COLUMNS_LIVE.indexOf("fulltext") >= 0 ? MATRIX_ROWS_LIVE.filter(function (m) { return !m.fulltext; }).length : 0;
+    document.getElementById("n-lib-nopdf").textContent = String(nopdf);
+    document.getElementById("n-lib-nofull").textContent = String(nofull);
+    document.getElementById("side-lib-needs").querySelector('[data-missing="pdf"]').hidden = MATRIX_COLUMNS_LIVE.indexOf("pdf") < 0;
+    document.getElementById("side-lib-needs").querySelector('[data-missing="fulltext"]').hidden = MATRIX_COLUMNS_LIVE.indexOf("fulltext") < 0;
+    document.getElementById("n-lib-retracted").textContent = String(ROWS.filter(retractionFlagged).length);
+
+    ["all", "toread", "recent"].forEach(function (id) {
+      var btn = document.querySelector('#side-lib-presets [data-preset="' + id + '"]');
+      if (btn) btn.setAttribute("aria-current", String(preset === id));
+    });
+    document.querySelectorAll("#side-lib-needs button").forEach(function (btn) {
+      var id = btn.getAttribute("data-missing") ? btn.getAttribute("data-missing").replace("pdf", "nopdf").replace("fulltext", "nofull") : "retracted";
+      btn.setAttribute("aria-current", String(preset === id));
+    });
+
+    var wrap = document.getElementById("side-lib-projects");
+    clear(wrap);
+    var projects = projectSummaries();
+    projects.forEach(function (p) {
+      wrap.appendChild(el("li", {}, [el("button", {
+        attrs: { type: "button", "data-preset": "p:" + p.slug, "aria-current": String(preset === "p:" + p.slug) },
+        on: { click: function () { applyLibraryPreset("p:" + p.slug); } },
+      }, [
+        el("span", { className: "lbl", text: p.slug }),
+        el("span", { className: "n", text: String(p.papers.length) }),
+      ])]));
+    });
+    renderLibraryCrumb();
+  }
+
+  document.getElementById("side-lib-presets").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-preset]");
+    if (b) applyLibraryPreset(b.dataset.preset);
+  });
+  document.getElementById("side-lib-needs").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-missing]");
+    if (b) { applyLibraryPreset(b.dataset.missing === "pdf" ? "nopdf" : "nofull"); return; }
+    var i = e.target.closest("[data-issue-preset]");
+    if (i) applyLibraryPreset(i.dataset.issuePreset);
+  });
+
+  function renderOverviewSidebar() {
+    var n = (SUMMARY && SUMMARY.top_actions && SUMMARY.top_actions.length) || 0;
+    document.getElementById("n-ov-next").textContent = n ? String(n) : "";
+    document.getElementById("rail-pip-next").hidden = !n;
+    document.getElementById("rail-pip-next").textContent = n ? String(n) : "";
+    var summary = (LINT && LINT.summary) || {};
+    document.getElementById("n-ov-lint").textContent = summary.issues_total ? String(summary.issues_total) : "";
+    document.querySelectorAll("#side-ov-list [data-ov]").forEach(function (b) {
+      b.setAttribute("aria-current", String(b.dataset.ov === (nav.item.overview || "status")));
+    });
+  }
+  document.getElementById("side-ov-list").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-ov]");
+    if (!b) return;
+    nav.sub = null;
+    applyOverviewSub(b.dataset.ov);
+    renderOverviewSidebar();
+    pushNavState();
+    syncUrl();
+    if (b.dataset.ov === "lint") renderMaintenance();
+  });
+
+  // D6: the tree shows a row per project; the selected project expands to
+  // its linked queries only (undecided counts) -- Summary/Papers/Queries/
+  // Reports/Screening-log are in-page subtabs, never mirrored here.
+  // Projects with no `projects/<slug>/project.yaml` (paper `.projects` tag
+  // only, or a triage linked before the project existed) still get a leaf
+  // row so nothing found by the old card grid disappears -- just no subtabs.
+  function projectTreeRows() {
+    var known = {};
+    var rows = PROJECTS.map(function (p) { return { slug: p.slug, real: true, queries: p.queries || [] }; });
+    rows.forEach(function (p) { known[p.slug] = true; });
+    projectSummaries().forEach(function (p) {
+      if (!known[p.slug]) { known[p.slug] = true; rows.push({ slug: p.slug, real: false, queries: [] }); }
+    });
+    TRIAGES.forEach(function (t) {
+      if (t.project && !known[t.project]) { known[t.project] = true; rows.push({ slug: t.project, real: false, queries: [] }); }
+    });
+    rows.sort(function (a, b) { return a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0; });
+    return rows;
+  }
+
+  function renderProjectsSidebar() {
+    var wrap = document.getElementById("side-projects-list");
+    clear(wrap);
+    var rows = projectTreeRows();
+    rows.forEach(function (p) {
+      var expanded = nav.item.projects === p.slug;
+      var undecided = p.queries.reduce(function (a, q) { return a + (q.undecided || 0); }, 0);
+      var li = el("li", {}, [el("button", {
+        attrs: { type: "button", "aria-expanded": String(expanded), "aria-current": String(expanded) },
+        on: { click: function () { selectProject(p.slug); } },
+      }, [
+        el("span", { className: "lbl", text: p.slug }),
+        el("span", { className: "n", text: undecided ? String(undecided) : "" }),
+      ])]);
+      if (expanded) {
+        if (p.queries.length) {
+          var tree = el("ul", { className: "side-tree" });
+          p.queries.forEach(function (q) {
+            tree.appendChild(el("li", {}, [el("button", {
+              attrs: { type: "button", "aria-current": String(nav.section === "projects" && nav.sub === "queries" && tri.slug === q.slug) },
+              on: { click: function () { openProjectQuery(p.slug, q.slug); } },
+            }, [
+              el("span", { className: "lbl", text: q.slug }),
+              el("span", { className: "n", text: q.undecided ? String(q.undecided) : "" }),
+            ])]));
+          });
+          li.appendChild(tree);
+        } else {
+          li.appendChild(el("div", { className: "side-tree" }, [el("div", { className: "none", text: "no linked queries" })]));
+        }
+      }
+      wrap.appendChild(li);
+    });
+  }
+
+  // Phase 3 §3.2/§3.3: selecting a project row switches the main pane from
+  // the plain card grid to that project's folder (Summary subtab first).
+  // Clicking the same row again collapses it back to the grid.
+  function selectProject(slug) {
+    nav.item.projects = (nav.item.projects === slug) ? null : slug;
+    nav.sub = nav.item.projects ? (nav.sub || "summary") : null;
+    renderProjectsSidebar();
+    renderProjectsMain();
+    pushNavState();
+    syncUrl();
+  }
+
+  function openProjectQuery(projectSlug, querySlug) {
+    tri.slug = querySlug;
+    if (nav.section !== "projects" || nav.item.projects !== projectSlug) {
+      nav.item.projects = projectSlug;
+      showSection("projects", { push: true });
+    }
+    nav.sub = "queries";
+    renderProjectsSidebar();
+    renderProjectsMain();
+    pushNavState();
+    syncUrl();
+  }
+
+  function currentProject() {
+    var slug = nav.item.projects;
+    if (!slug) return null;
+    var found = PROJECTS.filter(function (p) { return p.slug === slug; });
+    return found[0] || null;
+  }
+
+  // D7: every query, grouped -- "Not in a project" first, then one group
+  // per project (never a project that only has unlinked queries omitted --
+  // groups come from TRIAGES itself, not from PROJECTS). A linked query's
+  // row re-parents #p-triage into its project folder (↗) instead of
+  // rendering it here.
+  function renderQueriesList() {
+    var wrap = document.getElementById("q-grouped-list");
+    if (!wrap) return;
+    clear(wrap);
+    var byProject = {};
+    var unlinked = [];
+    TRIAGES.forEach(function (t) {
+      if (t.project) { (byProject[t.project] = byProject[t.project] || []).push(t); } else unlinked.push(t);
+    });
+    function group(label, items, projectSlug) {
+      if (!items.length) return;
+      wrap.appendChild(el("li", { className: "side-group" }, [el("span", { text: label })]));
+      items.forEach(function (t) {
+        wrap.appendChild(el("li", {}, [
+          el("span", { className: "qid", text: t.slug }),
+          el("span", {}, [document.createTextNode((t.query || "") + (projectSlug ? " ↗" : ""))]),
+          el("button", {
+            className: "cmdbtn", text: "Open", attrs: { type: "button" },
+            on: {
+              click: function () {
+                if (projectSlug) { openProjectQuery(projectSlug, t.slug); return; }
+                tri.slug = t.slug;
+                mountTriageInto("triage-home", "queries-section");
+                loadTriageView();
+                renderQueriesSidebar();
+              },
+            },
+          }),
+          el("small", { text: (t.found || 0) + " found · " + (t.pending || 0) + " pending" }),
+        ]));
+      });
+    }
+    group("Not in a project", unlinked, null);
+    Object.keys(byProject).sort().forEach(function (slug) { group(slug, byProject[slug], slug); });
+  }
+
+  function renderQueriesSidebar() {
+    var wrap = document.getElementById("side-queries-list");
+    clear(wrap);
+    TRIAGES.forEach(function (t) {
+      wrap.appendChild(el("li", {}, [el("button", {
+        attrs: { type: "button", "aria-current": String(tri.slug === t.slug && nav.section === "queries") },
+        on: { click: function () { tri.slug = t.slug; mountTriageInto("triage-home", "queries-section"); loadTriageView(); renderQueriesSidebar(); } },
+      }, [
+        el("span", { className: "lbl", text: t.slug }),
+        el("span", { className: "n", text: t.pending ? String(t.pending) : "" }),
+      ])]));
+    });
+    document.getElementById("side-count").textContent = nav.section === "queries" ? String(TRIAGES.length) : document.getElementById("side-count").textContent;
+    var pendingTotal = TRIAGES.reduce(function (a, t) { return a + (t.pending || 0); }, 0);
+    var dot = document.getElementById("rail-dot-queries");
+    if (dot) dot.hidden = !pendingTotal;
+    renderQueriesList();
+  }
+
+  // Phase 2: Insights' own pill row (#ins-nav) moved here; insights.js
+  // calls this back (via ctx.renderInsightsSidebar) whenever `ins.view`
+  // changes from any trigger, not just a sidebar click, so the highlight
+  // never drifts out of sync.
+  function renderInsightsSidebar() {
+    var wrap = document.getElementById("side-insights-list");
+    if (!wrap || typeof INSIGHTS === "undefined" || !INSIGHTS) return;
+    clear(wrap);
+    INSIGHTS.INSIGHT_VIEWS.forEach(function (v) {
+      wrap.appendChild(el("li", {}, [el("button", {
+        attrs: { type: "button", "aria-current": String(INSIGHTS.ins.view === v.id) },
+        on: { click: function () { INSIGHTS.setView(v.id); } },
+      }, [el("span", { className: "lbl", text: v.label })])]));
+    });
+  }
+
+  var SIDE_TITLES = { library: "Library", overview: "Overview", projects: "Projects", queries: "Queries", insights: "Insights" };
+  function renderSidebar() {
+    document.querySelectorAll(".side-panel").forEach(function (p) { p.hidden = p.dataset.sec !== nav.section; });
+    document.getElementById("side-title").textContent = SIDE_TITLES[nav.section] || "";
+    if (nav.section === "library") { document.getElementById("side-count").textContent = String(ROWS.length); renderLibrarySidebar(); }
+    else if (nav.section === "overview") { document.getElementById("side-count").textContent = ""; renderOverviewSidebar(); }
+    else if (nav.section === "projects") { document.getElementById("side-count").textContent = String(projectTreeRows().length); renderProjectsSidebar(); }
+    else if (nav.section === "queries") { renderQueriesSidebar(); }
+    else if (nav.section === "insights") { document.getElementById("side-count").textContent = ""; renderInsightsSidebar(); }
+  }
 
   // ------------------------------------------------------------- papers
 
@@ -725,6 +1179,7 @@
     document.getElementById("c-papers").textContent = String(ROWS.length);
     renderCoverageHeader();
     renderTableRows();
+    if (nav.section === "library") renderLibrarySidebar();
     syncUrl();
     if (document.getElementById("next-scope").checked) scheduleNextActions();
   }
@@ -878,10 +1333,17 @@
       return;
     }
 
-    if (e.key === "/" && !typing) {
-      e.preventDefault();
-      document.getElementById("q").focus();
-      return;
+    // O4: `[` toggles the sidebar, `/` jumps to Library and focuses its
+    // search -- both disabled while typing or while screening keys are live
+    // (handled above, which returns before reaching here for "triage").
+    if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (e.key === "[") { e.preventDefault(); toggleSidebar(); return; }
+      if (e.key === "/") {
+        e.preventDefault();
+        if (nav.section !== "library") showSection("library", { push: true });
+        document.getElementById("q").focus();
+        return;
+      }
     }
     if (typing) return;
 
@@ -1075,14 +1537,17 @@
   // (the live token, a ?paper= deep link) and the #triage/ hash are kept.
   // Set-of-PMIDs chips from the Insights tab are deliberately not encoded.
 
-  var VIEW_PARAM_KEYS = ["tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops"];
+  var VIEW_PARAM_KEYS = ["tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops", "sec", "item", "sub"];
   var SORT_FIELDS = ["source_badge", "title", "year", "journal", "project", "claims_active", "days_since_check",
     "has_pdf", "authors_short", "last_author", "coverage", "notes_count"];
   var urlSyncEnabled = false;
 
   function encodeViewState() {
     var p = new URLSearchParams();
-    if (activeTab !== "papers" && activeTab !== "triage") p.set("tab", activeTab);
+    if (nav.section !== "library") p.set("sec", nav.section);
+    var item = nav.item[nav.section];
+    if (item) p.set("item", item);
+    if (nav.sub) p.set("sub", nav.sub);
     if (state.query) p.set("q", state.query);
     if (state.project !== "all") p.set("project", state.project);
     state.chips.forEach(function (c) { if (c.id.indexOf("issue:") === 0) p.append("issue", c.id.slice(6)); });
@@ -1090,8 +1555,8 @@
     if (state.missing) p.set("missing", state.missing);
     if (state.sort) p.set("sort", state.sort.field + ":" + state.sort.dir);
     var ins = INSIGHTS.ins;
-    if (activeTab === "insights" && ins.view !== "evidence") p.set("insight", ins.view);
-    if (activeTab === "insights" && ins.view === "graph" && ins.graphMode === "neighborhood" && ins.center) {
+    if (nav.section === "insights" && ins.view !== "evidence") p.set("insight", ins.view);
+    if (nav.section === "insights" && ins.view === "graph" && ins.graphMode === "neighborhood" && ins.center) {
       p.set("center", ins.center);
       if (ins.hops !== 1) p.set("hops", String(ins.hops));
     }
@@ -1108,8 +1573,18 @@
     var source = (p.get("source") || "").split(",").filter(function (b) {
       return SOURCE_BADGES.indexOf(b) >= 0 || b === "none";
     });
+    // sec/item/sub is the current scheme; a bare legacy `tab=` (a link
+    // copied before this redesign) maps onto it so old links keep landing
+    // in the right place (D12).
+    var sec = p.get("sec");
+    var legacyTab = p.get("tab");
+    if (!sec && legacyTab) sec = LEGACY_TAB_TO_SECTION.hasOwnProperty(legacyTab) ? LEGACY_TAB_TO_SECTION[legacyTab] : null;
+    if (sec && SECTIONS.indexOf(sec) < 0) sec = null;
+    var item = p.get("item") || (legacyTab === "maint" ? "lint" : null);
     return {
-      tab: p.get("tab"),
+      sec: sec,
+      item: item,
+      sub: p.get("sub") || null,
       insight: p.get("insight"),
       center: /^[pc]:\S+$/.test(p.get("center") || "") ? p.get("center") : null,
       hops: p.get("hops") === "2" ? 2 : 1,
@@ -1137,9 +1612,10 @@
       ins.hops = v.hops;
     }
     applyView(v);
-    if (v.tab && TABS.indexOf(v.tab) >= 0 && v.tab !== "triage") {
-      selectTab(v.tab);
-      renderTabContent(v.tab);
+    if (v.sec) {
+      if (v.item) nav.item[v.sec] = v.item;
+      if (v.sub) nav.sub = v.sub;
+      showSection(v.sec, { silent: true });
     }
   }
 
@@ -1264,7 +1740,7 @@
         linked.forEach(function (t) {
           triList.appendChild(el("span", {}, [el("button", {
             className: "cmdbtn", text: "Triage: " + t.slug, attrs: { type: "button" },
-            on: { click: function () { selectTab("triage"); selectTriage(t.slug); } },
+            on: { click: function () { openProjectQuery(p.slug, t.slug); } },
           })]));
           triList.appendChild(el("span", { text: t.found + " found · " + t.loaded + " loaded · " + t.decided + " decided" }));
         });
@@ -1273,6 +1749,306 @@
         el("h2", { text: p.slug }),
         pbar, plegend, kv, triList, cmds,
       ]));
+    });
+    document.getElementById("c-projects").textContent = String(projects.length);
+    if (nav.section === "projects") renderProjectsSidebar();
+  }
+
+  // ------------------------------------------------- project folder (D6)
+  //
+  // No project selected -> the existing card grid. A project selected ->
+  // the folder: fixed Summary/Papers/Queries/Reports/Screening-log subtabs.
+  // `p` may be undefined for a project known only from paper `.projects`
+  // tags or a triage link (no `projects/<slug>/project.yaml` yet) -- the
+  // folder still opens, with an explanatory Summary and the other subtabs
+  // empty, rather than refusing to expand it.
+  function renderProjectsMain() {
+    var slug = nav.item.projects;
+    var grid = document.getElementById("p-projects");
+    var folder = document.getElementById("proj-folder");
+    var heading = document.getElementById("proj-heading");
+    if (!slug) {
+      folder.hidden = true;
+      grid.hidden = false;
+      heading.textContent = "Projects";
+      renderProjects();
+      return;
+    }
+    grid.hidden = true;
+    folder.hidden = false;
+    heading.textContent = slug;
+    applyProjectSub(nav.sub || "summary", currentProject());
+  }
+
+  document.getElementById("proj-subtabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-psub]");
+    if (!b) return;
+    nav.sub = b.dataset.psub;
+    pushNavState();
+    syncUrl();
+    applyProjectSub(nav.sub, currentProject());
+  });
+
+  function applyProjectSub(sub, p) {
+    nav.sub = sub;
+    document.querySelectorAll("#proj-subtabs button[data-psub]").forEach(function (b) {
+      b.setAttribute("aria-selected", String(b.dataset.psub === sub));
+    });
+    document.querySelectorAll("#proj-folder .psubpage").forEach(function (n) { n.hidden = n.dataset.psub !== sub; });
+    document.title = (p ? p.slug : nav.item.projects) + " · " + sub + " — Projects · Paper library";
+    if (sub === "summary") renderProjectSummary(p);
+    else if (sub === "papers") renderProjectPapers(p);
+    else if (sub === "queries") { mountTriageInto("proj-queries-mount", "project:" + nav.item.projects); renderTriageTab(); }
+    else if (sub === "reports") renderProjectReports(p);
+    else if (sub === "screening") renderProjectScreeningLog(p);
+  }
+
+  function renderProjectSummary(p) {
+    var wrap = document.getElementById("proj-summary");
+    clear(wrap);
+    if (!p) {
+      wrap.appendChild(el("div", { className: "empty", text: "no projects/" + nav.item.projects + "/project.yaml yet -- see /ref:project create" }));
+      return;
+    }
+    var s = p.summary || {};
+    var kv = el("dl", { className: "kv" }, [
+      el("span", { text: "scope" }), el("span", { text: p.scope || "(none)" }),
+      el("span", { text: "template" }), el("span", { text: p.template || "(none)" }),
+      el("span", { text: "papers" }), el("span", { text: String(s.paper_count || 0) }),
+    ]);
+    wrap.appendChild(el("h3", { text: "Questions" }));
+    // D8/phase 5: real per-question paper counts, from the question<->paper
+    // link (`project.py dashboard_summary()`'s `paper_count` per question).
+    if (p.questions && p.questions.length) {
+      var qlist = el("ul", { className: "qlist" });
+      p.questions.forEach(function (q) {
+        qlist.appendChild(el("li", {}, [
+          el("span", { className: "qid", text: q.id }),
+          el("span", { text: q.text }),
+          el("small", { text: (q.paper_count || 0) + " paper" + (q.paper_count === 1 ? "" : "s") }),
+        ]));
+      });
+      wrap.appendChild(qlist);
+      if (p.unassigned_papers) {
+        wrap.appendChild(el("small", { text: p.unassigned_papers + " paper(s) not linked to any question" }));
+      }
+    } else {
+      wrap.appendChild(el("div", { className: "empty", text: "no questions yet -- /ref:project add-question" }));
+    }
+    wrap.appendChild(kv);
+    if (p.queries && p.queries.length) {
+      wrap.appendChild(el("h3", { text: "Queries" }));
+      var qcards = el("div", { className: "repgrid" });
+      p.queries.forEach(function (q) {
+        qcards.appendChild(el("button", {
+          className: "repcard", attrs: { type: "button" },
+          on: { click: function () { openProjectQuery(p.slug, q.slug); } },
+        }, [
+          el("b", { text: q.slug }),
+          el("small", { text: q.total + " total · " + q.included + " included · " + q.pending + " pending · " + q.undecided + " undecided" }),
+        ]));
+      });
+      wrap.appendChild(qcards);
+    }
+    if (p.reading_queue && p.reading_queue.length) {
+      wrap.appendChild(el("h3", { text: "Reading queue" }));
+      var rq = el("dl", { className: "kv" });
+      p.reading_queue.slice(0, 10).forEach(function (m) {
+        rq.appendChild(el("span", { text: m.pmid }));
+        rq.appendChild(el("span", { text: (m.why_saved || m.reading_status || "") }));
+      });
+      wrap.appendChild(rq);
+    }
+    if (p.next_steps && p.next_steps.length) {
+      wrap.appendChild(el("h3", { text: "Workflow" }));
+      var steps = el("dl", { className: "kv" });
+      p.next_steps.forEach(function (cmd) {
+        steps.appendChild(el("button", {
+          className: "cmdbtn", text: "Copy", attrs: { type: "button" },
+          on: { click: function () { copyText(cmd.replace("<slug>", p.slug)); } },
+        }));
+        steps.appendChild(el("code", { text: cmd }));
+      });
+      wrap.appendChild(steps);
+    }
+  }
+
+  // Papers subtab reuses the Library table component with `state.project`
+  // pinned (phase 3 §3.4); full renderTable() mount-point refactor is a
+  // larger change than this pass makes -- for now this is a focused
+  // pmid/status list rather than the full sortable table. Phase 5 §5/§6
+  // adds a Question chip per row plus bulk "Assign to question".
+  var projPapersSelected = new Set();
+
+  function renderProjectPapers(p) {
+    var wrap = document.getElementById("proj-papers");
+    clear(wrap);
+    if (!p) { wrap.appendChild(el("div", { className: "empty", text: "no project.yaml yet" })); return; }
+    projPapersSelected = new Set();
+    var jump = el("button", {
+      className: "cmdbtn", text: "Open in Library (filtered)", attrs: { type: "button" },
+      on: { click: function () { state.project = p.slug; selectTab("papers"); renderTable(); } },
+    });
+    wrap.appendChild(jump);
+
+    var qOptions = p.questions || [];
+    var bulkBar = el("div", { className: "tri-bulk" });
+    bulkBar.hidden = true;
+    var assignSelect = el("select", { attrs: { "aria-label": "Assign to question" } }, [
+      el("option", { text: "Assign to question…", attrs: { value: "" } }),
+    ].concat(qOptions.map(function (q) { return el("option", { text: q.id + ": " + q.text, attrs: { value: q.id } }); })));
+    var assignBtn = el("button", {
+      className: "cmdbtn", text: "Assign", attrs: { type: "button" },
+      on: {
+        click: function () {
+          var qid = assignSelect.value;
+          if (!qid || !projPapersSelected.size) return;
+          postJSON("/api/project/" + encodeURIComponent(p.slug) + "/papers", {
+            pmids: Array.from(projPapersSelected), add: [qid],
+          }).then(function () { loadProjects().then(function () { renderProjectPapers(currentProject()); }); })
+            .catch(function (err) { showError("bulk assign failed: " + describeFetchError(err)); });
+        },
+      },
+    });
+    bulkBar.appendChild(el("span", { text: "0 selected" }));
+    bulkBar.appendChild(assignSelect);
+    bulkBar.appendChild(assignBtn);
+    wrap.appendChild(bulkBar);
+
+    var table = el("table", { className: "reading-queue" }, [
+      el("thead", {}, [el("tr", {}, [
+        el("th", {}), el("th", { text: "pmid" }), el("th", { text: "priority" }),
+        el("th", { text: "reading status" }), el("th", { text: "questions" }),
+      ])]),
+    ]);
+    var tbody = el("tbody");
+    (p.papers || []).forEach(function (m) {
+      var cb = el("input", { attrs: { type: "checkbox", "aria-label": "select " + m.pmid } });
+      cb.addEventListener("change", function () {
+        if (cb.checked) projPapersSelected.add(m.pmid); else projPapersSelected.delete(m.pmid);
+        bulkBar.hidden = !projPapersSelected.size;
+        bulkBar.firstChild.textContent = projPapersSelected.size + " selected";
+      });
+      tbody.appendChild(el("tr", {}, [
+        el("td", {}, [cb]), el("td", { text: m.pmid }), el("td", { text: m.priority == null ? "" : String(m.priority) }),
+        el("td", { text: m.reading_status || "" }),
+        el("td", { text: (m.questions || []).join(", ") }),
+      ]));
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    if (!(p.papers || []).length) wrap.appendChild(el("div", { className: "empty", text: "no papers in this project yet" }));
+  }
+
+  // Phase 4 §2: card grid grouped Narrative/Analysis/Review; click -> a
+  // full-width reader replaces the grid with a "‹ Reports" crumb back.
+  // `projReportOpen` is a light in-memory reader flag rather than a full
+  // `reports/<id>` nav.sub entry (D14 asks for the latter so Back also
+  // walks the reader) -- Back from a report currently lands on the grid,
+  // not a step further out; flagged as a scope cut, not a silent gap.
+  var projReportOpen = null; // {project, kind, id} while a reader is open
+  var REPORT_GROUPS = ["Narrative", "Analysis", "Review"];
+
+  function renderProjectReports(p) {
+    var wrap = document.getElementById("proj-reports");
+    clear(wrap);
+    if (!p) { wrap.appendChild(el("div", { className: "empty", text: "no project.yaml yet" })); return; }
+    if (projReportOpen && projReportOpen.project === p.slug) {
+      renderReportReader(p, projReportOpen.kind, projReportOpen.id);
+      return;
+    }
+    wrap.appendChild(el("div", { className: "empty", text: "loading…" }));
+    fetchJSON("/api/project/" + encodeURIComponent(p.slug) + "/reports").then(function (cards) {
+      clear(wrap);
+      var groups = {};
+      cards.forEach(function (c) { (groups[c.group] = groups[c.group] || []).push(c); });
+      REPORT_GROUPS.forEach(function (g) {
+        if (!groups[g]) return;
+        wrap.appendChild(el("div", { className: "side-group" }, [el("span", { text: g })]));
+        var grid = el("div", { className: "repgrid" });
+        groups[g].forEach(function (c) {
+          var cssState = c.state === "live" ? "fresh" : (c.state || "none");
+          grid.appendChild(el("button", {
+            className: "repcard" + (c.state === "none" ? " off" : ""), attrs: { type: "button" },
+            on: {
+              click: function () {
+                if (c.state === "none") { copyText(c.command); return; }
+                projReportOpen = { project: p.slug, kind: c.kind, id: c.id };
+                renderReportReader(p, c.kind, c.id);
+              },
+            },
+          }, [
+            el("b", { text: c.title }),
+            el("span", { className: "repstate " + cssState, text: c.state === "none" ? "not yet run" : (c.state === "live" ? "live" : c.state) }),
+            el("small", { text: c.why || c.command || (c.generated_at || "") }),
+          ]));
+        });
+        wrap.appendChild(grid);
+      });
+      if (!cards.length) wrap.appendChild(el("div", { className: "empty", text: "no reports yet" }));
+    }).catch(function (err) {
+      clear(wrap);
+      wrap.appendChild(el("div", { className: "empty", text: "could not load reports: " + describeFetchError(err) }));
+    });
+  }
+
+  function renderReportReader(p, kind, id) {
+    var wrap = document.getElementById("proj-reports");
+    clear(wrap);
+    var crumb = el("button", {
+      className: "cmdbtn", text: "‹ Reports", attrs: { type: "button" },
+      on: { click: function () { projReportOpen = null; renderProjectReports(p); } },
+    });
+    wrap.appendChild(crumb);
+    wrap.appendChild(el("div", { className: "empty", text: "loading…" }));
+    fetchJSON("/api/project/" + encodeURIComponent(p.slug) + "/report/" + kind + "/" + encodeURIComponent(id)).then(function (data) {
+      clear(wrap);
+      wrap.appendChild(crumb);
+      var view = el("div", { className: "panel repview" }, [
+        el("div", { className: "rephead" }, [el("h3", { text: kind + " · " + id })]),
+      ]);
+      if (data.body) view.appendChild(el("div", { className: "prose", text: data.body }));
+      if (data.answer) view.appendChild(el("div", { className: "prose", text: data.answer }));
+      if (data.rows) view.appendChild(el("pre", { text: JSON.stringify(data.rows, null, 2) }));
+      if (data.grade) view.appendChild(el("pre", { text: JSON.stringify(data.grade, null, 2) }));
+      if (data.single_study_fragile) {
+        view.appendChild(el("h4", { text: "Single-study fragile claims (" + data.single_study_fragile.length + ")" }));
+        view.appendChild(el("pre", { text: JSON.stringify(data.single_study_fragile, null, 2) }));
+      }
+      if (data.unresolved_conflicts) {
+        view.appendChild(el("h4", { text: "Unresolved conflicts (" + data.unresolved_conflicts.length + ")" }));
+        view.appendChild(el("pre", { text: JSON.stringify(data.unresolved_conflicts, null, 2) }));
+      }
+      wrap.appendChild(view);
+    }).catch(function (err) {
+      clear(wrap);
+      wrap.appendChild(crumb);
+      wrap.appendChild(el("div", { className: "empty", text: "could not load report: " + describeFetchError(err) }));
+    });
+  }
+
+  function renderProjectScreeningLog(p) {
+    var wrap = document.getElementById("proj-screening");
+    clear(wrap);
+    if (!p) { wrap.appendChild(el("div", { className: "empty", text: "no project.yaml yet" })); return; }
+    wrap.appendChild(el("div", { className: "empty", text: "loading…" }));
+    fetchJSON("/api/project/" + encodeURIComponent(p.slug) + "/screening?limit=100").then(function (page) {
+      clear(wrap);
+      if (!page.records.length) { wrap.appendChild(el("div", { className: "empty", text: "no screening decisions yet" })); return; }
+      var table = el("table", { className: "reading-queue" }, [
+        el("thead", {}, [el("tr", {}, [el("th", { text: "pmid" }), el("th", { text: "decision" }), el("th", { text: "reason" }), el("th", { text: "when" })])]),
+      ]);
+      var tbody = el("tbody");
+      page.records.forEach(function (r) {
+        tbody.appendChild(el("tr", {}, [
+          el("td", { text: r.pmid }), el("td", { text: r.decision }), el("td", { text: r.reason || "" }), el("td", { text: r.timestamp || "" }),
+        ]));
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+    }).catch(function (err) {
+      clear(wrap);
+      wrap.appendChild(el("div", { className: "empty", text: "could not load screening log: " + describeFetchError(err) }));
     });
   }
 
@@ -1565,6 +2341,7 @@
     if (!samePaper && drawerState.mode === "pdf") drawerState.mode = "overview";
     document.getElementById("drawer").hidden = false;
     document.body.classList.add("pane-open");
+    autoCollapseForDrawer(true);
     setDrawerMode(drawerState.mode);
     renderDrawerHeader();
     loadDetail(pmid, function (detail) { if (drawerState.pmid === pmid) renderDrawerBody(detail); });
@@ -1578,6 +2355,7 @@
   function closeDrawer() {
     document.getElementById("drawer").hidden = true;
     document.body.classList.remove("pane-open");
+    autoCollapseForDrawer(false);
     drawerState.pmid = null;
     markOpenRow();
     if (lastFocusedBeforeDrawer && document.contains(lastFocusedBeforeDrawer)) lastFocusedBeforeDrawer.focus();
@@ -1798,6 +2576,34 @@
     });
     kv.appendChild(el("span", { className: "k", text: "Reading" }));
     kv.appendChild(el("span", {}, [reading]));
+
+    // phase 5 §5: a question multi-select, live (unlike the copy-command
+    // controls above) -- only offered when the paper belongs to exactly
+    // one project, same "<slug>" ambiguity guard as Reading.
+    if ((row.projects || []).length === 1) {
+      var pr = row.projects[0];
+      var proj = PROJECTS.filter(function (x) { return x.slug === pr.slug; })[0];
+      if (proj && proj.questions && proj.questions.length) {
+        var qsel = el("select", { attrs: { multiple: "multiple", "aria-label": "Questions", size: String(Math.min(4, proj.questions.length)) } });
+        proj.questions.forEach(function (q) {
+          qsel.appendChild(el("option", {
+            text: q.id + ": " + q.text, attrs: { value: q.id, selected: (pr.questions || []).indexOf(q.id) >= 0 ? "selected" : undefined },
+          }));
+        });
+        qsel.addEventListener("change", function () {
+          var selected = Array.prototype.filter.call(qsel.options, function (o) { return o.selected; }).map(function (o) { return o.value; });
+          var current = pr.questions || [];
+          var add = selected.filter(function (q) { return current.indexOf(q) < 0; });
+          var remove = current.filter(function (q) { return selected.indexOf(q) < 0; });
+          if (!add.length && !remove.length) return;
+          postJSON("/api/project/" + encodeURIComponent(pr.slug) + "/paper/" + encodeURIComponent(row.pmid), { add: add, remove: remove })
+            .then(function (m) { pr.questions = m.questions; flash("questions updated", 1800); })
+            .catch(function (err) { showError("could not update questions: " + describeFetchError(err)); });
+        });
+        kv.appendChild(el("span", { className: "k", text: "Questions" }));
+        kv.appendChild(el("span", {}, [qsel]));
+      }
+    }
 
     kv.appendChild(el("span", { className: "k", text: "Claims" }));
     kv.appendChild(el("span", { className: "mono", text: (row.claims_active || 0) + " active" + (row.extraction_tier ? " · tier " + row.extraction_tier : "") }));
@@ -2647,10 +3453,91 @@
     return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0;
   }
 
+  // D3: intake is global -- the rail "Add" button opens a popover, and
+  // dropping anywhere on the window (not just the popover's own zone or a
+  // table row) opens a full-window overlay that names the target before
+  // anything uploads.
+  function intakeTargetContext() {
+    if (nav.section === "library" && state.project !== "all" && state.project !== "none") return state.project;
+    if (nav.section === "queries" && tri.slug) {
+      var t = TRIAGES.filter(function (x) { return x.slug === tri.slug; })[0];
+      if (t && t.project) return t.project;
+    }
+    return null;
+  }
+  function updateDropTargetLabel() {
+    var sel = document.getElementById("intake-target");
+    var label = document.getElementById("drop-target-label");
+    if (!sel || !label) return;
+    label.textContent = sel.value ? ("project: " + sel.value) : "All papers";
+  }
+  function fillIntakeTargets() {
+    var sel = document.getElementById("intake-target");
+    if (!sel) return;
+    var current = sel.value;
+    clear(sel);
+    sel.appendChild(el("option", { attrs: { value: "" }, text: "All papers (library only)" }));
+    projectSummaries().forEach(function (p) {
+      sel.appendChild(el("option", { attrs: { value: p.slug }, text: "project: " + p.slug } ));
+    });
+    var known = Array.prototype.some.call(sel.options, function (o) { return o.value === current; });
+    sel.value = known ? current : (intakeTargetContext() || "");
+    updateDropTargetLabel();
+  }
+  function openIntakePop() {
+    var pop = document.getElementById("intake");
+    if (!pop || !LIVE) return;
+    fillIntakeTargets();
+    pop.hidden = false;
+    var addBtn = document.getElementById("btn-add");
+    if (addBtn) addBtn.setAttribute("aria-expanded", "true");
+    var txt = document.getElementById("intake-text");
+    if (txt) txt.focus();
+  }
+  function closeIntakePop() {
+    var pop = document.getElementById("intake");
+    if (!pop) return;
+    pop.hidden = true;
+    var addBtn = document.getElementById("btn-add");
+    if (addBtn) addBtn.setAttribute("aria-expanded", "false");
+  }
   if (LIVE) {
+    var addBtn = document.getElementById("btn-add");
+    if (addBtn) addBtn.addEventListener("click", function () {
+      if (document.getElementById("intake").hidden) openIntakePop(); else closeIntakePop();
+    });
+    var intakeCloseBtn = document.getElementById("intake-close");
+    if (intakeCloseBtn) intakeCloseBtn.addEventListener("click", closeIntakePop);
+    var intakeTargetSel = document.getElementById("intake-target");
+    if (intakeTargetSel) intakeTargetSel.addEventListener("change", updateDropTargetLabel);
+    document.addEventListener("keydown", function (e) {
+      var pop = document.getElementById("intake");
+      if (e.key === "Escape" && pop && !pop.hidden) closeIntakePop();
+    });
+
+    var overlay = document.getElementById("drop-overlay");
+    var overlayDepth = 0;
+    window.addEventListener("dragenter", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (++overlayDepth === 1 && overlay) { fillIntakeTargets(); overlay.hidden = false; }
+    });
     // A file dropped anywhere else must not navigate the tab away from the dashboard.
     window.addEventListener("dragover", function (e) { if (hasFiles(e)) e.preventDefault(); });
-    window.addEventListener("drop", function (e) { if (hasFiles(e)) e.preventDefault(); });
+    window.addEventListener("dragleave", function (e) {
+      if (!hasFiles(e)) return;
+      if (--overlayDepth <= 0) { overlayDepth = 0; if (overlay) overlay.hidden = true; }
+    });
+    window.addEventListener("drop", function (e) {
+      overlayDepth = 0;
+      if (overlay) overlay.hidden = true;
+      if (!hasFiles(e)) return;
+      if (e.defaultPrevented) return; // a more specific drop zone (a table row, the PDF pane) already handled it
+      e.preventDefault();
+      openIntakePop();
+      var dt = e.dataTransfer;
+      if (dt.files && dt.files.length) submitIntakeFiles(dt.files);
+    });
     var pdfPane = document.getElementById("d-pdf");
     pdfPane.addEventListener("dragover", function (e) { if (hasFiles(e)) { e.preventDefault(); pdfPane.classList.add("dragging"); } });
     pdfPane.addEventListener("dragleave", function (e) { if (!pdfPane.contains(e.relatedTarget)) pdfPane.classList.remove("dragging"); });
@@ -2726,6 +3613,19 @@
     return m ? m[1] : null;
   }
 
+  // Phase 3 §3.1: re-fetched whenever the library changes (manual refresh,
+  // change banner) so the folder tree and Queries grouping stay live.
+  function loadProjects() {
+    if (!LIVE) return Promise.resolve();
+    return fetchJSON("/api/projects").then(function (list) {
+      PROJECTS = list || [];
+      if (nav.section === "projects") { renderProjectsSidebar(); renderProjectsMain(); }
+      if (nav.section === "queries") renderQueriesSidebar();
+    }).catch(function (err) {
+      showError("could not load projects: " + describeFetchError(err));
+    });
+  }
+
   function loadTriages(openSlug) {
     if (!LIVE) return Promise.resolve();
     return fetchJSON("/api/triages").then(function (list) {
@@ -2744,6 +3644,7 @@
         tri.slug = want;
       }
       if (activeTab === "projects") renderProjects();
+      renderQueriesSidebar();
     }).catch(function (err) {
       showError("could not load triages: " + describeFetchError(err));
     });
@@ -3500,6 +4401,7 @@
     fetchJSON: fetchJSON, describeFetchError: describeFetchError,
     filteredRows: filteredRows, filtersActive: filtersActive, applyPmidFilter: applyPmidFilter,
     openDrawer: openDrawer, selectTab: selectTab, syncUrl: syncUrl,
+    renderInsightsSidebar: function () { renderInsightsSidebar(); },
   });
 
   // --------------------------------------------------------------- init
@@ -3514,6 +4416,7 @@
     renderActionBar();
     renderChips();
     renderNextActions();
+    renderSidebar();
   }
 
   // P0.2: a refresh fetches all four live endpoints independently
@@ -3809,6 +4712,7 @@
         renderAll();
         loadHealth();
         loadTriages().then(function () { if (activeTab === "triage") loadTriageView(); });
+        loadProjects();
         rerenderActiveTab();
         if (failed.length) {
           showError("refresh partly failed (" + failed.join(", ") + ") -- showing last loaded data for those");
@@ -3843,17 +4747,25 @@
       SUMMARY = results[4];
       clearError();
       renderAll();
+      showSection("library", { silent: true });
       applyViewState(decodeViewState(location.search));
       urlSyncEnabled = true;
       syncUrl();
       loadHealth();
+      var addBtn = document.getElementById("btn-add");
+      if (addBtn) addBtn.hidden = false; // D3: intake is hidden in static mode, shown once live data confirms we're serving
       var wantTriage = triageFromHash();
       loadTriages(wantTriage).then(function () {
+        // §5 risk / plan §3.5: a legacy `#triage/<slug>` link (or --view)
+        // resolves to the query's project folder when it's linked, the
+        // flat Queries section otherwise -- same query, same single mount.
         if (wantTriage && tri.slug === wantTriage) {
-          selectTab("triage");
-          renderTriageTab();
+          var found = TRIAGES.filter(function (t) { return t.slug === wantTriage; })[0];
+          if (found && found.project) openProjectQuery(found.project, wantTriage);
+          else { selectTab("triage"); renderTriageTab(); }
         }
       });
+      loadProjects();
       if (DEEPLINK && BY_PMID[DEEPLINK.pmid]) {
         openDrawer(DEEPLINK.pmid);
         setDrawerMode(DEEPLINK.tab);
@@ -3865,6 +4777,7 @@
     });
   } else {
     renderAll();
+    showSection("library", { silent: true });
     applyViewState(decodeViewState(location.search));
     urlSyncEnabled = true;
     syncUrl();

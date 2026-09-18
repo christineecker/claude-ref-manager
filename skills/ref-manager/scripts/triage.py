@@ -534,6 +534,28 @@ def view(library_root: Path, slug: str, rows: list[dict] | None = None) -> dict:
     }
 
 
+def counts_summary(library_root: Path, slug: str) -> dict:
+    """Lightweight decision breakdown for one triage -- used by the
+    Projects folder tree/Queries section cards (DASHBOARD_NAV_IMPLEMENTATION_PLAN.md
+    phase 3 §3.1 / D7); `view()` is the heavier per-paper version used by the
+    triage/screening view itself."""
+    runs = _query_doc(library_root, slug).get("runs", [])
+    order = display_order(runs)
+    decisions = latest_decisions(library_root, slug)
+    counts = {"included": 0, "pending": 0, "excluded": 0}
+    for pmid in order:
+        dec = decisions.get(pmid)
+        if dec and dec["decision"] in counts:
+            counts[dec["decision"]] += 1
+    decided = sum(counts.values())
+    return {
+        "slug": slug, "total": len(order),
+        "included": counts["included"], "pending": counts["pending"], "excluded": counts["excluded"],
+        "undecided": len(order) - decided,
+        "last_run": runs[-1]["retrieved_at"] if runs else None,
+    }
+
+
 def list_triages(library_root: Path, project: str | None = None) -> list[dict]:
     base = library_root / "triage"
     out = []

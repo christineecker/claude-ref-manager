@@ -1,18 +1,13 @@
-# Graph Report - agent-a64c02ef195990f6e  (2026-09-18)
+# Graph Report - .  (2026-09-18)
 
 ## Corpus Check
-- 174 files · ~290,804 words
+- 79 files · ~272,484 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7023 nodes · 14970 edges · 561 communities (256 shown, 305 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 676 edges (avg confidence: 0.74)
-- Token cost: 0 input · 0 output
-
-## Graph Freshness
-- Built from commit: `a2192287`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
+- 6979 nodes · 15053 edges · 354 communities (220 shown, 134 thin omitted)
+- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 689 edges (avg confidence: 0.74)
+- Token cost: 0 input · 787,956 output
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_PDF.js Worker Core|PDF.js Worker Core]]
@@ -49,6 +44,7 @@
 - [[_COMMUNITY_Selector and Project Tests|Selector and Project Tests]]
 - [[_COMMUNITY_pdf-lib Bundle|pdf-lib Bundle]]
 - [[_COMMUNITY_PDF.js Canvas Graphics|PDF.js Canvas Graphics]]
+- [[_COMMUNITY_PDF.js CFF Font Compiler|PDF.js CFF Font Compiler]]
 - [[_COMMUNITY_Notes, Highlights and Dashboard Docs|Notes, Highlights and Dashboard Docs]]
 - [[_COMMUNITY_PDF.js Worker Lifecycle|PDF.js Worker Lifecycle]]
 - [[_COMMUNITY_PDF.js Font Dictionaries|PDF.js Font Dictionaries]]
@@ -135,6 +131,7 @@
 - [[_COMMUNITY_prisma.py prisma py|prisma.py: prisma py]]
 - [[_COMMUNITY_test_dashboard.py TestInsightsJs|test_dashboard.py: TestInsightsJs]]
 - [[_COMMUNITY_test_phase3_acquire.py TempLibrary|test_phase3_acquire.py: TempLibrary]]
+- [[_COMMUNITY_ref-review.md refreview command|ref-review.md: /ref:review command]]
 - [[_COMMUNITY_test_phase3_acquire.py test_phase3_acquire py|test_phase3_acquire.py: test_phase3_acquire py]]
 - [[_COMMUNITY_maintain.html maintain md|maintain.html: maintain md]]
 - [[_COMMUNITY_find.html Find commands doc|find.html: Find commands doc]]
@@ -170,7 +167,6 @@
 - [[_COMMUNITY_test_dashboard.py DashboardFixture|test_dashboard.py: DashboardFixture]]
 - [[_COMMUNITY_test_dashboard.py TestDashboardImprovementsWiri|test_dashboard.py: TestDashboardImprovementsWiri]]
 - [[_COMMUNITY_test_triage.py FakeFetcher|test_triage.py: FakeFetcher]]
-- [[_COMMUNITY_ref-weave.md refweave command|ref-weave.md: /ref:weave command]]
 - [[_COMMUNITY_PDF.js Worker readNextChar|PDF.js Worker: readNextChar]]
 - [[_COMMUNITY_PDF.js Worker CipherTransformFactory|PDF.js Worker: CipherTransformFactory]]
 - [[_COMMUNITY_PDF.js Worker Stream|PDF.js Worker: Stream]]
@@ -211,7 +207,6 @@
 - [[_COMMUNITY_PDF.js Worker SimpleDOMNode|PDF.js Worker: SimpleDOMNode]]
 - [[_COMMUNITY_fetch_pmc_pdf.py fetch_pmc_pdf py|fetch_pmc_pdf.py: fetch_pmc_pdf py]]
 - [[_COMMUNITY_hypothesize.py hypothesize py|hypothesize.py: hypothesize py]]
-- [[_COMMUNITY_test_dashboard_serve.py ServeFixture|test_dashboard_serve.py: ServeFixture]]
 - [[_COMMUNITY_test_status_verbosity.py TestStatusVerbosity|test_status_verbosity.py: TestStatusVerbosity]]
 - [[_COMMUNITY_test_triage.py TestParsePubmedXml|test_triage.py: TestParsePubmedXml]]
 - [[_COMMUNITY_marketplace.json marketplace json|marketplace.json: marketplace json]]
@@ -235,7 +230,6 @@
 - [[_COMMUNITY_test_dashboard.py TestHtmlEscaping|test_dashboard.py: TestHtmlEscaping]]
 - [[_COMMUNITY_test_dashboard_serve.py TestPdfUpload|test_dashboard_serve.py: TestPdfUpload]]
 - [[_COMMUNITY_test_phase3_acquire.py TestAttach|test_phase3_acquire.py: TestAttach]]
-- [[_COMMUNITY_ref-extractor|ref-extractor.md]]
 - [[_COMMUNITY_gaps.md refgaps command|gaps.md: /ref:gaps command]]
 - [[_COMMUNITY_note.md refnote command|note.md: /ref:note command]]
 - [[_COMMUNITY_pdf-lib bi|pdf-lib: bi]]
@@ -318,36 +312,6 @@
 - [[_COMMUNITY_PDF.js Worker Relevant|PDF.js Worker: Relevant]]
 - [[_COMMUNITY_App Icon 512|App Icon 512]]
 - [[_COMMUNITY_PDF.js Worker SignatureWidgetAnnotation|PDF.js Worker: SignatureWidgetAnnotation]]
-- [[_COMMUNITY_Ask Command|Ask Command]]
-- [[_COMMUNITY_Audit Command|Audit Command]]
-- [[_COMMUNITY_Brief Command|Brief Command]]
-- [[_COMMUNITY_Check Citations Command|Check Citations Command]]
-- [[_COMMUNITY_Cite Command|Cite Command]]
-- [[_COMMUNITY_Compare Command|Compare Command]]
-- [[_COMMUNITY_Concept Command|Concept Command]]
-- [[_COMMUNITY_CLAUDE.md CLAUDE md|CLAUDE.md: CLAUDE md]]
-- [[_COMMUNITY_marketplace.json claude-ref-manager Marketplace|marketplace.json: claude-ref-manager Marketplace]]
-- [[_COMMUNITY_attach.md attach md|attach.md: attach md]]
-- [[_COMMUNITY_describe-figure.md describe-figure md|describe-figure.md: describe-figure md]]
-- [[_COMMUNITY_lint.md lint md|lint.md: lint md]]
-- [[_COMMUNITY_list.md list md|list.md: list md]]
-- [[_COMMUNITY_queue.md queue md|queue.md: queue md]]
-- [[_COMMUNITY_repair-fulltext.md repair-fulltext md|repair-fulltext.md: repair-fulltext md]]
-- [[_COMMUNITY_screen.md refscreen command|screen.md: /ref:screen command]]
-- [[_COMMUNITY_search.md search md|search.md: search md]]
-- [[_COMMUNITY_index.html Paper details|index.html: Paper details /]]
-- [[_COMMUNITY_index.html Triage tab screening|index.html: Triage tab screening]]
-- [[_COMMUNITY_api.html indexcatalog sqlite FTS5|api.html: index/catalog sqlite FTS5]]
-- [[_COMMUNITY_getting-started.html Stable citekeys author+yea|getting-started.html: Stable citekeys author+yea]]
-- [[_COMMUNITY_getting-started.html Append-only personal notes|getting-started.html: Append-only personal notes]]
-- [[_COMMUNITY_api.html fetch py script|api.html: fetch py script]]
-- [[_COMMUNITY_pdf-lib n|pdf-lib: n]]
-- [[_COMMUNITY_Search AddFetch Command|Search Add/Fetch Command]]
-- [[_COMMUNITY_Status Command|Status Command]]
-- [[_COMMUNITY_Study Command|Study Command]]
-- [[_COMMUNITY_Summarize Command|Summarize Command]]
-- [[_COMMUNITY_Verify Command|Verify Command]]
-- [[_COMMUNITY_Weave Command|Weave Command]]
 - [[_COMMUNITY_FreezeRefresh Manifest Contract|Freeze/Refresh Manifest Contract]]
 - [[_COMMUNITY_Dashboard Next Actions|Dashboard Next Actions]]
 - [[_COMMUNITY_Library Starts Empty Principle|Library Starts Empty Principle]]
@@ -362,170 +326,13 @@
 - [[_COMMUNITY_Study List Methods|Study List Methods]]
 - [[_COMMUNITY_Study List Studies|Study List Studies]]
 - [[_COMMUNITY_Summarize Show Summary|Summarize Show Summary]]
-- [[_COMMUNITY_Community 354|Community 354]]
-- [[_COMMUNITY_Community 355|Community 355]]
-- [[_COMMUNITY_Community 356|Community 356]]
-- [[_COMMUNITY_Community 357|Community 357]]
-- [[_COMMUNITY_Community 358|Community 358]]
-- [[_COMMUNITY_Community 359|Community 359]]
-- [[_COMMUNITY_Community 360|Community 360]]
-- [[_COMMUNITY_Community 373|Community 373]]
-- [[_COMMUNITY_Community 374|Community 374]]
-- [[_COMMUNITY_Community 375|Community 375]]
-- [[_COMMUNITY_Community 376|Community 376]]
-- [[_COMMUNITY_Community 377|Community 377]]
-- [[_COMMUNITY_Community 378|Community 378]]
-- [[_COMMUNITY_Community 379|Community 379]]
-- [[_COMMUNITY_Community 380|Community 380]]
-- [[_COMMUNITY_Community 381|Community 381]]
-- [[_COMMUNITY_Community 382|Community 382]]
-- [[_COMMUNITY_Community 383|Community 383]]
-- [[_COMMUNITY_Community 384|Community 384]]
-- [[_COMMUNITY_Community 385|Community 385]]
-- [[_COMMUNITY_Community 386|Community 386]]
-- [[_COMMUNITY_Community 387|Community 387]]
-- [[_COMMUNITY_Community 388|Community 388]]
-- [[_COMMUNITY_Community 389|Community 389]]
-- [[_COMMUNITY_Community 390|Community 390]]
-- [[_COMMUNITY_Community 391|Community 391]]
-- [[_COMMUNITY_Community 392|Community 392]]
-- [[_COMMUNITY_Community 393|Community 393]]
-- [[_COMMUNITY_Community 394|Community 394]]
-- [[_COMMUNITY_Community 395|Community 395]]
-- [[_COMMUNITY_Community 396|Community 396]]
-- [[_COMMUNITY_Community 397|Community 397]]
-- [[_COMMUNITY_Community 398|Community 398]]
-- [[_COMMUNITY_Community 399|Community 399]]
-- [[_COMMUNITY_Community 400|Community 400]]
-- [[_COMMUNITY_Community 401|Community 401]]
-- [[_COMMUNITY_Community 402|Community 402]]
-- [[_COMMUNITY_Community 403|Community 403]]
-- [[_COMMUNITY_Community 404|Community 404]]
-- [[_COMMUNITY_Community 405|Community 405]]
-- [[_COMMUNITY_Community 406|Community 406]]
-- [[_COMMUNITY_Community 407|Community 407]]
-- [[_COMMUNITY_Community 408|Community 408]]
-- [[_COMMUNITY_Community 409|Community 409]]
-- [[_COMMUNITY_Community 410|Community 410]]
-- [[_COMMUNITY_Community 411|Community 411]]
-- [[_COMMUNITY_Community 412|Community 412]]
-- [[_COMMUNITY_Community 413|Community 413]]
-- [[_COMMUNITY_Community 414|Community 414]]
-- [[_COMMUNITY_Community 415|Community 415]]
-- [[_COMMUNITY_Community 416|Community 416]]
-- [[_COMMUNITY_Community 417|Community 417]]
-- [[_COMMUNITY_Community 418|Community 418]]
-- [[_COMMUNITY_Community 419|Community 419]]
-- [[_COMMUNITY_Community 420|Community 420]]
-- [[_COMMUNITY_Community 421|Community 421]]
-- [[_COMMUNITY_Community 422|Community 422]]
-- [[_COMMUNITY_Community 423|Community 423]]
-- [[_COMMUNITY_Community 424|Community 424]]
-- [[_COMMUNITY_Community 425|Community 425]]
-- [[_COMMUNITY_Community 426|Community 426]]
-- [[_COMMUNITY_Community 427|Community 427]]
-- [[_COMMUNITY_Community 428|Community 428]]
-- [[_COMMUNITY_Community 429|Community 429]]
-- [[_COMMUNITY_Community 430|Community 430]]
-- [[_COMMUNITY_Community 431|Community 431]]
-- [[_COMMUNITY_Community 432|Community 432]]
-- [[_COMMUNITY_Community 433|Community 433]]
-- [[_COMMUNITY_Community 434|Community 434]]
-- [[_COMMUNITY_Community 435|Community 435]]
-- [[_COMMUNITY_Community 436|Community 436]]
-- [[_COMMUNITY_Community 437|Community 437]]
-- [[_COMMUNITY_Community 438|Community 438]]
-- [[_COMMUNITY_Community 439|Community 439]]
-- [[_COMMUNITY_Community 440|Community 440]]
-- [[_COMMUNITY_Community 441|Community 441]]
-- [[_COMMUNITY_Community 442|Community 442]]
-- [[_COMMUNITY_Community 443|Community 443]]
-- [[_COMMUNITY_Community 444|Community 444]]
-- [[_COMMUNITY_Community 445|Community 445]]
-- [[_COMMUNITY_Community 446|Community 446]]
-- [[_COMMUNITY_Community 447|Community 447]]
-- [[_COMMUNITY_Community 448|Community 448]]
-- [[_COMMUNITY_Community 449|Community 449]]
-- [[_COMMUNITY_Community 450|Community 450]]
-- [[_COMMUNITY_Community 451|Community 451]]
-- [[_COMMUNITY_Community 452|Community 452]]
-- [[_COMMUNITY_Community 453|Community 453]]
-- [[_COMMUNITY_Community 454|Community 454]]
-- [[_COMMUNITY_Community 455|Community 455]]
-- [[_COMMUNITY_Community 456|Community 456]]
-- [[_COMMUNITY_Community 457|Community 457]]
-- [[_COMMUNITY_Community 458|Community 458]]
-- [[_COMMUNITY_Community 459|Community 459]]
-- [[_COMMUNITY_Community 460|Community 460]]
-- [[_COMMUNITY_Community 461|Community 461]]
-- [[_COMMUNITY_Community 462|Community 462]]
-- [[_COMMUNITY_Community 463|Community 463]]
-- [[_COMMUNITY_Community 464|Community 464]]
-- [[_COMMUNITY_Community 465|Community 465]]
-- [[_COMMUNITY_Community 466|Community 466]]
-- [[_COMMUNITY_Community 467|Community 467]]
-- [[_COMMUNITY_Community 468|Community 468]]
-- [[_COMMUNITY_Community 469|Community 469]]
-- [[_COMMUNITY_Community 470|Community 470]]
-- [[_COMMUNITY_Community 471|Community 471]]
-- [[_COMMUNITY_Community 472|Community 472]]
-- [[_COMMUNITY_Community 473|Community 473]]
-- [[_COMMUNITY_Community 474|Community 474]]
-- [[_COMMUNITY_Community 475|Community 475]]
-- [[_COMMUNITY_Community 476|Community 476]]
-- [[_COMMUNITY_Community 477|Community 477]]
-- [[_COMMUNITY_Community 478|Community 478]]
-- [[_COMMUNITY_Community 479|Community 479]]
-- [[_COMMUNITY_Community 480|Community 480]]
-- [[_COMMUNITY_Community 481|Community 481]]
-- [[_COMMUNITY_Community 482|Community 482]]
-- [[_COMMUNITY_Community 483|Community 483]]
-- [[_COMMUNITY_Community 484|Community 484]]
-- [[_COMMUNITY_Community 485|Community 485]]
-- [[_COMMUNITY_Community 486|Community 486]]
-- [[_COMMUNITY_Community 487|Community 487]]
-- [[_COMMUNITY_Community 488|Community 488]]
-- [[_COMMUNITY_Community 489|Community 489]]
-- [[_COMMUNITY_Community 490|Community 490]]
-- [[_COMMUNITY_Community 491|Community 491]]
-- [[_COMMUNITY_Community 492|Community 492]]
-- [[_COMMUNITY_Community 493|Community 493]]
-- [[_COMMUNITY_Community 494|Community 494]]
-- [[_COMMUNITY_Community 495|Community 495]]
-- [[_COMMUNITY_Community 496|Community 496]]
-- [[_COMMUNITY_Community 497|Community 497]]
-- [[_COMMUNITY_Community 498|Community 498]]
-- [[_COMMUNITY_Community 499|Community 499]]
-- [[_COMMUNITY_Community 500|Community 500]]
-- [[_COMMUNITY_Community 501|Community 501]]
-- [[_COMMUNITY_Community 502|Community 502]]
-- [[_COMMUNITY_Community 503|Community 503]]
-- [[_COMMUNITY_Community 504|Community 504]]
-- [[_COMMUNITY_Community 505|Community 505]]
-- [[_COMMUNITY_Community 506|Community 506]]
-- [[_COMMUNITY_Community 507|Community 507]]
-- [[_COMMUNITY_Community 508|Community 508]]
-- [[_COMMUNITY_Community 509|Community 509]]
-- [[_COMMUNITY_Community 510|Community 510]]
-- [[_COMMUNITY_Community 511|Community 511]]
-- [[_COMMUNITY_Community 512|Community 512]]
-- [[_COMMUNITY_Community 513|Community 513]]
-- [[_COMMUNITY_Community 514|Community 514]]
-- [[_COMMUNITY_Community 515|Community 515]]
-- [[_COMMUNITY_Community 516|Community 516]]
-- [[_COMMUNITY_Community 518|Community 518]]
-- [[_COMMUNITY_Community 519|Community 519]]
-- [[_COMMUNITY_Community 520|Community 520]]
-- [[_COMMUNITY_Community 521|Community 521]]
-- [[_COMMUNITY_Community 523|Community 523]]
-- [[_COMMUNITY_Community 524|Community 524]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `ConfigNamespace` - 141 edges
 2. `TemplateNamespace` - 115 edges
 3. `CanvasGraphics` - 95 edges
 4. `create()` - 88 edges
-5. `el()` - 86 edges
+5. `el()` - 84 edges
 6. `SchemaError` - 84 edges
 7. `AnnotationEditorUIManager` - 80 edges
 8. `AnnotationEditor` - 77 edges
@@ -535,14 +342,14 @@
 ## Surprising Connections (you probably didn't know these)
 - `PubMed search triage workflow` --semantically_similar_to--> `Frozen selector-based synthesis artifacts (compare/summarize/review/brief/check-citations)`  [INFERRED] [semantically similar]
   skills/ref-manager/scripts/triage.py → docs/commands/write.html
+- `Corrections overlay (authoritative correction record)` --semantically_similar_to--> `Corrections overlay lifecycle`  [INFERRED] [semantically similar]
+  commands/verify.md → docs/concepts.html
+- `Studies, datasets, methods` --semantically_similar_to--> `Study grouping (evidenced PMID grouping)`  [INFERRED] [semantically similar]
+  docs/concepts.html → commands/study.md
 - `Library viewer dashboard UI` --semantically_similar_to--> `Library Viewer Tutorial`  [INFERRED] [semantically similar]
   skills/ref-manager/scripts/dashboard_assets/index.html → docs/tutorials/library-viewer.html
 - `Pipeline funnel chart` --semantically_similar_to--> `Ingest pipeline (RESOLVE, DEDUP, TIER, WRITE, WEAVE)`  [INFERRED] [semantically similar]
   skills/ref-manager/scripts/dashboard_assets/index.html → docs/index.html
-- `Evidence Insights Tutorial` --references--> `dashboard.py (serve/build)`  [EXTRACTED]
-  docs/tutorials/dashboard-insights.html → skills/ref-manager/scripts/dashboard.py
-- `Corrections overlay lifecycle` --conceptually_related_to--> `Typed concept relations (supports/extends/replicates/potential_conflict/contradicts)`  [INFERRED]
-  skills/ref-manager/scripts/verify.py → docs/commands/graph.html
 
 ## Import Cycles
 - 1-file cycle: `skills/ref-manager/scripts/lib_inventory.py -> skills/ref-manager/scripts/lib_inventory.py`
@@ -562,107 +369,111 @@
 - **Six review target types implementing the corrections overlay** — scripts_verify_review_claim, scripts_verify_review_grant_link, scripts_verify_review_author_contribution, scripts_verify_review_person_identity, scripts_verify_review_appraisal, concept_corrections_overlay [EXTRACTED 0.90]
 - **Dashboard Insights tab assembled from graph and UI components** — dashboard_assets_index, concept_dashboard_insights_tab, scripts_relation_module, scripts_concept_module, commands_graph [INFERRED 0.75]
 
-## Communities (561 total, 305 thin omitted)
+## Communities (354 total, 134 thin omitted)
 
 ### Community 0 - "PDF.js Worker Core"
-Cohesion: 0.01
-Nodes (141): ADBE_JSConsole, ADBE_JSDebugger, AddViewerPreferences, Agent, Amd, AppearanceFilter, AutoSave, BaseException() (+133 more)
+Cohesion: 0.00
+Nodes (316): abort(), Acrobat, Acrobat7, ADBE_JSConsole, ADBE_JSDebugger, AddSilentPrint, AddViewerPreferences, AdjustData (+308 more)
 
 ### Community 1 - "PDF.js Rendering API"
-Cohesion: 0.05
-Nodes (8): BaseLocalCache, incrementCachedImageMaskCount(), normalizeBlendMode(), OperatorList, parseShading(), PartialEvaluator, TextState, TimeSlotManager
+Cohesion: 0.03
+Nodes (49): #a(), add(), addNode(), addPdfFont(), addTopLevelNode(), adjustMapping(), BaseLocalCache, _cache() (+41 more)
 
 ### Community 2 - "PDF.js XFA Config Namespace"
-Cohesion: 0.05
-Nodes (47): adjustMapping(), adjustWidths(), amend(), amendFallbackToUnicode(), applyStandardFontGlyphMap(), buildAddOperation(), buildMinOperation(), buildMulOperation() (+39 more)
+Cohesion: 0.03
+Nodes (73): adjustWidths(), amend(), amendFallbackToUnicode(), applyStandardFontGlyphMap(), Ascii85Stream, AsciiHexStream, BaseStream, buildToFontChar() (+65 more)
 
 ### Community 4 - "PDF.js XFA Template Engine"
-Cohesion: 0.05
-Nodes (17): CanvasGraphics, composeSMask(), composeSMaskBackdrop(), copyCtxState(), drawImageAtIntegerCoords(), getAxialAlignedBoundingBox(), getImageSmoothingEnabled(), getPathGenerator() (+9 more)
+Cohesion: 0.04
+Nodes (23): applyBoundingBox(), applyTransform(), CanvasGraphics, composeSMask(), copyCtxState(), drawImageAtIntegerCoords(), fill(), getAxialAlignedBoundingBox() (+15 more)
 
 ### Community 5 - "PDF.js Stream Parser"
-Cohesion: 0.06
-Nodes (21): addString(), bezierBoundingBox(), Border, ButtonWidgetAnnotation, charsToGlyphs(), ChoiceWidgetAnnotation, decodeString(), encodeString() (+13 more)
+Cohesion: 0.03
+Nodes (43): addChildren(), _addNamespacePrefix(), addString(), bezierBoundingBox(), Border, build(), ButtonWidgetAnnotation, charsToGlyphs() (+35 more)
 
 ### Community 7 - "PDF.js Annotation Editor Manager"
-Cohesion: 0.02
-Nodes (72): AnnotationElementFactory, BaseException(), BaseShadingPattern, bytesToString(), CaretAnnotationElement, CheckboxWidgetAnnotationElement, ChoiceWidgetAnnotationElement, CMYK_HTML() (+64 more)
+Cohesion: 0.03
+Nodes (63): BaseException(), BaseShadingPattern, bytesToString(), CMYK_HTML(), CMYK_RGB(), composeSMaskBackdrop(), convertOpList(), #de() (+55 more)
 
 ### Community 8 - "PDF.js Document Manager"
-Cohesion: 0.09
-Nodes (6): Button, ContentArea, Html, HTMLResult, ImageEdit, Items
+Cohesion: 0.03
+Nodes (34): applyAssist(), Arc, Area, ariaLabel(), Br, Button, Caption, CheckButton (+26 more)
 
 ### Community 9 - "PDF.js Ink and Stamp Editors"
 Cohesion: 0.06
-Nodes (96): applyPmidFilter(), filtersActive(), svgEl(), syncUrl(), addToCell(), appraisalOverlay(), appraisalState(), buildClusterMap() (+88 more)
+Nodes (95): applyPmidFilter(), filtersActive(), syncUrl(), addToCell(), appraisalOverlay(), appraisalState(), buildClusterMap(), buildGraph() (+87 more)
 
 ### Community 10 - "PDF.js Annotation Elements"
-Cohesion: 0.07
-Nodes (77): apiFetch(), clear(), clearError(), countValues(), describeFetchError(), drainIntakePdfs(), encodeViewState(), fetchJSON() (+69 more)
+Cohesion: 0.05
+Nodes (85): actionForScope(), applyIssueFilter(), applyView(), applyViewState(), buildSelectedCSV(), buildSelectedPMIDList(), closeDrawer(), coverageCount() (+77 more)
 
 ### Community 11 - "PDF.js Widget Annotations"
-Cohesion: 0.14
-Nodes (18): SchemaError, author(), claim(), extractor_output(), TempLibrary, TestAuthorContributionRequiresEvidence, TestClaimsResolveToSources, TestCorrectionPendingOnSupersession (+10 more)
+Cohesion: 0.06
+Nodes (40): appraise module, grant module, author(), claim(), extractor_output(), TempLibrary, TestAppraisalReviewDistinguishable, TestChecklistSelectionByStudyType (+32 more)
 
 ### Community 12 - "PDF.js Catalog and Outline"
 Cohesion: 0.05
-Nodes (23): BitModel, byteIn(), ContextCache, copyCoefficients(), decodeBitmap(), decodeIAID(), decodeInteger(), decodeMMRBitmap() (+15 more)
+Nodes (30): _addPixels(), _addPixelsNeg(), BitModel, CCITTFaxStream, ContextCache, copyCoefficients(), decodeBitmap(), decodeIAID() (+22 more)
 
 ### Community 13 - "PDF.js Operator Evaluator"
-Cohesion: 0.06
-Nodes (17): Annotation, AnnotationBorderStyle, CircleAnnotation, getPdfColorArray(), getQuadPoints(), getRgbColor(), HighlightAnnotation, intersect() (+9 more)
+Cohesion: 0.05
+Nodes (21): Annotation, AnnotationBorderStyle, CircleAnnotation, getPdfColorArray(), getQuadPoints(), getRgbColor(), HighlightAnnotation, InkAnnotation (+13 more)
 
 ### Community 14 - "PDF.js Chunked Streams"
-Cohesion: 0.18
-Nodes (6): CFFFDSelect, compileCharString(), CompiledFont, getSubroutineBias(), lookupCmap(), Type2Compiled
+Cohesion: 0.04
+Nodes (41): accept(), buildAddOperation(), buildHuffmanTable(), buildMinOperation(), buildMulOperation(), buildSubOperation(), CFFFDSelect, clean() (+33 more)
 
 ### Community 15 - "PDF.js JBIG2 Decoder"
 Cohesion: 0.04
-Nodes (19): AnnotationElement, appendText(), BaseSVGFactory, CircleAnnotationElement, FileAttachmentAnnotationElement, getCtx(), getRectDims(), _initialize() (+11 more)
+Nodes (20): AnnotationElement, AnnotationElementFactory, CaretAnnotationElement, CircleAnnotationElement, FreeTextAnnotationElement, getRectDims(), HighlightAnnotationElement, InkAnnotationElement (+12 more)
 
 ### Community 16 - "Papers.app Export and E-utilities"
 Cohesion: 0.04
-Nodes (22): addNativeFontFace(), bind(), createFontFaceRule(), createNativeFontFace(), #de(), insertRule(), loadSystemFont(), NetworkManager (+14 more)
+Nodes (12): BaseFullReader, getArrayBuffer(), NetworkManager, _onProgress(), _onProgressiveDone(), _onReceiveData(), PDFDataTransportStreamRangeReader, PDFDataTransportStreamReader (+4 more)
 
 ### Community 17 - "PDF.js Worker Transport"
-Cohesion: 0.13
-Nodes (10): brief module, extract module, report module, author(), _now(), TempLibrary, TestCacheInvalidation, TestCitationObservations (+2 more)
+Cohesion: 0.07
+Nodes (24): ask_retrieve module, brief module, extract module, methods module, report module, author(), _now(), TempLibrary (+16 more)
+
+### Community 19 - "Dashboard HTTP Server"
+Cohesion: 0.06
+Nodes (3): AnnotationEditorUIManager, CommandManager, destroy()
 
 ### Community 20 - "PDF.js Page Proxy and Fetch"
-Cohesion: 0.10
-Nodes (15): note module, queue module, author(), TempLibrary, TestAddCitekeyCollision, TestAddDuplicate, TestAddIdentityWarnings, TestAddMissingAbstract (+7 more)
+Cohesion: 0.06
+Nodes (42): versions/<id>/claims.json entry (§4a)., corrections.json overlay entry (§3b). target_type distinguishes what     kind of, studies/studies.jsonl entry (§3d). Field names match study.py's     actual phase, people/<slug>.json (§3c)., grants/<slug>.json (§3c)., One entry of a /ref:check-citations report's findings.json (§5a).      `verdict`, graph/concepts.jsonl entry (§3, §3d). Primary key is a user-chosen     slug (not, graph/relations.jsonl entry (§3, §3a, §4a). A typed edge between two     CONCEPT (+34 more)
 
 ### Community 21 - "PDF.js Annotation Model"
-Cohesion: 0.05
-Nodes (54): addFontStyle(), applyBoundingBox(), beginText(), clip(), closeEOFillStroke(), closeFillStroke(), closePath(), closeStroke() (+46 more)
+Cohesion: 0.07
+Nodes (46): addFontStyle(), BaseSVGFactory, beginText(), clip(), constructPath(), DOMCanvasFactory, endPath(), endText() (+38 more)
 
 ### Community 22 - "PDF.js Network Loading"
-Cohesion: 0.07
-Nodes (15): annotationGlobals(), BasePdfManager, checkFirstPage(), checkLastPage(), cleanup(), createGlobals(), ensure(), fieldObjects() (+7 more)
+Cohesion: 0.05
+Nodes (14): annotationGlobals(), BasePdfManager, createGlobals(), ensure(), fieldObjects(), hasJSActions(), htmlForXfa(), isPureXfa() (+6 more)
 
 ### Community 23 - "Plan and Command Docs"
 Cohesion: 0.08
-Nodes (47): export_papers module, _allocate_path(), _escape_bibtex(), _is_foreign(), _last_author_lastname(), layout_relative_path(), _load_note_pushes(), _load_raw_record() (+39 more)
+Nodes (53): papers_snapshot module, _allocate_path(), _escape_bibtex(), _is_foreign(), _last_author_lastname(), layout_relative_path(), _load_note_pushes(), _load_raw_record() (+45 more)
+
+### Community 24 - "List Command Tests"
+Cohesion: 0.07
+Nodes (3): bezierBoundingBox(), InkEditor, StampEditor
 
 ### Community 26 - "PDF.js XFA Object Tree"
 Cohesion: 0.07
 Nodes (12): Path, ListFixture, _now_iso(), One paper per source state plus a rich pdf-backed paper with figures,     claims, _stale_iso(), TestEmptyResultMessage, TestFilterCombinations, TestFormats (+4 more)
 
-### Community 27 - "Triage Workflow Script"
-Cohesion: 0.03
-Nodes (3): _bindItems(), XFAObject, XFAObjectArray
-
 ### Community 28 - "Intake Classification Tests"
-Cohesion: 0.06
-Nodes (13): ChunkedStream, getInheritableProperty(), GlobalImageCache, groupChunks(), has(), Image, onReceiveData(), requestAllChunks() (+5 more)
+Cohesion: 0.05
+Nodes (21): ChunkedStream, exportData(), Font, fontFallback(), getBeginChunk(), getEndChunk(), getRangeReader(), groupChunks() (+13 more)
 
 ### Community 29 - "PDF.js Annotation Storage"
 Cohesion: 0.05
 Nodes (7): TempLibrary, TestClassifyAll, TestClassifyItem, TestClassifyItemFiles, TestCli, TestFindExistingByIdentity, TestResolveBatch
 
 ### Community 30 - "Inventory Tests"
-Cohesion: 0.09
-Nodes (10): ColorManager, get(), getEditableAnnotation(), getEditableAnnotations(), has(), ImageManager, isVisible(), setVisibility() (+2 more)
+Cohesion: 0.05
+Nodes (18): appendText(), ColorManager, get(), getCtx(), getGroup(), getPathGenerator(), has(), isVisible() (+10 more)
 
 ### Community 31 - "Selector and Project Tests"
 Cohesion: 0.17
@@ -674,67 +485,71 @@ Nodes (11): Path, InventoryFixture, _now_iso(), rows() badge counts == status.py
 
 ### Community 33 - "PDF.js Canvas Graphics"
 Cohesion: 0.10
-Nodes (17): export module, search module, author(), # NOTE: Ken is NOT confirmed as author-index 1 on paper 6002 -> ambiguous there, TempLibrary, TestAuthorRoles, TestCoauthorDedupAndGapsAndGroups, TestExportBibAndCsl (+9 more)
+Nodes (19): cite module, export module, queue module, search module, author(), # NOTE: Ken is NOT confirmed as author-index 1 on paper 6002 -> ambiguous there, TempLibrary, TestAuthorRoles (+11 more)
+
+### Community 34 - "PDF.js CFF Font Compiler"
+Cohesion: 0.05
+Nodes (5): Gr(), Kr(), r(), Vr(), wr()
 
 ### Community 35 - "Notes, Highlights and Dashboard Docs"
-Cohesion: 0.14
-Nodes (3): KeyboardManager, PopupElement, toDateObject()
+Cohesion: 0.07
+Nodes (5): FileAttachmentAnnotationElement, getEditableAnnotation(), getEditableAnnotations(), PopupElement, PushButtonWidgetAnnotationElement
 
 ### Community 36 - "PDF.js Worker Lifecycle"
-Cohesion: 0.07
-Nodes (8): BooleanElement, DateElement, DateTime, Decimal, Float, Integer, Time, valueToHtml()
+Cohesion: 0.05
+Nodes (10): BooleanElement, DateElement, DateTime, Decimal, Float, Integer, PageArea, Text (+2 more)
 
 ### Community 37 - "PDF.js Font Dictionaries"
-Cohesion: 0.05
-Nodes (25): add(), CFFCompiler, CFFDict, CFFOffsetTracker, CFFStrings, createDict(), decodeScan(), emptyPrivateDictionary() (+17 more)
+Cohesion: 0.08
+Nodes (6): CFFCompiler, CFFDict, CFFOffsetTracker, CFFPrivateDict, CFFStrings, CFFTopDict
 
 ### Community 38 - "Dashboard Knowledge Payload"
 Cohesion: 0.08
-Nodes (42): _build_into, _serve_health, _serve_highlights, _serve_summary, do_GET, _command(), _coverage(), direction_class() (+34 more)
+Nodes (41): _serve_health, _serve_highlights, _serve_summary, do_GET, _command(), _coverage(), direction_class(), health() (+33 more)
 
 ### Community 39 - "Extraction Tests (Phase 4)"
-Cohesion: 0.11
-Nodes (6): AnnotationStorage, makeHexColor(), setAttributes(), setFillRGBColor(), setupStorage(), WidgetAnnotationElement
+Cohesion: 0.08
+Nodes (11): AnnotationStorage, CheckboxWidgetAnnotationElement, ChoiceWidgetAnnotationElement, makeHexColor(), RadioButtonWidgetAnnotationElement, setAttributes(), setFillRGBColor(), setStrokeRGBColor() (+3 more)
 
 ### Community 41 - "Dashboard Rendering Helpers"
-Cohesion: 0.17
-Nodes (5): o(), calculateSHA384(), CipherTransform, PDF17, PDF20
+Cohesion: 0.09
+Nodes (8): o(), AESBaseCipher, ARCFourCipher, calculateSHA384(), CipherTransform, CipherTransformFactory, PDF17, PDF20
 
 ### Community 42 - "PDF.js CMap Tokenizer"
-Cohesion: 0.12
-Nodes (24): Acquire command group docs, Find command group docs, Slash commands index, Maintain command group docs, Organize command group docs, People & reporting command group docs, Manual saved-query re-run policy (D9), /ref:update-queries command (+16 more)
+Cohesion: 0.07
+Nodes (37): ref-synthesizer subagent, Acquire command group docs, Find command group docs, Slash commands index, Maintain command group docs, Organize command group docs, People & reporting command group docs, Dataset record (+29 more)
 
 ### Community 43 - "PDF.js Font Repair"
-Cohesion: 0.18
-Nodes (29): _author_display(), _authors(), _catalog_pmids(), _claims_active(), _claims_detail(), _current_version(), detail(), _figures_counts() (+21 more)
+Cohesion: 0.14
+Nodes (36): datetime, _author_display(), _author_surname(), _authors(), _authors_short(), _catalog_pmids(), _claims_active(), _claims_detail() (+28 more)
 
 ### Community 44 - "PDF.js PostScript Evaluator"
-Cohesion: 0.14
-Nodes (24): open_in_papers.py, Papers.app Handoff, Papers.app, papers_snapshot.py, /ref:open, /ref:pull-annotations, note.py, project.py (+16 more)
+Cohesion: 0.10
+Nodes (36): project.py, queue.py, /ref:project, /ref:queue, /ref:screen, screen.py, add.py, /ref:add (+28 more)
 
 ### Community 45 - "Compare Tests (Phase 5)"
-Cohesion: 0.15
-Nodes (10): pull_annotations module, Path, author(), build_synthetic_papers_db(), make_record(), papers_item(), TempLibrary, TestPullAnnotations (+2 more)
+Cohesion: 0.11
+Nodes (17): note module, pull_annotations module, Path, author(), build_synthetic_papers_db(), make_record(), papers_item(), TempLibrary (+9 more)
 
 ### Community 46 - "Annotation and Vision Tests"
-Cohesion: 0.14
-Nodes (25): audit.py, /ref:audit, /ref:verify, verify.py, discover.py, grant.py, graph_people.py, person.py (+17 more)
+Cohesion: 0.10
+Nodes (35): audit.py, /ref:audit, /ref:study, /ref:verify, study.py, verify.py, discover.py, grant.py (+27 more)
 
 ### Community 47 - "PDF.js Text Layer and Images"
-Cohesion: 0.11
-Nodes (40): Corrections overlay lifecycle, ref-extractor Subagent, _populate, assign_claim_ids(), _content_hash(), extract_one(), main(), Mutates registry in place; returns the list of fully-formed claim     objects (w (+32 more)
+Cohesion: 0.13
+Nodes (32): Corrections overlay lifecycle, ref-extractor Subagent, _populate, _check_dir(), main(), persist_check(), show_check(), assign_claim_ids() (+24 more)
 
 ### Community 48 - "Dashboard Live API Client"
-Cohesion: 0.15
-Nodes (19): add_one(), _first_author_lastname(), _first_title_word(), _flag_doi_title_conflicts(), main(), extract_funding_observations(), _funder_fields(), Read `<funding-source>`'s `<institution>` (the funder name) and     `<institutio (+11 more)
+Cohesion: 0.10
+Nodes (31): Files-are-authority ownership & recovery model, Workflows: how the pieces move, add_one(), _first_author_lastname(), _first_title_word(), _flag_doi_title_conflicts(), main(), _best_oa_pdf_url() (+23 more)
 
 ### Community 49 - "Schema Validation"
 Cohesion: 0.12
-Nodes (12): methods module, study module, author(), claim(), TempLibrary, TestCompareCellSemantics, TestCompareFreezeAndRefresh, TestCompareSelectorEquivalence (+4 more)
+Nodes (10): author(), claim(), TempLibrary, TestCompareCellSemantics, TestCompareFreezeAndRefresh, TestCompareSelectorEquivalence, TestCompareStudyGroupingVsDatasetReuse, TestCompareUserEdits (+2 more)
 
 ### Community 50 - "Ask and Brief Tests (Phase 6)"
-Cohesion: 0.10
-Nodes (33): catalog.py module, Acquire commands doc page, API docs page, Commands index doc page, find_related_articles MCP tool, /ref:add command, /ref:attach command, /ref:audit command (+25 more)
+Cohesion: 0.09
+Nodes (34): catalog.py module, ~/.config/ref-manager/config.json, Acquire commands doc page, API docs page, Commands index doc page, find_related_articles MCP tool, /ref:add command, /ref:attach command (+26 more)
 
 ### Community 51 - "Gaps and Hypothesis Tests"
 Cohesion: 0.14
@@ -742,159 +557,163 @@ Nodes (12): gaps module, hypothesize module, author(), claim(), GRAPH_VISUALIZAT
 
 ### Community 52 - "PDF.js XFA XML Parser"
 Cohesion: 0.07
-Nodes (12): compileGlyf(), CompositeGlyph, getFloat214(), getInt16(), getInt8(), getUint16(), Glyph, GlyphHeader (+4 more)
+Nodes (11): compileGlyf(), CompositeGlyph, getFloat214(), getInt16(), getInt8(), Glyph, GlyphHeader, scale() (+3 more)
 
 ### Community 53 - "PDF.js XFA HTML Values"
-Cohesion: 0.16
-Nodes (5): §7 live-mode gap fix: /api/lint and /api/matrix, so --serve mode's     Summary h, TestFilesTraversal, TestHostAndOriginChecks, TestLintAndMatrixRoutes, TestPaperDetailAndSnapshots
+Cohesion: 0.13
+Nodes (6): §7 live-mode gap fix: /api/lint and /api/matrix, so --serve mode's     Summary h, TestFilesTraversal, TestHostAndOriginChecks, TestLintAndMatrixRoutes, TestPaperDetailAndSnapshots, TestTokenChecks
 
 ### Community 54 - "Library Inventory"
-Cohesion: 0.11
-Nodes (34): lib_ids module, lib_schema module, _check_dir(), main(), persist_check(), show_check(), main(), add_alias() (+26 more)
+Cohesion: 0.14
+Nodes (26): lib_ids module, lib_schema module, person module, main(), add_alias(), create(), list_grants(), main() (+18 more)
 
 ### Community 55 - "Audit Tests (Phase 11)"
-Cohesion: 0.15
-Nodes (31): Append-only, review-gated assertion pattern, Parse a JSON file, or return `default` when it does not exist.     Malformed JSO, read_json(), projects/<slug>/project.yaml (§3b, D20)., validate_project(), _paper_source_counts, _project_dir, add_paper() (+23 more)
+Cohesion: 0.16
+Nodes (29): Append-only, review-gated assertion pattern, Parse a JSON file, or return `default` when it does not exist.     Malformed JSO, read_json(), _paper_source_counts, _project_dir, add_paper(), add_question(), create() (+21 more)
 
 ### Community 56 - "People and Grant Records"
 Cohesion: 0.12
 Nodes (26): Exception, attach_one(), attach_pdf_bytes(), _check_identity(), _ConversionNotCommitted, main(), _pdf_head_text(), Returns (verified, method_description). (+18 more)
 
 ### Community 58 - "Add, Person and Grant Tests"
-Cohesion: 0.05
-Nodes (21): addChildren(), calculationOrderIds(), _collectJS(), Dict, documentInfo(), fetch(), fetchAsync(), fetchIfRefAsync() (+13 more)
+Cohesion: 0.11
+Nodes (22): _build_into, build(), _build_into(), build_server(), _decode_path_segments(), _escape_for_script_tag(), main(), _matrix() (+14 more)
 
 ### Community 59 - "Concept Graph Tests (Phase 8)"
 Cohesion: 0.13
 Nodes (12): check_citations module, author(), claim(), TempLibrary, TestBibliographyExportScope, TestCaveat, TestCitedPmidMerge, TestEvidenceRequirements (+4 more)
 
+### Community 60 - "Check-Citations Tests"
+Cohesion: 0.09
+Nodes (5): CachedCanvases, clear(), LoopbackPort, PDFDocumentLoadingTask, removeNativeFontFace()
+
 ### Community 61 - "Command Reference Docs"
-Cohesion: 0.06
-Nodes (14): BaseCMapReaderFactory, BaseStandardFontDataFactory, cancelAllRequests(), createFetchOptions(), createHeaders(), DOMCMapReaderFactory, DOMStandardFontDataFactory, fetchData() (+6 more)
+Cohesion: 0.07
+Nodes (12): BaseCMapReaderFactory, BaseStandardFontDataFactory, createFetchOptions(), createHeaders(), DOMCMapReaderFactory, DOMStandardFontDataFactory, fetchData(), isValidFetchUrl() (+4 more)
 
 ### Community 62 - "Relations and Gap Queries"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (8): buildRoot(), DatasetXMLParser, isNsAgnostic(), isWhitespace(), onText(), parseFromString(), XFAParser, XMLParserBase
 
 ### Community 63 - "Init and Catalog Tests (Phase 0)"
-Cohesion: 0.08
-Nodes (33): build(), _build_into(), build_server(), _DashboardHandler, _decode_path_segments(), _escape_for_script_tag(), _host_allowed(), main() (+25 more)
+Cohesion: 0.21
+Nodes (8): _DashboardHandler, Set on a per-server subclass by `build_server()`: `library_root`     (Path) and, Returns the parsed JSON body, or None after sending an error         response (C, `{items: [str], fulltext: bool}` -> 202 `{job_id}`; poll /api/jobs/<id>., Raw application/pdf body (+ X-Filename) -> intake_pipeline.intake_pdf.         `, Drop-in PDF attach/replace (§5, FR-07/FR-08). Raw `application/pdf`         body, Validates the slug and that its triage exists; sends the error         response, _valid_pmid()
 
 ### Community 64 - "Papers.app Tests"
-Cohesion: 0.14
-Nodes (31): Evidence Insights Tutorial, /api/knowledge payload, Claim Network, Topic Clusters and Trends, Evidence Map, Population x Outcome Gap Grid, Dashboard Insights Tab, Interactive Knowledge Graph (+23 more)
+Cohesion: 0.15
+Nodes (29): Evidence Insights Tutorial, /api/knowledge payload, Claim Network, Topic Clusters and Trends, Evidence Map, Population x Outcome Gap Grid, Dashboard Insights Tab, Interactive Knowledge Graph (+21 more)
 
 ### Community 65 - "Atomic Writes and PDF Attach"
-Cohesion: 0.15
-Nodes (14): Retrieve-Synthesize-Validate Pipeline, index/catalog.sqlite FTS5 Catalog, /ref:ask, ref-synthesizer Subagent, Selector Grammar (PLAN.md §5c, lib_selector.py), catalog.py, Files Are the Authority (projections refreshed), /ref:lint (+6 more)
+Cohesion: 0.11
+Nodes (25): catalog.py, Files Are the Authority (projections refreshed), open_in_papers.py, Papers.app Handoff, Papers.app, papers_snapshot.py, /ref:help, /ref:lint (+17 more)
 
 ### Community 66 - "Slugs and PubMed Queries"
-Cohesion: 0.21
-Nodes (12): bind(), _bindElement(), _bindOccurrences(), _bindValue(), _createOccurrences(), createText(), _findDataByNameToConsume(), _getOccurInfo() (+4 more)
+Cohesion: 0.09
+Nodes (16): bind(), _bindElement(), _bindItems(), _bindOccurrences(), _bindValue(), checkFirstPage(), cleanup(), _createOccurrences() (+8 more)
+
+### Community 67 - "verify.md: Tutorials Index"
+Cohesion: 0.11
+Nodes (10): addNativeFontFace(), bind(), createFontFaceRule(), createNativeFontFace(), DOMFilterFactory, getRGB(), insertRule(), InternalRenderTask (+2 more)
 
 ### Community 68 - "PDF.js: bind"
-Cohesion: 0.50
-Nodes (4): _post_highlight, _post_note, _post_pdf, do_POST
+Cohesion: 0.15
+Nodes (26): afterPdfUpload(), apiFetch(), clearError(), describeFetchError(), fetchJSON(), loadHealth(), loadTriages(), loadTriageView() (+18 more)
 
 ### Community 69 - "Claim Verification and Corrections"
-Cohesion: 0.20
-Nodes (3): addPara(), FontSelector, P
+Cohesion: 0.08
+Nodes (9): addPara(), B, FontSelector, I, mapStyle(), P, popFont(), pushData() (+1 more)
 
 ### Community 70 - "Dashboard Serve Tests"
-Cohesion: 0.20
-Nodes (3): AstArgument, AstLiteral, ExpressionBuilderVisitor
+Cohesion: 0.08
+Nodes (7): AstArgument, AstBinaryOperation, AstLiteral, AstMin, AstVariable, AstVariableDefinition, ExpressionBuilderVisitor
 
 ### Community 72 - "PDF.js Worker: addString"
-Cohesion: 0.50
-Nodes (4): Screening reason chips, PRISMA 2020 flow record, Saved PubMed query (queries/<slug>.yaml, immutable runs), Triage record (triage/<slug>/: triage.json, decisions.jsonl, pending.json)
+Cohesion: 0.15
+Nodes (17): Dashboard Insights tab, Papers.app, Gap types (single_study_fragile, unresolved_conflicts, co_mentioned_ungrouped, population_outcome_gap), Grouped overview, Library root config (~/.config/ref-manager/config.json), Section 5c selector grammar, Project templates (--template), /ref:project (+9 more)
 
 ### Community 73 - "PDF.js Worker: compileGlyf"
-Cohesion: 0.07
-Nodes (37): add.py, mcp__claude_ai_PubMed__get_article_metadata, /ref:add, Corrections overlay (authoritative correction record), The claim contract, Atomic writes, Corrections overlay lifecycle, The data model (+29 more)
+Cohesion: 0.10
+Nodes (25): mcp__claude_ai_PubMed__get_article_metadata, The claim contract, Atomic writes, Corrections overlay lifecycle, The data model, Key design decisions (D1-D28), Extraction tiers, Identifier contract (+17 more)
 
 ### Community 74 - "PDF.js Worker: getTextContent"
-Cohesion: 0.25
-Nodes (10): resolve_from_args(), Path, _args(), attach_pdf(), author(), build_synthetic_papers_db(), make_record(), _NS (+2 more)
+Cohesion: 0.23
+Nodes (11): open_in_papers module, resolve_from_args(), Path, _args(), attach_pdf(), author(), build_synthetic_papers_db(), make_record() (+3 more)
 
 ### Community 75 - "PDF.js Worker: ExpressionBuilderVisitor"
-Cohesion: 0.08
-Nodes (9): BaseFullReader, BaseRangeReader, createRequestOptions(), getArrayBuffer(), on(), _onProgress(), PDFNodeStreamFsRangeReader, PDFNodeStreamFullReader (+1 more)
+Cohesion: 0.09
+Nodes (7): BaseRangeReader, createRequestOptions(), on(), PDFNodeStreamFsRangeReader, PDFNodeStreamFullReader, PDFNodeStreamRangeReader, PDFWorker
 
 ### Community 76 - "PDF.js Worker: forEach"
 Cohesion: 0.10
-Nodes (7): applyInverseTransform(), applyTransform(), bezierBoundingBox(), CanvasExtraState, intersect(), PageViewport, scaleMinMax()
+Nodes (9): CanvasExtraState, closeEOFillStroke(), closeFillStroke(), closePath(), closeStroke(), eoFillStroke(), fillStroke(), scaleMinMax() (+1 more)
 
 ### Community 77 - "PDF.js Worker: LocaleSetNamespace"
-Cohesion: 0.16
-Nodes (12): author(), claim(), extractor_output(), TempLibrary, TestAppraisalReviewDistinguishable, TestChecklistSelectionByStudyType, TestDomainsTraceToEvidence, TestGradeCertainty (+4 more)
+Cohesion: 0.11
+Nodes (19): charCodeOf(), _charToGlyph(), convert(), convertCidString(), createCmapTable(), createNameTable(), createOS2Table(), createPostscriptName() (+11 more)
 
 ### Community 78 - "people.html: /ref:audit"
 Cohesion: 0.20
 Nodes (23): _alias_index_path(), allocate_citekey(), allocate_slug(), check_question_id(), _citekey_index_path(), _conflict_record_info(), _load_alias_index(), make_citekey_base() (+15 more)
 
-### Community 79 - "PDF.js Worker: assign"
-Cohesion: 0.08
-Nodes (6): CachedCanvases, clear(), LoopbackPort, PDFPageProxy, sendWithStream(), timeEnd()
-
 ### Community 80 - "fetch.py: fetch_one"
-Cohesion: 0.15
-Nodes (24): convert module, convert_html_worker.main, convert_html(), convert_jats(), convert_pdf(), convert_plain_text(), _jats_figures(), main() (+16 more)
+Cohesion: 0.20
+Nodes (22): convert_html(), convert_jats(), convert_pdf(), convert_plain_text(), _jats_figures(), main(), For sources that arrive as already-extracted plain text with no HTML/     XML ma, CLI wrapper for manual/diagnostic use: convert.py {jats|html|pdf} <input> <stagi (+14 more)
 
 ### Community 81 - "project.py: project py"
 Cohesion: 0.20
 Nodes (21): _citekey(), _default_jats_fetcher(), _default_pdf_fetcher(), _ensure_paper(), _fill_fulltext(), _finish(), has_fulltext(), intake_pdf() (+13 more)
 
 ### Community 83 - "PDF.js: PDFDataRangeTransport"
-Cohesion: 0.16
-Nodes (9): author(), claim(), TempLibrary, TestBrief, TestCatalogIndexesClaimsAndPassages, TestCitationValidation, TestReportAndMethodsProvenance, TestRetrieval (+1 more)
+Cohesion: 0.18
+Nodes (23): clear(), countValues(), fillSelect(), isReview(), libraryCell(), onTriFilterChange(), renderTriActionBar(), renderTriage() (+15 more)
 
 ### Community 84 - "test_lib_bibparse.py: TestParseBibText"
-Cohesion: 0.18
-Nodes (17): closeHlPopup(), deletePdfHighlight(), handlePdfSelection(), loadPdfJs(), pdfFind(), pdfFindNext(), pdfFitWidth(), pdfGoToPage() (+9 more)
+Cohesion: 0.13
+Nodes (23): closeHlPopup(), deletePdfHighlight(), handlePdfSelection(), loadPdfJs(), loadPdfLib(), pdfDropZone(), pdfExportWithHighlights(), pdfFind() (+15 more)
 
 ### Community 85 - "appraise.py: appraise py"
-Cohesion: 0.18
-Nodes (18): lib_atomic module, init_library(), load_config(), main(), append(), main(), notes_path(), show() (+10 more)
+Cohesion: 0.14
+Nodes (20): audit module, lib_atomic module, publications module, main(), merge_state(), Merge `entries` (PMID -> {result, attempted_at}) into the state file.      Locke, read_state(), _state_path() (+12 more)
 
 ### Community 86 - "summarize.py: summarize py"
 Cohesion: 0.16
 Nodes (21): AMSTAR-2 Checklist, GRADE Certainty Rating, Newcastle-Ottawa Scale, RoB 2 Risk-of-Bias Checklist, amstar2_appraisal(), appraisal_signal(), _batch_dir(), _domain() (+13 more)
 
 ### Community 87 - "app.js: renderPdfTab"
-Cohesion: 0.14
-Nodes (31): afterPdfUpload(), copyAllCommands(), copyText(), coverageStrip(), downloadText(), el(), exportSelectedCSV(), exportSelectedPMIDs() (+23 more)
+Cohesion: 0.23
+Nodes (22): copyAllCommands(), copyText(), downloadText(), el(), exportSelectedCSV(), exportSelectedPMIDs(), exportStamp(), flash() (+14 more)
 
 ### Community 88 - "PDF.js: transform"
 Cohesion: 0.12
 Nodes (7): TempLibrary, TestAtomicWrite, TestBrowseFirstSelector, TestCitekey, TestQuestionIds, TestSlugCollision, TestSlugValidation
 
 ### Community 89 - "PDF.js Worker"
-Cohesion: 0.06
-Nodes (71): /ref:add command, /ref:add-fetch command, /ref:add-pdf command, /ref:add-url command, /ref:ask command, /ref:attach command, /ref:audit command, /ref:brief command (+63 more)
+Cohesion: 0.20
+Nodes (21): /ref:add command, /ref:add-fetch command, /ref:add-pdf command, /ref:add-url command, /ref:attach command, /ref:fetch command, /ref:fetch-pdf command, /ref:import command (not in this chunk) (+13 more)
 
 ### Community 90 - "add.py: add_one"
-Cohesion: 0.17
-Nodes (9): prisma module, pubmed_query module, screen module, author(), TempLibrary, TestFreezeAndRefresh, TestHappyPath, TestStudiesVsPublications (+1 more)
+Cohesion: 0.18
+Nodes (8): prisma module, screen module, author(), TempLibrary, TestFreezeAndRefresh, TestHappyPath, TestStudiesVsPublications, TestUnbalanceableScenario
 
 ### Community 91 - "index.html: Commands index doc"
-Cohesion: 0.17
-Nodes (28): concept module, _active_claims(), co_mentioned_ungrouped(), main(), population_outcome_gap(), single_study_fragile(), unresolved_conflicts(), comparable() (+20 more)
+Cohesion: 0.25
+Nodes (20): comparable(), create_relation(), get_relation(), _jsonl_path(), list_relations(), main(), neighbors(), _norm() (+12 more)
 
 ### Community 92 - "test_phase5_prisma.py: test_phase5_prisma py"
 Cohesion: 0.21
 Nodes (19): ArgumentParser, build_parser(), _csv_list(), _display(), filter_rows(), _has(), ListError, main() (+11 more)
 
 ### Community 93 - "compare.py: compare py"
-Cohesion: 0.18
-Nodes (16): Evidence vs Personal Note Hit Kinds, /ref:pubmed-query, /ref:search, /ref:search-add-fetch, /ref:search-pubmed, /ref:triage, /ref:update-queries, queries/<slug>.yaml Saved Query Runs (+8 more)
+Cohesion: 0.14
+Nodes (19): Retrieve-Synthesize-Validate Pipeline, index/catalog.sqlite FTS5 Catalog, /ref:ask, /ref:pubmed-query, /ref:search-add-fetch, /ref:search-pubmed, ref-synthesizer Subagent, /ref:triage (+11 more)
 
 ### Community 94 - "lib_selector.py: lib_selector py"
-Cohesion: 0.13
-Nodes (30): ask_retrieve module, compare module, lib_status_check module, lib_verify_link module, edit_brief(), _edits_path(), _evidence_hash(), _key_dir() (+22 more)
+Cohesion: 0.17
+Nodes (19): compare module, lib_status_check module, lib_verify_link module, _batch_dir(), build_candidates(), main(), Every active claim for the resolved PMIDs, in the same candidate     shape agent, run_summarize() (+11 more)
 
 ### Community 95 - "list.py: list py"
 Cohesion: 0.21
-Nodes (18): _abstract(), _authors(), efetch_pubmed(), esearch_pubmed(), EutilsError, ncbi_credentials(), parse_pubmed_xml(), _post() (+10 more)
+Nodes (19): Element, _abstract(), _authors(), efetch_pubmed(), esearch_pubmed(), EutilsError, ncbi_credentials(), parse_pubmed_xml() (+11 more)
 
 ### Community 96 - "test_phase8_okf.py: test_phase8_okf py"
 Cohesion: 0.16
@@ -905,36 +724,36 @@ Cohesion: 0.23
 Nodes (18): _batch_dir(), build_cells(), build_rows(), _cell_hash(), _claim_field_cell(), edit_cell(), main(), _methods_cell() (+10 more)
 
 ### Community 98 - "PDF.js: CanvasExtraState"
-Cohesion: 0.21
-Nodes (21): _all_pmids(), _concept_pmids(), main(), paper_meta(), _project_membership(), _query_run_pmids(), Papers whose claims support a relation touching this concept., papers/<pmid>/meta.json, or None when the paper has no record. (+13 more)
+Cohesion: 0.24
+Nodes (19): _all_pmids(), _concept_pmids(), main(), paper_meta(), _project_membership(), _query_run_pmids(), Papers whose claims support a relation touching this concept., papers/<pmid>/meta.json, or None when the paper has no record. (+11 more)
 
 ### Community 99 - "PDF.js Worker: DeviceRgbCS"
-Cohesion: 0.12
-Nodes (6): PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3: PRISMA defaults to linked     triages,, TestAcquisition, TestDecisions, TestP3FollowUps, TestRerunSync, TriageFixture
+Cohesion: 0.17
+Nodes (3): PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3: PRISMA defaults to linked     triages,, TestDecisions, TestP3FollowUps
 
 ### Community 100 - "test_triage.py: init_loaded"
-Cohesion: 0.10
-Nodes (8): AsciiHexStream, DecodeStream, DecryptStream, JpegStream, JpxStream, PredictorStream, readBlock(), RunLengthStream
+Cohesion: 0.12
+Nodes (19): /ref:cite command, /ref:concept command, /ref:dashboard command, /ref:discover command, /ref:export command, /ref:export-papers command, /ref:grant command, /ref:help command (+11 more)
 
 ### Community 101 - "dashboard.md: /ref:help command"
-Cohesion: 0.21
-Nodes (14): lib_selector module, _batch_dir(), main(), run_export(), add_selector_args(), Shared argparse wiring for commands that take the §5c selector., main(), methods_for_pmid() (+6 more)
+Cohesion: 0.18
+Nodes (15): lib_selector module, _batch_dir(), main(), run_export(), add_selector_args(), Shared argparse wiring for commands that take the §5c selector., main(), methods_for_pmid() (+7 more)
 
 ### Community 102 - "PDF.js: save"
-Cohesion: 0.26
-Nodes (16): _evidence_hits, _notes_hits, _paper_lifecycle, _query_matches, _author_text(), _evidence_hits(), _funding_text(), main() (+8 more)
+Cohesion: 0.22
+Nodes (18): Single source-state classifier shared by status, lint, and the picker., source_badge(), _evidence_hits, _notes_hits, _paper_lifecycle, _query_matches, _author_text(), _evidence_hits() (+10 more)
 
 ### Community 105 - "test_phase9_related.py: add module"
 Cohesion: 0.19
 Nodes (6): add module, related module, author(), TempLibrary, TestBackward, TestForward
 
 ### Community 106 - "status.py: init_repo module"
-Cohesion: 0.83
-Nodes (3): cite(), main(), Path
+Cohesion: 0.14
+Nodes (16): Find commands doc, Write & compare commands doc, Dashboard Insights tab (knowledge graph, gaps, clusters, maturity), Frozen selector-based synthesis artifacts (compare/summarize/review/brief/check-citations), Selector grammar (§5c), PubMed search triage workflow, ref-manager dashboard icon (UI asset), Paper library dashboard HTML shell (+8 more)
 
 ### Community 107 - "graph.html: Concept/Relation Graph Model"
-Cohesion: 0.18
-Nodes (16): /ref:related, Concept/Relation Graph Model (concepts.jsonl, relations.jsonl), Narrow Automatic Conflict Proposal, OKF v0.2 Bundle (okf/), graph/people_relations.jsonl, /ref:concept, /ref:gaps, /ref:hypothesize (+8 more)
+Cohesion: 0.16
+Nodes (18): Evidence vs Personal Note Hit Kinds, /ref:related, /ref:search, Concept/Relation Graph Model (concepts.jsonl, relations.jsonl), Narrow Automatic Conflict Proposal, OKF v0.2 Bundle (okf/), graph/people_relations.jsonl, /ref:concept (+10 more)
 
 ### Community 108 - "methods.py: lib_selector module"
 Cohesion: 0.23
@@ -945,16 +764,16 @@ Cohesion: 0.18
 Nodes (8): ch(), littleSigma(), littleSigmaPrime(), maj(), rotr(), sigma(), sigmaPrime(), Word64
 
 ### Community 110 - "fetch.md: /ref:init command not"
-Cohesion: 0.28
+Cohesion: 0.21
 Nodes (3): decodeAndClamp(), PDFImage, resizeImageMask()
 
 ### Community 111 - "extract.py: extract_one"
-Cohesion: 0.08
-Nodes (28): Find commands doc, Graph commands doc, Citation observations (D25), Stable citekey (D14), Claim v2 schema, Evidence profile (D41), Tiered extraction (D4), Concept/relation knowledge graph (D13) (+20 more)
+Cohesion: 0.14
+Nodes (15): Graph commands doc, Citation observations (D25), Stable citekey (D14), Claim v2 schema, Evidence profile (D41), Tiered extraction (D4), Concept/relation knowledge graph (D13), MeSH hierarchy/ontology mapping (D37) (+7 more)
 
 ### Community 112 - "ask_retrieve.py"
-Cohesion: 0.04
-Nodes (26): _addNamespacePrefix(), addNode(), addTopLevelNode(), AppearanceStreamEvaluator, build(), Catalog, content(), FakeUnicodeFont (+18 more)
+Cohesion: 0.15
+Nodes (4): FakeUnicodeFont, FreeTextAnnotation, getNewPersistentRef(), getPdfColor()
 
 ### Community 114 - "PDF.js Worker: r toHTML"
 Cohesion: 0.17
@@ -965,8 +784,8 @@ Cohesion: 0.14
 Nodes (3): §6.3: titles/abstracts containing `</script>` and `<img onerror>`     must be ne, TestBuildProducesIndexAndDetails, TestHtmlEscaping
 
 ### Community 118 - "prisma.py: prisma py"
-Cohesion: 0.08
-Nodes (16): attach module, fetch module, funding_extract module, author(), TempLibrary, TestAttachFigures, TestConvertHtml, TestConvertJats (+8 more)
+Cohesion: 0.12
+Nodes (7): TempLibrary, TestAttachFigures, TestConvertHtml, TestConvertJatsRejectsNonXml, TestConvertPlainText, TestFetchBatchIsolation, TestFetchUnpaywall
 
 ### Community 119 - "test_dashboard.py: TestInsightsJs"
 Cohesion: 0.14
@@ -974,11 +793,11 @@ Nodes (16): AMSTAR-2 checklist, catalog.sqlite FTS5 index, corrections.json reco
 
 ### Community 120 - "test_phase3_acquire.py: TempLibrary"
 Cohesion: 0.13
-Nodes (27): /ref:screen, /ref:study, screen.py, study.py, Dataset record, Method record, Study grouping (evidenced PMID grouping), /ref:study command (+19 more)
+Nodes (11): attach module, convert module, convert_html_worker.main, fetch module, funding_extract module, author(), TestConvertJats, TestConvertPdfUnavailable (+3 more)
 
 ### Community 123 - "maintain.html: maintain md"
-Cohesion: 0.80
-Nodes (4): git(), main(), render(), repo_url()
+Cohesion: 0.18
+Nodes (14): Change log, Install from the marketplace (recommended), Installation, Load from a local clone (development), NCBI E-utilities, Claude Code plugin marketplace install, Prerequisites, Quick start (+6 more)
 
 ### Community 124 - "find.html: Find commands doc"
 Cohesion: 0.32
@@ -993,56 +812,44 @@ Cohesion: 0.21
 Nodes (4): FR-07/FR-08: POST /api/paper/<pmid>/pdf., Add papers" panel: POST /api/intake (batch job) and /api/intake/pdf., TestIntakeRoutes, TestPdfUpload
 
 ### Community 128 - "PDF.js Worker: XhtmlNamespace"
-Cohesion: 0.15
-Nodes (8): author(), claim(), TempLibrary, TestConceptAliasResolution, TestConflictProposal, TestContradictsRequiresReview, TestNeighborsResolveToEvidence, TestStaleEdgeInvalidation
+Cohesion: 0.17
+Nodes (5): author(), TempLibrary, TestConceptAliasResolution, TestContradictsRequiresReview, TestNeighborsResolveToEvidence
 
 ### Community 129 - "PDF.js Worker: XmlObject"
-Cohesion: 0.13
-Nodes (18): /ref:init command, /ref:list command, /ref:note command, /ref:open command, /ref:project command, /ref:pull-annotations command, /ref:queue command, /ref:read command (+10 more)
-
-### Community 130 - "attach_figures.py: attach_figures py"
-Cohesion: 0.14
-Nodes (26): actionForScope(), applyIssueFilter(), applyLibraryPreset(), applyView(), coverageCount(), currentLibraryPreset(), filteredRows(), fmtDays() (+18 more)
+Cohesion: 0.23
+Nodes (15): /ref:index command, /ref:init command, /ref:lint command, /ref:list command, /ref:maintain command, /ref:open command, /ref:related command, /ref:status command (+7 more)
 
 ### Community 131 - "study.py: study py"
-Cohesion: 0.19
-Nodes (8): addHex(), BinaryCMapStream, getKeyword(), hexToInt(), hexToStr(), incHex(), process(), readNumber()
-
-### Community 132 - "test_dashboard_serve.py: TestHealthSummaryKnowle"
-Cohesion: 0.05
-Nodes (8): AlternateCS, CalGrayCS, CalRGBCS, DefaultAppearanceEvaluator, DeviceCmykCS, DeviceRgbCS, IndexedCS, LabCS
-
-### Community 133 - "index.md: /ref:init command"
-Cohesion: 0.12
-Nodes (25): applyOverviewSub(), applyViewState(), buildSelectedCSV(), buildSelectedPMIDList(), csvCell(), needsAudit(), needsExtract(), needsFetch() (+17 more)
+Cohesion: 0.23
+Nodes (7): addHex(), BinaryCMapStream, hexToInt(), hexToStr(), incHex(), process(), readNumber()
 
 ### Community 134 - "PDF.js: getCanvas"
-Cohesion: 0.17
-Nodes (20): audit module, publications module, audit_citation_observation(), audit_retraction_status(), _citations_path(), latest_real_observation(), main(), _meta_path() (+12 more)
+Cohesion: 0.28
+Nodes (14): audit_citation_observation(), audit_retraction_status(), _citations_path(), latest_real_observation(), main(), _meta_path(), propagate_status_changes(), `observation`: {"source", "query", "count", "coverage"} from a     successful lo (+6 more)
 
 ### Community 135 - "PDF.js Worker: _bindElement"
 Cohesion: 0.25
 Nodes (14): now_stamp(), Filesystem-safe UTC stamp for snapshot/staging names., diff_report(), lint(), _list_snapshots(), main(), _print_human(), _print_human_diff() (+6 more)
 
 ### Community 136 - "PDF.js Worker: CalRGBCS"
-Cohesion: 0.16
-Nodes (7): Path, _now_iso(), One metadata-only paper and one PDF-backed paper, mirroring     test_dashboard.p, ServeFixture, TestIndexAndAssetsServedWithoutToken, TestRowsMatchesInventory, TestViewQuery
+Cohesion: 0.13
+Nodes (4): TestIndexAndAssetsServedWithoutToken, TestNextActionRanking, TestRowsMatchesInventory, TestViewQuery
 
 ### Community 137 - "audit.py: audit py"
 Cohesion: 0.19
 Nodes (3): TestFetchJats, TestFetchPlainText, TestFetchPmcPdf
 
-### Community 139 - "test_dashboard.py: TestViewerUxWiring"
-Cohesion: 0.19
-Nodes (4): checkHeader(), FlateStream, parseImageProperties(), startXRef()
+### Community 138 - "concept.py: concept py"
+Cohesion: 0.37
+Nodes (3): claim(), TestConflictProposal, TestStaleEdgeInvalidation
 
 ### Community 140 - "test_phase3_acquire.py: add_paper"
-Cohesion: 0.14
-Nodes (4): constructor(), getRangeReader(), OptionalContentGroup, PDFDataRangeTransport
+Cohesion: 0.19
+Nodes (3): constructor(), getRangeReader(), PDFDataRangeTransport
 
 ### Community 141 - "ref-synthesizer.md: /ref:ask command"
-Cohesion: 0.13
-Nodes (6): abort(), cancelAllRequests(), PDFWorkerStreamRangeReader, PDFWorkerStreamReader, sendWithStream(), terminate()
+Cohesion: 0.15
+Nodes (4): cancelAllRequests(), PDFWorkerStreamRangeReader, PDFWorkerStreamReader, sendWithStream()
 
 ### Community 144 - "PDF.js Worker: ConnectionSetNamespace"
 Cohesion: 0.44
@@ -1057,48 +864,44 @@ Cohesion: 0.23
 Nodes (13): classify_all(), classify_item(), find_existing_by_identity(), _identity(), main(), Classify a batch, expanding `pdf_dir` results into individual `pdf`     items (s, Look up whether `identity` (as produced by `_identity`) already     matches a pa, `classify_all()` plus a friendly "already imported" flag against the     live li (+5 more)
 
 ### Community 147 - "api.html: API docs page"
-Cohesion: 0.17
-Nodes (10): applyAssist(), Edge, generateFont(), getBorderDims(), handleBreak(), handleOverflow(), Para, setFirstUnsplittable() (+2 more)
+Cohesion: 0.32
+Nodes (13): active_claims(), apply_reject_to_registry(), corrections_path(), load_corrections(), load_registry(), A paper's currently active claims. `for_synthesis=True` also drops     claims a, Claim candidates of a frozen artifact (brief/summary) that are no     longer usa, Walk this paper's corrections; any whose target claim is now     superseded (a r (+5 more)
 
 ### Community 148 - "maintain.html: /ref:pull-annotations"
-Cohesion: 0.40
-Nodes (4): Ground rules, Input, Output shape, ref-synthesizer
+Cohesion: 0.22
+Nodes (12): Ground rules, Input, Output shape, ref-synthesizer, /ref:ask command, /ref:brief command, /ref:check-citations command, /ref:verify command (not in this chunk) (+4 more)
 
 ### Community 149 - "api.html: Command-prompt / script"
-Cohesion: 0.12
-Nodes (14): Dashboard JSON API (/api/health, /api/summary, /api/knowledge), Dashboard Insights tab, Next actions ranking (weight x papers x project boost), /ref:dashboard, Dashboard serve mode (127.0.0.1 + per-run token), Dashboard static mode (--static), Gap types (single_study_fragile, unresolved_conflicts, co_mentioned_ungrouped, population_outcome_gap), Grouped overview (+6 more)
+Cohesion: 0.24
+Nodes (11): Dashboard JSON API (/api/health, /api/summary, /api/knowledge), Next actions ranking (weight x papers x project boost), /ref:dashboard, Dashboard serve mode (127.0.0.1 + per-run token), Dashboard static mode (--static), dashboard.py (serve/build), append(), main() (+3 more)
 
 ### Community 150 - "PDF.js Worker: Caption"
-Cohesion: 0.42
-Nodes (11): _upsert, _already_in_library(), backward(), forward(), _load(), main(), persist(), Extract raw reference-list candidates from this paper's committed     full text, (+3 more)
+Cohesion: 0.37
+Nodes (12): Never silently lose provenance/history, _upsert, _already_in_library(), backward(), forward(), _load(), main(), persist() (+4 more)
 
 ### Community 151 - "brief.py: brief py"
-Cohesion: 0.15
-Nodes (17): ref-synthesizer Subagent, _dedupe(), _diversify(), main(), _match_expr(), Claims win over an overlapping passage from the same paper (§5:     "exclude dup, Round-robin across distinct PMIDs (best-ranked-first within each) so     one hea, retrieve() (+9 more)
+Cohesion: 0.23
+Nodes (12): ref-synthesizer Subagent, _dedupe(), _diversify(), main(), _match_expr(), Claims win over an overlapping passage from the same paper (§5:     "exclude dup, Round-robin across distinct PMIDs (best-ranked-first within each) so     one hea, retrieve() (+4 more)
 
 ### Community 152 - "okf_emit.py: atomic_write_text"
-Cohesion: 0.14
-Nodes (14): ~/.config/ref-manager/config.json, [^pmid] citation validation against candidate set, Command-prompt / script / subagent architecture, Correction overlays (corrections.json), Record schemas (lib_schema validators), ref-extractor subagent contract, ref-synthesizer subagent contract, Retraction status (retracted|erratum|none|unknown) (+6 more)
+Cohesion: 0.15
+Nodes (13): [^pmid] citation validation against candidate set, Command-prompt / script / subagent architecture, Correction overlays (corrections.json), Record schemas (lib_schema validators), ref-extractor subagent contract, ref-synthesizer subagent contract, Retraction status (retracted|erratum|none|unknown), Validate -> lock -> atomic commit write discipline (+5 more)
 
 ### Community 153 - "lint.py: lint py"
-Cohesion: 0.23
-Nodes (13): catalog module, _health, _print_project_overview, _health(), main(), _print_project_overview(), _print_recent_papers(), _print_source_completeness() (+5 more)
+Cohesion: 0.28
+Nodes (12): _health, _print_project_overview, _health(), main(), _print_project_overview(), _print_recent_papers(), _print_source_completeness(), _print_tier_breakdown() (+4 more)
 
 ### Community 155 - "test_dashboard.py: TestDashboardImprovementsWiri"
-Cohesion: 0.20
+Cohesion: 0.19
 Nodes (3): fake_record(), FakeFetcher, TestInitAndBatches
 
 ### Community 156 - "test_triage.py: FakeFetcher"
 Cohesion: 0.20
 Nodes (12): graph/concepts.jsonl, graph/people_relations.jsonl, graph/relations.jsonl, OKF v0.2 bundle, okf plugin, /ref:check-citations command, /ref:gaps command, concept.py script (+4 more)
 
-### Community 157 - "ref-weave.md: /ref:weave command"
-Cohesion: 0.15
-Nodes (7): ariaLabel(), CheckButton, ChoiceList, DateTimeEdit, isRequired(), NumericEdit, TextEdit
-
-### Community 158 - "PDF.js Worker: readNextChar"
-Cohesion: 0.06
-Nodes (19): n(), #a(), addPdfFont(), _cache(), ColorSpace, create(), createFromArray(), fetchIfRef() (+11 more)
+### Community 160 - "PDF.js Worker: Stream"
+Cohesion: 0.58
+Nodes (11): edit_brief(), _edits_path(), _evidence_hash(), _key_dir(), _latest_snapshot_id(), _load_edits(), main(), save_brief() (+3 more)
 
 ### Community 161 - "publications.py: publications py"
 Cohesion: 0.47
@@ -1109,32 +912,28 @@ Cohesion: 0.30
 Nodes (5): Path, DashboardFixture, _now_iso(), Same shape as test_inventory.py's/test_list.py's fixture: one paper     per sour, TestRebuildIsAtomic
 
 ### Community 163 - "test_dashboard_serve.py: TestTriageRoutes"
-Cohesion: 0.14
-Nodes (13): 1. Goal, 2. What exists today (verified), 3. Phases, 4. Testing, 5. Risks, 6. Suggested order / size, Dashboard navigation redesign — implementation plan, Phase 1 — App shell (pure front-end, no API change) (+5 more)
+Cohesion: 0.18
+Nodes (11): /ref:audit command, /ref:compare command, /ref:study command (not in this chunk), Explicit Refresh Only, No Auto-Update (D9), NCBI E-utilities ELink pmc_pmc_citedby, PubMed MCP convert_article_ids, PubMed MCP find_related_articles, PubMed MCP get_copyright_status (+3 more)
 
 ### Community 164 - "audit.md: /ref:audit command"
-Cohesion: 0.10
-Nodes (28): clean_claim_value(), versions/<id>/claims.json entry (§4a)., corrections.json overlay entry (§3b). target_type distinguishes what     kind of, studies/studies.jsonl entry (§3d). Field names match study.py's     actual phase, people/<slug>.json (§3c)., grants/<slug>.json (§3c)., One entry of a /ref:check-citations report's findings.json (§5a).      `verdict`, graph/concepts.jsonl entry (§3, §3d). Primary key is a user-chosen     slug (not (+20 more)
+Cohesion: 0.40
+Nodes (10): concept module, _active_claims(), co_mentioned_ungrouped(), main(), population_outcome_gap(), single_study_fragile(), unresolved_conflicts(), clean_claim_value() (+2 more)
 
 ### Community 165 - "pdf-lib: is"
-Cohesion: 0.38
-Nodes (12): Files-are-authority ownership & recovery model, Selective, cached figure-vision description, Workflows: how the pieces move, _figures_path(), _find_cached(), _find_figure(), list_figures(), _load_figures() (+4 more)
+Cohesion: 0.51
+Nodes (10): Selective, cached figure-vision description, _figures_path(), _find_cached(), _find_figure(), list_figures(), _load_figures(), main(), request() (+2 more)
 
 ### Community 166 - "PDF.js Worker"
 Cohesion: 0.22
 Nodes (11): as(), cs(), hs(), is(), js(), Ms(), ns(), os() (+3 more)
 
-### Community 167 - "PDF.js Worker: ColorSpace"
-Cohesion: 0.08
-Nodes (24): _charToGlyph(), convertCidString(), createBuiltInCMap(), expectInt(), expectString(), extendCMap(), IdentityCMap, Lexer (+16 more)
-
-### Community 171 - "search.py: search py"
-Cohesion: 0.11
-Nodes (4): init_repo module, status.main, TestRepairState, TestStatusVerbosity
+### Community 170 - "test_triage.py: test_triage py"
+Cohesion: 0.22
+Nodes (4): pubmed_query module, TestAcquisition, TestRerunSync, TriageFixture
 
 ### Community 172 - "test_repair_state.py: TestRepairState"
-Cohesion: 0.11
-Nodes (19): ref-synthesizer subagent, Narrative summary mode (no appraisal machinery), /ref:summarize command, Programmatic surface & architecture (API docs), MCP tools the command files reference, Subagent fan-out, Identifier contract (slugs, citekeys, opaque IDs), lib_schema.py (+11 more)
+Cohesion: 0.20
+Nodes (10): Identifier contract (slugs, citekeys, opaque IDs), lib_schema.py, catalog.py, lib_atomic.py, lib_ids.py, Library layout & config (~/.config/ref-manager/config.json), lib_schema.py, PLAN.md (+2 more)
 
 ### Community 173 - "verify.py: person module"
 Cohesion: 0.22
@@ -1147,18 +946,6 @@ Nodes (10): ae(), he(), le(), ne(), qe(), re(), se(), ue() (+2 more)
 ### Community 175 - "pdf-lib: le"
 Cohesion: 0.24
 Nodes (10): ci(), di(), fi(), gi(), hi(), i(), li(), Ni() (+2 more)
-
-### Community 177 - "PDF.js: clip"
-Cohesion: 0.10
-Nodes (7): buildHuffmanTable(), clean(), EvaluatorPreprocessor, forEach(), onEndElement(), serialize(), StateManager
-
-### Community 178 - "PDF.js: InternalRenderTask"
-Cohesion: 0.19
-Nodes (4): htmlForXfa(), isPureXfa(), numPages(), xfaFactory()
-
-### Community 180 - "PDF.js Worker: r toHTML"
-Cohesion: 0.15
-Nodes (4): Caption, Draw, Field, _setValue()
 
 ### Community 182 - "PDF.js Worker: XFAObjectArray"
 Cohesion: 0.33
@@ -1177,28 +964,24 @@ Cohesion: 0.33
 Nodes (9): a(), Ma(), Na(), Pa(), qa(), Ra(), Ta(), Va() (+1 more)
 
 ### Community 187 - "test_dashboard_serve.py: TestNotesPost"
-Cohesion: 0.23
-Nodes (12): appraise module, grant module, person module, verify._append_correction, author_contribution flags require explicit evidence, never inferred from position, corrections.json overlay record, grant_link review never folds award_number into approved_aliases, verify.review_appraisal (+4 more)
+Cohesion: 0.33
+Nodes (7): expectInt(), expectString(), parseBfChar(), parseCidChar(), parseCidRange(), parseCodespaceRange(), strToInt()
 
 ### Community 188 - "add-pdf.md: /ref:add-pdf command"
-Cohesion: 0.18
-Nodes (12): applySideCollapsed(), autoCollapseForDrawer(), closeDrawer(), drawerFocusables(), loadDetail(), markOpenRow(), narrowScreen(), openDrawer() (+4 more)
+Cohesion: 0.22
+Nodes (3): _getSequence(), _parseArray(), SimpleDOMNode
 
 ### Community 189 - "review.md: /ref:review command"
 Cohesion: 0.47
 Nodes (8): fetch_pmc_pdf_one(), main(), _normalize_href(), _oa_pdf_link(), _pmc_jats_available(), _pmcid(), _urlopen_bytes(), Path
 
 ### Community 190 - "library-viewer.html: Library Viewer Tutorial"
-Cohesion: 0.32
-Nodes (10): _addPixels(), _addPixelsNeg(), CCITTFaxStream, _eatBits(), _findTableCode(), _getBlackCode(), _getTwoDimCode(), _getWhiteCode() (+2 more)
-
-### Community 192 - "PDF.js: applyTransform"
-Cohesion: 0.47
-Nodes (11): atomic_write_text(), emit(), _fm(), main(), _now(), Minimal deterministic YAML frontmatter writer (no PyYAML dependency,     per thi, _write_concept(), _write_grant() (+3 more)
+Cohesion: 0.39
+Nodes (4): Path, _now_iso(), One metadata-only paper and one PDF-backed paper, mirroring     test_dashboard.p, ServeFixture
 
 ### Community 194 - "PDF.js Worker: getData"
-Cohesion: 0.33
-Nodes (5): Claims, Input, Output shape, ref-extractor, Study type classification (D8)
+Cohesion: 0.25
+Nodes (7): Claims, Input, Output shape, ref-extractor, Study type classification (D8), /ref:extract command, extract.py
 
 ### Community 195 - "PDF.js Worker: SimpleDOMNode"
 Cohesion: 0.25
@@ -1212,29 +995,17 @@ Nodes (8): Pipeline funnel chart, Converter output contract (source.md, figures,
 Cohesion: 0.39
 Nodes (8): Bt(), Dt(), Ht(), It(), Kt(), Nt(), Ot(), Wt()
 
-### Community 199 - "test_status_verbosity.py: TestStatusVerbosity"
-Cohesion: 0.20
-Nodes (7): Jbig2Stream, parseChunks(), processSegment(), processSegments(), readRegionSegmentInformation(), readSegmentHeader(), readSegments()
-
 ### Community 201 - "marketplace.json: marketplace json"
 Cohesion: 0.25
 Nodes (3): Color, makeHexColor(), Stipple
-
-### Community 202 - "index.html: Ingest pipeline RESOLVE,"
-Cohesion: 0.10
-Nodes (16): accept(), expect(), extractFontHeader(), extractFontProgram(), getNumber(), getToken(), isSpecial(), nextToken() (+8 more)
-
-### Community 203 - "pdf-lib: Bt"
-Cohesion: 0.24
-Nodes (4): MarkupAnnotation, printNewAnnotations(), saveNewAnnotations(), StampAnnotation
 
 ### Community 205 - "PDF.js Worker: Area"
 Cohesion: 0.36
 Nodes (7): extract(), node(), Run named functions from the dashboard's scripts under node.  app.js and insight, Skip `test` when node is missing -- unless REF_REQUIRE_NODE is set     (CI sets, `prelude` defines the stubbed closure state; `body` must end by     assigning th, require_node(), run()
 
 ### Community 206 - "PDF.js Worker: Color"
-Cohesion: 0.33
-Nodes (9): Never silently lose provenance/history, papers_snapshot module, find_duplicate(), _find_item_for_pmid, annotations_path(), _find_item_for_pmid(), main(), pull() (+1 more)
+Cohesion: 0.29
+Nodes (3): catalog module, init_repo module, status.main
 
 ### Community 207 - "PDF.js Worker: createPacket"
 Cohesion: 0.38
@@ -1248,17 +1019,25 @@ Nodes (7): notes.md file, Papers.app, note.py script, open_in_papers.py script, 
 Cohesion: 0.52
 Nodes (7): Hr(), Ir(), jr(), Lr(), Mr(), Ur(), Zr()
 
-### Community 211 - "ref-note.md: /ref:pull-annotations command"
-Cohesion: 0.20
-Nodes (4): Arc, hasMargin(), Line, Rectangle
-
 ### Community 212 - "pdf-lib: Ir"
 Cohesion: 0.67
 Nodes (6): _delete_highlight, add(), highlights_path(), load(), remove(), Path
 
+### Community 213 - "PDF.js: BaseFilterFactory"
+Cohesion: 0.29
+Nodes (4): _host_allowed(), _origin_allowed(), DNS-rebinding defense (§7.3): only our own loopback host:port., Required (as a header, never a query param) on every /api and         /files req
+
 ### Community 214 - "PDF.js Worker: toArray"
 Cohesion: 0.57
 Nodes (6): _clean_doi(), _extract_pdf_text(), identify_pdf(), main(), _title_guess(), Path
+
+### Community 216 - "PDF.js Worker: Text"
+Cohesion: 0.40
+Nodes (6): /ref:gaps command, /ref:hypothesize command, Never Fabricate Counts/Status, PubMed MCP search_articles, gaps.py, hypothesize.py
+
+### Community 217 - "pdf_identify.py: identify_pdf"
+Cohesion: 0.33
+Nodes (6): /ref:note command, /ref:pull-annotations command, /ref:read command, note.py append/show, pull_annotations.py, read_article.py
 
 ### Community 218 - "repair_state.py: merge_state"
 Cohesion: 0.40
@@ -1273,16 +1052,8 @@ Cohesion: 0.40
 Nodes (6): de(), ee(), fe(), ge(), pe(), $t()
 
 ### Community 221 - "test_phase3_acquire.py: TestAttach"
-Cohesion: 0.18
-Nodes (11): _e(), Et(), Gr(), jt(), Kr(), qt(), r(), Ut() (+3 more)
-
-### Community 226 - "pdf-lib: ja"
-Cohesion: 0.15
-Nodes (4): LZWStream, PostScriptEvaluator, PostScriptStack, warn()
-
-### Community 227 - "pdf-lib: pe"
-Cohesion: 0.32
-Nodes (8): ComponentPositionResolutionLayerIterator(), createPacket(), getPrecinctIndexIfExist(), getPrecinctSizesInImageScale(), LayerResolutionComponentPositionIterator(), PositionComponentResolutionLayerIterator(), ResolutionLayerComponentPositionIterator(), ResolutionPositionComponentLayerIterator()
+Cohesion: 0.33
+Nodes (6): _e(), Et(), jt(), qt(), Ut(), Vt()
 
 ### Community 229 - "Inventory Section Parsing"
 Cohesion: 0.33
@@ -1297,24 +1068,16 @@ Cohesion: 0.60
 Nodes (5): ref-manager App Icon (SVG), Book Stack Motif, Coral Burst Reader Mascot, Open Book with Knowledge Graph Motif, Teal Tile Color Palette
 
 ### Community 232 - "PDF.js Worker: CFFIndex"
-Cohesion: 0.27
-Nodes (12): /ref:index command, /ref:lint command, /ref:maintain command, /ref:repair-fulltext command, /ref:search command, /ref:status command, catalog.py rebuild, fetch.py (+4 more)
-
-### Community 234 - "PDF.js DeviceRGB Colorspace"
-Cohesion: 0.64
-Nodes (7): _batch_dir(), build_candidates(), main(), Every active claim for the resolved PMIDs, in the same candidate     shape agent, run_summarize(), show_summary(), Path
-
-### Community 236 - "PDF.js Worker: XhtmlObject"
-Cohesion: 0.24
-Nodes (4): find(), FontInfo, getDefault(), PageSet
-
-### Community 240 - "repair-fulltext.md: /ref:repair-fulltext command"
-Cohesion: 0.06
-Nodes (15): applyTransform(), destroy(), exportData(), fontFallback(), getAxialAlignedBoundingBox(), getNewTemporaryRef(), getPage(), getTransformMatrix() (+7 more)
+Cohesion: 0.40
+Nodes (5): /ref:repair-fulltext command, /ref:search command, fetch.py, repair_state.py, search.py
 
 ### Community 241 - "PDF.js Worker: DeviceGrayCS"
 Cohesion: 0.40
 Nodes (4): Layout, Read next, ref-manager, Scripts (`scripts/`)
+
+### Community 245 - "PDF.js Worker: SubformSet"
+Cohesion: 0.50
+Nodes (4): /ref:describe-figure command, Annotations Never Substitute Original Content, lib_selector.py, vision.py
 
 ### Community 246 - "PDF.js Worker: TagTree"
 Cohesion: 0.50
@@ -1325,8 +1088,8 @@ Cohesion: 0.50
 Nodes (4): /ref:person command, /ref:publications command, person.py, publications.py
 
 ### Community 248 - "Project & Queue Commands"
-Cohesion: 0.29
-Nodes (3): B, I, popFont()
+Cohesion: 0.50
+Nodes (4): /ref:project command, /ref:queue command, project.py, queue.py
 
 ### Community 249 - "SKILL.md: ref-manager"
 Cohesion: 0.67
@@ -1335,30 +1098,6 @@ Nodes (4): Papers tab (filters, saved views, bulk command bar), Shared selector 
 ### Community 262 - "App Icons & Project Root"
 Cohesion: 1.00
 Nodes (3): App Icon (icon-128.png), Teal Reader Mascot Character, claude-ref-manager Project
-
-### Community 286 - "Claude & Graphify Integration"
-Cohesion: 0.50
-Nodes (3): graphify, Project, teachme skill
-
-### Community 310 - "Ask Command"
-Cohesion: 0.33
-Nodes (5): Constraints, Mission: Maintaining the claude-ref-manager paper repo, Out of scope, Success looks like, Why
-
-### Community 311 - "Audit Command"
-Cohesion: 0.40
-Nodes (3): drawFigure(), drawTriangle(), MeshShadingPattern
-
-### Community 315 - "Compare Command"
-Cohesion: 0.40
-Nodes (4): Gaps, Knowledge, Maintaining the claude-ref-manager paper repo — Resources, Wisdom (Communities)
-
-### Community 318 - "marketplace.json: claude-ref-manager Marketplace"
-Cohesion: 0.67
-Nodes (4): datetime, lint_flags(), _parse_iso(), Per-paper issue-bucket predicates (LIBRARY_VIEWER_IMPLEMENTATION_PLAN.md     §4.
-
-### Community 357 - "Community 357"
-Cohesion: 0.67
-Nodes (3): _author_surname(), _authors_short(), `Smith, Jones, Patel, …` -- the first `limit` surnames, with an     ellipsis whe
 
 ## Ambiguous Edges - Review These
 - `backward()` → `_upsert`  [AMBIGUOUS]
@@ -1373,9 +1112,9 @@ Nodes (3): _author_surname(), _authors_short(), `Smith, Jones, Patel, …` -- th
   docs/api.html · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **287 isolated node(s):** `$schema`, `name`, `name`, `description`, `plugins` (+282 more)
+- **254 isolated node(s):** `$schema`, `name`, `name`, `description`, `plugins` (+249 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **305 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **134 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -1390,7 +1129,7 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `unittest suite and Tests CI workflow` and `Maintenance tab (lint buckets, snapshot changes)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `find()` connect `PDF.js Worker: XhtmlObject` to `PDF.js Worker Core`, `PDF.js Stream Parser`, `PDF.js Font Dictionaries`, `PDF.js Ink and Stamp Editors`, `test_dashboard.py: TestViewerUxWiring`, `ask_retrieve.py`, `pdf_identify.py: identify_pdf`, `Intake Classification Tests`?**
-  _High betweenness centrality (0.296) - this node is a cross-community bridge._
-- **Why does `buildGraph()` connect `PDF.js Ink and Stamp Editors` to `PDF.js Worker: XhtmlObject`?**
-  _High betweenness centrality (0.296) - this node is a cross-community bridge._
+- **Why does `find()` connect `PDF.js XFA Config Namespace` to `PDF.js Worker Core`, `PDF.js Rendering API`, `PDF.js Stream Parser`, `PDF.js Ink and Stamp Editors`, `PDF.js Worker: XhtmlObject`?**
+  _High betweenness centrality (0.319) - this node is a cross-community bridge._
+- **Why does `buildGraph()` connect `PDF.js Ink and Stamp Editors` to `PDF.js XFA Config Namespace`?**
+  _High betweenness centrality (0.319) - this node is a cross-community bridge._

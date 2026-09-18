@@ -53,7 +53,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import attach as attach_module
+import brief as brief_module
 import dashboard_insights
+import gaps as gaps_module
 import highlight as highlight_module
 import intake_pipeline
 import lib_intake
@@ -61,9 +63,11 @@ import lib_inventory
 import lint as lint_module
 import list as list_cli  # noqa: A004 -- reuse the /ref:list coverage-matrix cell semantics (§6.1)
 import note as note_module
+import project as project_module
+import screen as screen_module
 import triage as triage_module
 from lib_ids import SlugError, validate_slug
-from lib_atomic import now_iso
+from lib_atomic import now_iso, read_json
 
 ASSETS_DIR = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -111,7 +115,7 @@ MAX_INTAKE_BODY_BYTES = 64 * 1024
 MAX_INTAKE_ITEMS = 100
 
 # Keys a shared view link may carry (§1); `serve --view` accepts only these.
-VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops")
+VIEW_PARAM_KEYS = ("tab", "q", "project", "issue", "source", "missing", "sort", "insight", "center", "hops", "sec", "item", "sub")
 
 
 def _valid_pmid(pmid: str) -> bool:
@@ -243,6 +247,18 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path.startswith("/api/triage/"):
             if self._check_token():
                 self._serve_triage(path[len("/api/triage/"):].rstrip("/"))
+        elif path == "/api/projects":
+            if self._check_token():
+                self._serve_projects()
+        elif path.startswith("/api/project/") and path.endswith("/screening"):
+            if self._check_token():
+                self._serve_project_screening(path[len("/api/project/"):-len("/screening")].rstrip("/"))
+        elif path.startswith("/api/project/") and path.endswith("/reports"):
+            if self._check_token():
+                self._serve_project_reports(path[len("/api/project/"):-len("/reports")].rstrip("/"))
+        elif path.startswith("/api/project/") and "/report/" in path:
+            if self._check_token():
+                self._serve_project_report_body(path[len("/api/project/"):])
         elif path.startswith("/api/jobs/"):
             if self._check_token():
                 self._serve_job(path[len("/api/jobs/"):].rstrip("/"))
@@ -413,6 +429,12 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/intake/pdf":
             if self._check_token():
                 self._post_intake_pdf()
+        elif path.startswith("/api/project/") and path.endswith("/papers"):
+            if self._check_token():
+                self._post_project_papers_bulk(path[len("/api/project/"):-len("/papers")].rstrip("/"))
+        elif path.startswith("/api/project/") and "/paper/" in path:
+            if self._check_token():
+                self._post_project_paper(path[len("/api/project/"):])
         else:
             self._reject(404, "not found")
 
@@ -727,6 +749,157 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         ) if projects_dir.is_dir() else []
         self._send_json(payload)
 
+    def _serve_projects(self) -> None:
+        """GET /api/projects -- folder tree + Summary data (phase 3 §3.1).
+        Static build embeds the identical payload as `DATA.projects`."""
+        self._send_json(_projects_payload(self.library_root))
+
+    def _project_slug_or_404(self, slug: str) -> str | None:
+        try:
+            validate_slug(slug)
+        except SlugError:
+            self._reject(400, "invalid project slug")
+            return None
+        if not (self.library_root / "projects" / slug / "project.yaml").is_file():
+            self._reject(404, "project not found")
+            return None
+        return slug
+
+    def _serve_project_screening(self, slug: str) -> None:
+        """GET /api/project/<slug>/screening?offset&limit -- read-only,
+        paginated, newest first (phase 3 §3.7)."""
+        if "/" in slug or not slug:
+            self._reject(404, "not found")
+            return
+        slug = self._project_slug_or_404(slug)
+        if slug is None:
+            return
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        try:
+            offset = max(0, int((query.get("offset") or ["0"])[0]))
+            limit = max(1, min(200, int((query.get("limit") or ["50"])[0])))
+        except ValueError:
+            self._reject(400, "offset/limit must be integers")
+            return
+        records = list(reversed(screen_module.history(self.library_root, slug, None)))
+        self._send_json({
+            "total": len(records),
+            "offset": offset,
+            "limit": limit,
+            "records": records[offset:offset + limit],
+        })
+
+    def _serve_project_reports(self, slug: str) -> None:
+        """GET /api/project/<slug>/reports -- card grid (phase 4 §1)."""
+        if "/" in slug or not slug:
+            self._reject(404, "not found")
+            return
+        slug = self._project_slug_or_404(slug)
+        if slug is None:
+            return
+        self._send_json(_report_cards(self.library_root, slug))
+
+    def _serve_project_report_body(self, rest: str) -> None:
+        """GET /api/project/<slug>/report/<kind>/<id> -- rendered body
+        (phase 4 §3). `<id>` may itself be a single opaque segment only --
+        no path traversal via batch/snapshot ids, which are always
+        `gen_opaque_id()`/user slug shaped."""
+        parts = rest.split("/")
+        if len(parts) != 4 or parts[1] != "report" or not all(parts):
+            self._reject(404, "not found")
+            return
+        slug, _report, kind, rid = parts
+        slug = self._project_slug_or_404(slug)
+        if slug is None:
+            return
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", rid):
+            self._reject(400, "invalid report id")
+            return
+        try:
+            body = _report_body(self.library_root, slug, kind, rid)
+        except (FileNotFoundError, ValueError) as e:
+            self._reject(404, str(e) or "report not found")
+            return
+        self._send_json(body)
+
+    def _question_lists_from_body(self, payload: dict) -> tuple[list[str], list[str]] | None:
+        """Shared body shape for both question-assign POSTs: `{add?: [qid],
+        remove?: [qid]}`, each an optional list of short strings. Returns
+        `None` (after rejecting) on a bad shape."""
+        add = payload.get("add", [])
+        remove = payload.get("remove", [])
+        for name, val in (("add", add), ("remove", remove)):
+            if not isinstance(val, list) or not all(isinstance(q, str) and 0 < len(q) <= 64 for q in val):
+                self._reject(400, f"{name!r} must be a list of short strings")
+                return None
+        return add, remove
+
+    def _post_project_paper(self, rest: str) -> None:
+        """POST /api/project/<slug>/paper/<pmid> {add?, remove?} -- single
+        question-link edit from the drawer's project block (phase 5 §5)."""
+        parts = rest.split("/")
+        if len(parts) != 3 or parts[1] != "paper" or not all(parts):
+            self._reject(404, "not found")
+            return
+        slug, _paper, pmid = parts
+        slug = self._project_slug_or_404(slug)
+        if slug is None:
+            return
+        pmid = urllib.parse.unquote(pmid)
+        if not _valid_pmid(pmid):
+            self._reject(400, "invalid pmid")
+            return
+        payload = self._read_json_body(MAX_BODY_BYTES)
+        if payload is None:
+            return
+        if not isinstance(payload, dict):
+            self._reject(400, "body must be an object")
+            return
+        parsed = self._question_lists_from_body(payload)
+        if parsed is None:
+            return
+        add, remove = parsed
+        try:
+            result = project_module.set_paper_questions(self.library_root, slug, pmid, add, remove)
+        except (project_module.SlugError, project_module.SchemaError) as e:
+            self._reject(409, str(e))
+            return
+        self._send_json(result)
+
+    def _post_project_papers_bulk(self, slug: str) -> None:
+        """POST /api/project/<slug>/papers {pmids: [...], add?, remove?} --
+        the Papers selection action bar's "Assign to question" (phase 5 §6).
+        Same checks as the single-paper POST, one `set_paper_questions()`
+        call per pmid so one bad pmid doesn't sink the whole batch."""
+        if "/" in slug or not slug:
+            self._reject(404, "not found")
+            return
+        slug = self._project_slug_or_404(slug)
+        if slug is None:
+            return
+        payload = self._read_json_body(MAX_BODY_BYTES)
+        if payload is None:
+            return
+        if not isinstance(payload, dict):
+            self._reject(400, "body must be an object")
+            return
+        pmids = payload.get("pmids")
+        if not isinstance(pmids, list) or not pmids or len(pmids) > MAX_TRIAGE_PMIDS or not all(_valid_pmid(p) for p in pmids):
+            self._reject(400, f"pmids must be a non-empty list of at most {MAX_TRIAGE_PMIDS} valid pmids")
+            return
+        parsed = self._question_lists_from_body(payload)
+        if parsed is None:
+            return
+        add, remove = parsed
+        results = []
+        for pmid in pmids:
+            try:
+                project_module.set_paper_questions(self.library_root, slug, pmid, add, remove)
+                results.append({"pmid": pmid, "result": "updated"})
+            except (project_module.SlugError, project_module.SchemaError) as e:
+                results.append({"pmid": pmid, "result": "failed", "error": str(e)})
+        self._send_json({"results": results})
+
     def _serve_job(self, job_id: str) -> None:
         if not re.fullmatch(r"[0-9a-f]{16}", job_id):
             self._reject(400, "invalid job id")
@@ -940,6 +1113,166 @@ def serve(library_root: Path, *, port: int = 0, open_browser: bool = False, tria
         httpd.server_close()
 
 
+def _projects_payload(library_root: Path) -> list[dict]:
+    """Shared by `GET /api/projects` (serve) and `_build_into` (static
+    build) so both modes render the same folder tree/Summary data (phase 3
+    §3.1)."""
+    out = []
+    for p in project_module.list_projects(library_root):
+        info = project_module.dashboard_summary(library_root, p["slug"])
+        info["queries"] = [
+            triage_module.counts_summary(library_root, s) for s in info.pop("triage_slugs")
+        ]
+        out.append(info)
+    return out
+
+
+def _latest_batch_dir(base: Path) -> Path | None:
+    """Most-recently-modified subdirectory of `base` that has a
+    manifest.json -- writers key their own batches by user-chosen label,
+    with no single "latest" pointer of their own (unlike brief.py/prisma.py,
+    which do), so phase 4's "latest batch" is mtime order (§1)."""
+    if not base.is_dir():
+        return None
+    candidates = [d for d in base.iterdir() if d.is_dir() and (d / "manifest.json").is_file()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda d: d.stat().st_mtime)
+
+
+def _member_pmids(library_root: Path, slug: str) -> set[str]:
+    doc = read_json(library_root / "projects" / slug / "papers.yaml", {"papers": []})
+    return {m["pmid"] for m in doc.get("papers", [])}
+
+
+def _pmid_freshness(members: set[str], manifest_pmids) -> tuple[str, str | None]:
+    """Phase 4 §1 freshness rule: stale if the project's current PMIDs
+    aren't a subset of the batch's frozen PMIDs -- every stale card states
+    why (§1 "9 new papers since snapshot")."""
+    missing = sorted(members - set(manifest_pmids or []))
+    if missing:
+        return "stale", f"{len(missing)} project paper(s) not in this batch"
+    return "fresh", None
+
+
+def _report_cards(library_root: Path, slug: str) -> list[dict]:
+    """GET /api/project/<slug>/reports -- one card per phase 4 §1 row."""
+    pdir = library_root / "projects" / slug
+    members = _member_pmids(library_root, slug)
+    cards: list[dict] = []
+
+    sdir = _latest_batch_dir(pdir / "summaries")
+    if sdir:
+        m = json.loads((sdir / "manifest.json").read_text())
+        state, why = _pmid_freshness(members, m.get("pmids"))
+        cards.append({"kind": "summary", "id": sdir.name, "title": "Project summary", "group": "Narrative",
+                       "state": state, "why": why, "generated_at": m.get("resolved_at")})
+    else:
+        cards.append({"kind": "summary", "id": None, "title": "Project summary", "group": "Narrative",
+                       "state": "none", "command": f"/ref:summarize --project {slug} --batch <label>"})
+
+    briefs_dir = pdir / "briefs"
+    any_brief = False
+    if briefs_dir.is_dir():
+        for kdir in sorted(briefs_dir.iterdir()):
+            latest_path = kdir / "latest.json"
+            if not latest_path.is_file():
+                continue
+            try:
+                snap_id = json.loads(latest_path.read_text()).get("snapshot_id")
+                m = json.loads((kdir / snap_id / "manifest.json").read_text())
+            except (OSError, ValueError, TypeError):
+                continue
+            any_brief = True
+            state, why = _pmid_freshness(members, (m.get("provenance") or {}).get("pmids"))
+            cards.append({"kind": "brief", "id": kdir.name, "title": f"Brief: {kdir.name}", "group": "Narrative",
+                           "state": state, "why": why, "generated_at": m.get("resolved_at")})
+    if not any_brief:
+        cards.append({"kind": "brief", "id": None, "title": "Brief: <key>", "group": "Narrative",
+                       "state": "none", "command": f'/ref:brief "<question>" --project {slug} --key <key>'})
+
+    tdir = _latest_batch_dir(pdir / "tables")
+    if tdir:
+        m = json.loads((tdir / "manifest.json").read_text())
+        state, why = _pmid_freshness(members, m.get("pmids"))
+        cards.append({"kind": "table", "id": tdir.name, "title": "Comparison matrix", "group": "Analysis",
+                       "state": state, "why": why, "generated_at": m.get("resolved_at")})
+    else:
+        cards.append({"kind": "table", "id": None, "title": "Comparison matrix", "group": "Analysis",
+                       "state": "none", "command": f"/ref:compare --project {slug} --batch <label>"})
+
+    prisma_root = pdir / "prisma"
+    latest_path = prisma_root / "latest.json"
+    prisma_card = None
+    if latest_path.is_file():
+        try:
+            snap_id = json.loads(latest_path.read_text()).get("snapshot_id")
+            snap_dir = prisma_root / snap_id
+            m = json.loads((snap_dir / "manifest.json").read_text())
+        except (OSError, ValueError, TypeError):
+            snap_dir = None
+        if snap_dir is not None:
+            state, why = "fresh", None
+            log_path = pdir / "screening.jsonl"
+            if log_path.is_file() and log_path.stat().st_mtime > snap_dir.stat().st_mtime:
+                state, why = "stale", "screening decisions recorded since this snapshot"
+            prisma_card = {"kind": "prisma", "id": snap_id, "title": "PRISMA flow", "group": "Analysis",
+                            "state": state, "why": why, "generated_at": m.get("data_cutoff")}
+    cards.append(prisma_card or {"kind": "prisma", "id": None, "title": "PRISMA flow", "group": "Analysis",
+                                  "state": "none", "command": f"/ref:review --prisma --project {slug} --query <query-slug>"})
+
+    rdir = _latest_batch_dir(pdir / "reviews")
+    if rdir:
+        m = json.loads((rdir / "manifest.json").read_text())
+        state, why = _pmid_freshness(members, m.get("pmids"))
+        cards.append({"kind": "review", "id": rdir.name, "title": "Appraised synthesis", "group": "Review",
+                       "state": state, "why": why, "generated_at": m.get("resolved_at")})
+    else:
+        cards.append({"kind": "review", "id": None, "title": "Appraised synthesis", "group": "Review",
+                       "state": "none", "command": f"/ref:review --project {slug} --screened included --batch <label>"})
+
+    # Gap analysis: computed live on demand (phase 4 §4 option (a) -- no
+    # persistence, so it's never stale); population_outcome_gap needs a
+    # `--intervention-concept` the dashboard has no natural default for, so
+    # this card only runs the two selector-only checks.
+    cards.append({"kind": "gaps", "id": "live", "title": "Gap analysis", "group": "Review", "state": "live"})
+    cards.append({"kind": "insights", "id": "live", "title": "Insights (project scope)", "group": "Review", "state": "live"})
+    return cards
+
+
+def _report_body(library_root: Path, slug: str, kind: str, rid: str) -> dict:
+    """GET /api/project/<slug>/report/<kind>/<id> body (phase 4 §3)."""
+    pdir = library_root / "projects" / slug
+    if kind == "summary":
+        bdir = pdir / "summaries" / rid
+        manifest = json.loads((bdir / "manifest.json").read_text())
+        return {"kind": kind, "id": rid, "manifest": manifest, "body": (bdir / "summary.md").read_text()}
+    if kind == "brief":
+        return dict(brief_module.show_brief(library_root, slug, rid), kind=kind, id=rid)
+    if kind == "table":
+        bdir = pdir / "tables" / rid
+        manifest = json.loads((bdir / "manifest.json").read_text())
+        rows = json.loads((bdir / "table.json").read_text())
+        return {"kind": kind, "id": rid, "manifest": manifest, "rows": rows}
+    if kind == "prisma":
+        sdir = pdir / "prisma" / rid
+        manifest = json.loads((sdir / "manifest.json").read_text())
+        return {"kind": kind, "id": rid, "manifest": manifest, "body": (sdir / "flow.md").read_text()}
+    if kind == "review":
+        bdir = pdir / "reviews" / rid
+        manifest = json.loads((bdir / "manifest.json").read_text())
+        grade = json.loads((bdir / "grade.json").read_text())
+        return {"kind": kind, "id": rid, "manifest": manifest, "grade": grade}
+    if kind == "gaps" and rid == "live":
+        pmids = sorted(_member_pmids(library_root, slug))
+        return {
+            "kind": kind, "id": "live",
+            "single_study_fragile": gaps_module.single_study_fragile(library_root, pmids),
+            "unresolved_conflicts": gaps_module.unresolved_conflicts(library_root, pmids),
+        }
+    raise ValueError(f"unknown report kind/id: {kind!r}/{rid!r}")
+
+
 def _matrix(rows: list[dict]) -> dict:
     """Coverage matrix over `rows()`, reusing `list.py`'s cell semantics
     (§1.2 "one inventory") for both the live API and the static build."""
@@ -996,6 +1329,7 @@ def _build_into(staging: Path, library_root: Path) -> None:
         "snapshots": snapshots,
         "summary": dashboard_insights.summary(rows, report, snapshots, include_pmids=True),
         "knowledge": dashboard_insights.knowledge(library_root, rows),
+        "projects": _projects_payload(library_root),
     }
 
     template = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")

@@ -1,6 +1,6 @@
 Identify article URLs, add their PubMed records, then fetch available full text.
 
-For mixed intake across URLs, PMIDs, and local PDFs, prefer `/ref:import`.
+For mixed intake across URLs, PMIDs, and local PDFs, prefer `/ref:add-sources`.
 
 Parse `$ARGUMENTS` for:
 - `<url...>` — one or more article URLs. Supported best-effort clues include

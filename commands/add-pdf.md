@@ -1,6 +1,6 @@
 Identify local PDFs, add their PubMed records, then attach the PDFs.
 
-For mixed intake across PDFs, URLs, and PMIDs, prefer `/ref:import`.
+For mixed intake across PDFs, URLs, and PMIDs, prefer `/ref:add-sources`.
 
 Parse `$ARGUMENTS` for:
 - `<path...>` — one or more local PDF paths.

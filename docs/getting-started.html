@@ -57,7 +57,7 @@
   <thead><tr><th>Need</th><th>Why</th></tr></thead>
   <tbody>
     <tr class="base"><td>Claude Code</td><td>Every <code>/ref:*</code> command is a Claude Code slash command. Commands that need judgment (extraction, synthesis) start subagents inside your session.</td></tr>
-    <tr class="base"><td>ref plugin</td><td>The repo ships <code>.claude-plugin/plugin.json</code> (name <code>ref</code>, version 0.4.0) and is its own plugin marketplace (<code>.claude-plugin/marketplace.json</code>). Inside Claude Code run <code>/plugin marketplace add christineecker/claude-ref-manager</code>, then <code>/plugin install ref@claude-ref-manager</code>. The commands then show up as <code>/ref:&lt;name&gt;</code>.</td></tr>
+    <tr class="base"><td>ref plugin</td><td>The repo ships <code>.claude-plugin/plugin.json</code> (name <code>ref</code>, version 0.4.0) and is its own plugin marketplace (<code>.claude-plugin/marketplace.json</code>). Install steps below.</td></tr>
     <tr class="base"><td>Python ≥ 3.11</td><td>The scripts are standard-library-only, single-file Python (PEP 723 headers declare <code>requires-python = "&gt;=3.11"</code>). The command files run them as <code>python3</code>.</td></tr>
     <tr class="base"><td>PubMed MCP connector</td><td><code>/ref:add</code> resolves metadata through <code>mcp__claude_ai_PubMed__get_article_metadata</code>. <code>/ref:fetch</code> tries <code>get_full_text_article</code>, and <code>/ref:extract</code> uses the metadata call again to check retraction status. You can't ingest papers without it.</td></tr>
     <tr><td>pandoc <span class="muted">(optional)</span></td><td>Converts genuine JATS XML to Markdown (<code>pandoc -f jats -t gfm</code>). If pandoc is missing, that step reports <code>unavailable</code>.</td></tr>
@@ -67,6 +67,12 @@
   </tbody>
 </table>
 </div>
+<p>Install the plugin first, inside Claude Code:</p>
+<ol>
+<li><pre class="term"><span class="p">›</span> <span class="cmd">/plugin marketplace add christineecker/claude-ref-manager</span></pre></li>
+<li><pre class="term"><span class="p">›</span> <span class="cmd">/plugin install ref@claude-ref-manager</span>
+<span class="c">  # commands show up as /ref:&lt;name&gt;</span></pre></li>
+</ol>
 <p class="muted">PLAN D16 names firecrawl as a fallback for JavaScript-heavy publisher pages. <code>convert.py</code> doesn't call it, though. If you want to use it, the <code>/ref:fetch</code> command file suggests running the firecrawl skill yourself to get the HTML.</p>
 </section>
 
@@ -138,6 +144,7 @@
 <span class="o">99000002: already_present (citekey=moreno2021longitudinal)</span>
 <span class="o">99000003: already_present (citekey=lindqvist2022commentary)</span></pre>
 <p>Each paper folder now holds <code>meta.json</code>, <code>authorship.json</code> (authors in their original order), <code>funding.json</code>, and <code>raw/&lt;sha256&gt;/response.json</code>, a copy of the metadata exactly as received that is never modified.</p>
+<div class="note"><strong>Dashboard drop zone.</strong> The <a href="tutorials/dashboard-insights.html">dashboard</a>'s "Add papers" panel is an alternative to <code>/ref:add</code>: drag in PDFs, or drop/paste PMIDs, DOIs, or PubMed/PMC/DOI links, and it runs the same intake pipeline (<code>intake_pipeline.py</code>) — a paper already in the library is topped up (PDF, full text), never re-added. It's dashboard-only (<code>ref dashboard</code> must be running); Claude Code still handles project, extraction, and query workflows.</div>
 </li>
 
 <li id="s4">
@@ -198,7 +205,7 @@
 
 <li id="s6">
 <h3>Extract claims with <code>/ref:extract</code></h3>
-<p>Extraction needs reading judgment, so Claude starts one <code>ref-extractor</code> subagent per PMID, all running in parallel. Each one reads the full text if it exists, or the abstract otherwise. It returns a study type and a list of claims: population, intervention, comparator, outcome, timepoint, direction, effect value and measure, uncertainty interval, study design, cohort, and adjustment context. Each claim includes a locator and a word-for-word quote. Any field the text doesn't state is set to <code>"unknown"</code> rather than guessed. <code>extract.py</code> then validates the claims, assigns stable IDs, and saves each paper as its own version.</p>
+<p>Extraction needs reading judgment, so Claude starts one <code>ref-extractor</code> subagent per PMID, all running in parallel. Each one reads the full text if it exists, or the abstract otherwise. It returns a study type and a list of claims — one claim per reported finding, not one per paper. Each claim carries the <strong>PICO</strong> fields (population, intervention, comparator, outcome) plus timepoint, direction, effect value and measure, uncertainty interval, study design, cohort, and adjustment context, along with a locator and a word-for-word quote. Any field the text doesn't state is set to <code>"unknown"</code> rather than guessed. <code>extract.py</code> then validates the claims, assigns stable IDs, and saves each paper as its own version.</p>
 <p class="term-label">output from a scratch library · claims written by hand in the subagent's output shape</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 99000001 99000002</span>
 <span class="c">  # spawns 2 ref-extractor subagents in parallel, then:</span>
@@ -209,6 +216,7 @@
   <li><strong>Claim IDs stay stable.</strong> When you re-extract, an unchanged claim keeps its <code>claim_id</code>. A claim whose content changed gets a new ID, and the old one is kept, marked <code>superseded_by</code>, not deleted.</li>
   <li><strong>Retraction status</strong> is saved on <code>meta.json</code> with its source and <code>checked_at</code>. If the PubMed check fails or is ambiguous, it's saved as <code>unknown</code>, never as <code>none</code>.</li>
 </ul>
+<p class="muted">Field-by-field claim anatomy, a full worked claim JSON, and how to accept/edit/reject one afterward with <code>/ref:verify</code>: <a href="tutorials/extracting-claims.html">Extracting claims</a>.</p>
 </li>
 
 <li id="s7">

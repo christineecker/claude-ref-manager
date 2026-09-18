@@ -71,7 +71,7 @@ ASSETS_DIR = Path(__file__).resolve().parent / "dashboard_assets"
 
 # `lib_ids.py` mints slugs/citekeys/opaque ids but has no PMID rule of its
 # own -- the actual PMID shape check lives in `lib_intake.py` (used by
-# `/ref:import` to classify a raw PMID string). Reused here rather than
+# `/ref:add-sources` to classify a raw PMID string). Reused here rather than
 # duplicated so a "valid pmid" means the same thing everywhere (§7.3).
 _PMID_RE = lib_intake.PMID_RE
 

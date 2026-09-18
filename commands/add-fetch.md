@@ -3,7 +3,7 @@ text for every PMID that now has a library record. This is a convenience
 wrapper around `/ref:add` followed by `/ref:fetch`; it must not replace either
 command's underlying contract.
 
-For mixed intake across PMIDs, URLs, and local PDFs, prefer `/ref:import`.
+For mixed intake across PMIDs, URLs, and local PDFs, prefer `/ref:add-sources`.
 
 Parse `$ARGUMENTS` for:
 - `<pmid...>` — one or more PubMed IDs, required. PMID remains the identity

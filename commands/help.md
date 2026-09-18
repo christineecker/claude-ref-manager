@@ -35,13 +35,11 @@ Steps:
 - `/ref:add-fetch <pmid...>` — convenience wrapper: add missing records, then fetch full text for records that exist
 - `/ref:add-url <url...>` — identify articles by URL (DOI/PMID/PMCID clues or page metadata), add records, then fetch
 - `/ref:pubmed-add-fetch` — search PubMed, save the run, add selected PMIDs, then fetch full text
-- `/ref:import <item...>` — source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach
+- `/ref:add-sources <item...>` — source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach
 - `/ref:fetch <pmid...>` — acquire full text in priority order and convert it to `source.md`, per-PMID results
 - `/ref:fetch-pdf <pmid...>` — download free PMC OA PDFs and attach them through the PDF pipeline
 - `/ref:attach <pmid> <path>...` — attach PDFs you already have, after an identity check
-- `/ref:read <pmid...>` — render a local HTML reading copy from the current full-text version and figures
 - `/ref:extract <pmid...>` — full claim extraction, one ref-extractor subagent per paper
-- `/ref:describe-figure <pmid> <figure-id>` — on-demand, cached model description of one figure
 
 **Find**
 - `/ref:search` — search the library's evidence, or your personal notes, with distinct labels
@@ -53,6 +51,8 @@ Steps:
 - `/ref:related <pmid>` — snowball backward through references and forward via PubMed
 
 **Organize & review**
+- `/ref:read <pmid...>` — render a local HTML reading copy from the current full-text version and figures
+- `/ref:describe-figure <pmid> <figure-id>` — on-demand, cached model description of one figure
 - `/ref:project` — projects, questions, membership, and relevance; `--template` starts one from a proven workflow
 - `/ref:queue` — reading state, priority, and why-saved notes within a project
 - `/ref:screen` — record a project-specific include/exclude/pending decision with a reason

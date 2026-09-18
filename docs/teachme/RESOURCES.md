@@ -18,6 +18,10 @@
   Cheat sheet: `/ref:init` → `/ref:add` → `/ref:fetch` → `/ref:extract` — requires, writes, result lines, fetch's source priority.
 - [agents/ref-extractor.md](../../agents/ref-extractor.md)
   The subagent contract `/ref:extract` fans out per-PMID: study-type classification, PICO+ claim normalization, output JSON shape. Use for: exactly what a claim looks like right after extraction, before any correction overlay.
+- [docs/concepts.html#claims](../concepts.html#claims) — "The claim contract"
+  Authoritative field-by-field claim schema, a real worked example claim, and the stable-claim-ID/supersession algorithm (`assign_claim_ids`). Use for: anything about what a claim *is*, as opposed to how it got extracted.
+- [reference/claim-schema.html](reference/claim-schema.html) (this workspace)
+  Cheat sheet: every claim field, the retrieval invariant (`status='active' AND excluded_from_synthesis=0`), the three-case supersession rule.
 - [commands/*.md](../../commands/) (e.g. `add.md`, `extract.md`, `ask.md`, `audit.md`)
   Each file is the spec for one `/ref:*` slash command — the primary/authoritative source for command behavior, since these are what actually ship.
 - [skills/ref-manager/scripts/triage.py](../../skills/ref-manager/scripts/triage.py) and [skills/ref-manager/scripts/okf_emit.py](../../skills/ref-manager/scripts/okf_emit.py)

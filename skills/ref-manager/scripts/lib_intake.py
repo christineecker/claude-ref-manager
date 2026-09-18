@@ -5,7 +5,7 @@
 # ///
 """Shared intake resolver (UX_BACKLOG.md #4).
 
-`/ref:import`, `/ref:add-url`, and `/ref:add-pdf` used to each re-derive "what
+`/ref:add-sources`, `/ref:add-url`, and `/ref:add-pdf` used to each re-derive "what
 kind of thing is this input" in markdown prose, duplicated three times. This
 module is the local, deterministic classification step those commands share:
 given a raw string (PMID, DOI, URL, local PDF/dir path, or bib/CSL file), say
@@ -13,7 +13,7 @@ what kind it is and extract whatever identity clues are available without
 touching the network or PubMed MCP -- that resolution stays in the calling
 command, same as it does today for url_identify.py/pdf_identify.py.
 
-`main()` below is the CLI entry point `/ref:import` shells out to (mirrors
+`main()` below is the CLI entry point `/ref:add-sources` shells out to (mirrors
 url_identify.py/pdf_identify.py's own "print JSON, no side effects" shape).
 
 `.bib`/`.csl.json` files are parsed locally via `lib_bibparse.py`
@@ -224,7 +224,7 @@ def resolve_batch(library_root: Path, items: list[str]) -> list[dict]:
 
 def main() -> int:
     """`python3 lib_intake.py classify --repo <root> <item...>` -- prints
-    `resolve_batch()` as JSON. The CLI entry point `/ref:import` (and any
+    `resolve_batch()` as JSON. The CLI entry point `/ref:add-sources` (and any
     other command with mixed-type input) shells out to."""
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)

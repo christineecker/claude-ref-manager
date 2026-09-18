@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Claim Contract</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 0004 &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>The Claim Contract</h1>
+<p class="lede">What a claim actually is once <code>/ref:extract</code> commits it &mdash; every field, why it's there, and how the same claim survives (or doesn't) a re-extraction.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <a href="../../concepts.html#claims">docs/concepts.html, &ldquo;The claim contract&rdquo;</a>
+  &mdash; including the real worked example below, taken from that page verbatim (a scratch-library
+  claim, placeholder PMID). Field validation itself: <code>validate_claim</code> in
+  <code>skills/ref-manager/scripts/lib_schema.py</code>. This lesson assumes
+  <a href="0003-acquire-to-extract-pipeline.html">Lesson 0003</a> &mdash; it picks up exactly where that
+  one's Stage 4 (<code>/ref:extract</code>) left off.
+</div>
+
+<h2>A claim is one reported finding</h2>
+<p>
+  Not one paper, not one paragraph &mdash; one finding. A single paper with three reported results
+  produces three claim objects, each a separate entry in that version's <code>claims.json</code> array.
+  The <code>ref-extractor</code> subagent (Lesson 0003) proposes the content; <code>extract.py</code>
+  fills in defaults, validates every claim against <code>validate_claim</code>, assigns IDs, and commits.
+</p>
+
+<h2>Every field, and why it exists</h2>
+<p>Three groups, not one flat bag of fields:</p>
+
+<h3>1. The 12 normalized fields &mdash; what was found</h3>
+<p>
+  You already met these in Lesson 0003: <code>population</code>, <code>intervention</code>,
+  <code>comparator</code>, <code>outcome</code>, <code>timepoint</code>, <code>direction</code>,
+  <code>effect_value</code>, <code>effect_measure</code>, <code>uncertainty_interval</code>,
+  <code>study_design</code>, <code>cohort_identity</code>, <code>adjustment_context</code>. Every key
+  must be present; the literal string <code>"unknown"</code> counts as present.
+</p>
+
+<h3>2. Provenance fields &mdash; where it came from</h3>
+<p>
+  <code>locator</code> (section/page/table/figure), <code>evidence_span</code> (a direct quote, not a
+  paraphrase), <code>evidence_tier</code> (<code>abstract</code> or <code>full</code>),
+  <code>source_hash</code>, and paper-level <code>study_type</code> (the study's overall design, distinct
+  from this claim's own <code>study_design</code> &mdash; a paper can be <code>mixed</code> overall while
+  one claim's <code>study_design</code> says specifically <code>RCT sub-study</code>).
+</p>
+
+<h3>3. Identity &amp; lifecycle fields &mdash; how it's tracked over time</h3>
+<table style="width:100%; border-collapse:collapse; font-size:0.88rem; margin: 0.8rem 0;">
+  <tr style="background:var(--code-bg);"><th style="text-align:left; padding:0.4rem 0.6rem; border:1px solid var(--rule);">Field</th><th style="text-align:left; padding:0.4rem 0.6rem; border:1px solid var(--rule);">What it means</th></tr>
+  <tr><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>claim_id</code></td><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);">opaque <code>c-</code> + 12 hex, assigned by <code>extract.py</code></td></tr>
+  <tr><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>content_hash</code></td><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);">sha256 of the 12 normalized fields + <code>study_type</code> &mdash; the claim's fingerprint</td></tr>
+  <tr><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>status</code></td><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>active</code>, or <code>superseded</code> once a rerun replaces it</td></tr>
+  <tr><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>excluded_from_synthesis</code></td><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);">bool, becomes <code>true</code> after a human <code>reject</code> (<code>/ref:verify</code>)</td></tr>
+  <tr><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>supersedes</code> / <code>superseded_by</code></td><td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);">optional links between old and new claim at the same locator</td></tr>
+</table>
+
+<div class="callout">
+  <strong><code>status</code> and <code>excluded_from_synthesis</code> are independent axes.</strong>
+  A claim can be <code>active</code> and excluded (a human rejected it, but nothing has superseded it
+  yet), or <code>superseded</code> and never excluded (a routine re-extraction replaced it, no human
+  judgment involved). Retrieval filters on <em>both</em>:
+  <code>status='active' AND excluded_from_synthesis=0</code>. Neither field alone tells you whether a
+  claim is actually in play.
+</div>
+
+<h2>A real claim, verbatim</h2>
+<p>From a scratch library, <code>versions/v-ff60b1f75514/claims.json</code>:</p>
+<pre><code>{
+  "adjustment_context": "unknown",
+  "claim_id": "c-2a41dbb8e59f",
+  "cohort_identity": "unknown",
+  "comparator": "non-autistic controls",
+  "content_hash": "23d6faf2ca79f3fa25c048bf9021d18d11f0901a1b6517da5cbaaf9fe48fa9de",
+  "direction": "decrease",
+  "effect_measure": "unknown",
+  "effect_value": "unknown",
+  "evidence_span": "Autistic adults showed reduced cortical thickness compared with controls.",
+  "evidence_tier": "abstract",
+  "excluded_from_synthesis": false,
+  "intervention": "autism diagnosis",
+  "locator": "abstract",
+  "outcome": "cortical thickness",
+  "pmid": "90000001",
+  "population": "autistic adults",
+  "source_hash": "",
+  "status": "active",
+  "study_design": "cohort",
+  "study_type": "cohort",
+  "timepoint": "unknown",
+  "uncertainty_interval": "unknown",
+  "version_id": "v-ff60b1f75514"
+}</code></pre>
+<p>
+  Read it against the table above: this claim was extracted from the abstract only (<code>evidence_tier</code>),
+  found a decrease in cortical thickness with no numeric effect size reported (<code>effect_value</code>/
+  <code>effect_measure</code> both <code>"unknown"</code> &mdash; honestly, not silently), and is fully
+  active and unrejected.
+</p>
+
+<h2>Stable claim IDs across reruns</h2>
+<p>
+  <code>claim_registry.json</code> stores <em>every</em> claim ever committed for a paper &mdash; nothing
+  is ever deleted from it. When you re-run <code>/ref:extract</code> on a paper, <code>assign_claim_ids</code>
+  compares each incoming claim against whatever was active at that same <code>locator</code> before the
+  run:
+</p>
+<ol>
+  <li><strong>Same <code>content_hash</code>:</strong> the claim keeps its existing <code>claim_id</code>.
+    Nothing changed, so nothing new is minted.</li>
+  <li><strong>No hash match, exactly one unconsumed prior claim at that locator:</strong> a genuine
+    revision. The new claim gets a fresh ID and <code>supersedes</code> pointing at the old one; the old
+    claim flips to <code>status: superseded</code> with <code>superseded_by</code> set &mdash; and stays
+    in the registry, not deleted.</li>
+  <li><strong>No hash match, zero or several prior claims at that locator:</strong> ambiguous &mdash;
+    no supersession is asserted, the new claim just gets a fresh ID.</li>
+</ol>
+<p>
+  This is the same immutable-history instinct from <a href="0001-paper-repo-anatomy.html">Lesson 0001</a>'s
+  <code>raw/&lt;sha256&gt;/</code> directories, one layer up: nothing about a claim's history is ever
+  overwritten, only superseded and kept.
+</p>
+
+<div class="quiz" data-quiz="q1" data-answer="b">
+  <p class="q">You re-run <code>/ref:extract</code> on a paper. At locator <code>"Table 2"</code>, the
+    extractor now reports a different <code>effect_value</code> than before, and there was exactly one
+    prior active claim at that locator. What happens to the old claim?</p>
+  <div class="choices">
+    <label><input type="radio" name="q1" value="a"> It's deleted from claims.json and claim_registry.json.</label>
+    <label><input type="radio" name="q1" value="b"> It flips to <code>status: superseded</code>, gets <code>superseded_by</code> set to the new claim's ID, and stays in the registry.</label>
+    <label><input type="radio" name="q1" value="c"> Its content_hash is silently updated in place to match the new value.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; a content_hash mismatch with exactly one unconsumed prior claim at the locator is the textbook supersession case. The old claim is kept, marked superseded, never edited or deleted.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; the registry never deletes or edits a prior claim in place. A genuine revision at the same locator supersedes it: new claim_id, old one kept with status: superseded and superseded_by set.</p>
+</div>
+
+<div class="quiz" data-quiz="q2" data-answer="c">
+  <p class="q">You run <code>/ref:verify claim &lt;pmid&gt; &lt;claim_id&gt; reject</code>. Which field changes on that claim?</p>
+  <div class="choices">
+    <label><input type="radio" name="q2" value="a"> status flips from "active" to "rejected".</label>
+    <label><input type="radio" name="q2" value="b"> content_hash is recomputed to mark it invalid.</label>
+    <label><input type="radio" name="q2" value="c"> excluded_from_synthesis flips to true; status is untouched.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; "rejected" isn't a status value at all. Rejection sets excluded_from_synthesis, a separate axis from status (active/superseded), and retrieval checks both.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; status only ever tracks active/superseded (a supersession event, not a human judgment). A reject correction sets excluded_from_synthesis instead, leaving status alone.</p>
+</div>
+
+<p class="ask-agent">Want to see a claim actually flip to superseded, or watch <code>excluded_from_synthesis</code>
+change after a real <code>/ref:verify reject</code>? Ask your agent to run it against a scratch library
+and show you the before/after JSON.</p>
+
+<div class="nav-links">
+  Reference: <a href="../reference/claim-schema.html">Claim Schema Cheat Sheet</a>.
+  Previous: <a href="0003-acquire-to-extract-pipeline.html">Lesson 0003 &mdash; The Acquire-to-Extract Pipeline</a>.
+  Next up: the retrieval layer (<code>index/catalog.sqlite</code>, FTS, how <code>/ref:ask</code> turns a
+  question into ranked claims) &mdash; or the corrections overlay in depth (<code>/ref:verify</code>'s
+  five target types, how a materially-changed claim flips a correction to <code>pending_review</code>).
+  Say which.
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.quiz').forEach(function (quiz) {
+    var inputs = quiz.querySelectorAll('input[type=radio]');
+    var correct = quiz.querySelector('.feedback.correct');
+    var incorrect = quiz.querySelector('.feedback.incorrect');
+    var answer = quiz.getAttribute('data-answer');
+    inputs.forEach(function (input) {
+      input.addEventListener('change', function () {
+        var isCorrect = input.value === answer;
+        correct.classList.toggle('show', isCorrect);
+        incorrect.classList.toggle('show', !isCorrect);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

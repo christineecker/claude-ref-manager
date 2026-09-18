@@ -48,13 +48,11 @@
       <dt><a href="acquire.html#add-fetch">/ref:add-fetch &lt;pmid…&gt;</a></dt><dd>convenience wrapper: add missing records, then fetch full text for records that exist</dd>
       <dt><a href="acquire.html#add-url">/ref:add-url &lt;url…&gt;</a></dt><dd>identify articles by URL (DOI/PMID/PMCID clues or page metadata), add records, then fetch</dd>
       <dt><a href="acquire.html#pubmed-add-fetch">/ref:pubmed-add-fetch</a></dt><dd>search PubMed, save the run, add selected PMIDs, then fetch full text</dd>
-      <dt><a href="acquire.html#import">/ref:import &lt;item…&gt;</a></dt><dd>source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach</dd>
+      <dt><a href="acquire.html#add-sources">/ref:add-sources &lt;item…&gt;</a></dt><dd>source-aware front door: routes a mix of PMIDs, URLs, PDFs/folders, DOIs, or BibTeX/CSL-JSON into add/fetch/attach</dd>
       <dt><a href="acquire.html#fetch">/ref:fetch &lt;pmid…&gt;</a></dt><dd>acquire full text in priority order and convert it to <code>source.md</code>, per-PMID results</dd>
       <dt><a href="acquire.html#fetch-pdf">/ref:fetch-pdf &lt;pmid…&gt;</a></dt><dd>download free PMC OA PDFs and attach them through the PDF pipeline</dd>
       <dt><a href="acquire.html#attach">/ref:attach &lt;pmid&gt; &lt;path&gt; …</a></dt><dd>attach PDFs you already have, after an identity check</dd>
-      <dt><a href="acquire.html#read">/ref:read &lt;pmid…&gt;</a></dt><dd>render a local HTML reading copy from the current full-text version and figures</dd>
       <dt><a href="acquire.html#extract">/ref:extract &lt;pmid…&gt;</a></dt><dd>full claim extraction, one <code>ref-extractor</code> subagent per paper</dd>
-      <dt><a href="acquire.html#describe-figure">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt;</a></dt><dd>on-demand, cached model description of one figure</dd>
     </dl>
   </div>
 
@@ -74,6 +72,8 @@
   <div class="cmd-group">
     <h3><a href="organize.html">Organize &amp; review</a></h3>
     <dl class="cmd-list">
+      <dt><a href="organize.html#read">/ref:read &lt;pmid…&gt;</a></dt><dd>render a local HTML reading copy from the current full-text version and figures</dd>
+      <dt><a href="organize.html#describe-figure">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt;</a></dt><dd>on-demand, cached model description of one figure</dd>
       <dt><a href="organize.html#project">/ref:project</a></dt><dd>projects, questions, membership, and relevance; <code>--template</code> starts one from a proven workflow</dd>
       <dt><a href="organize.html#queue">/ref:queue</a></dt><dd>reading state, priority, and why-saved notes within a project</dd>
       <dt><a href="organize.html#screen">/ref:screen</a></dt><dd>record a project-specific include/exclude/pending decision with a reason</dd>

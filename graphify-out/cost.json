@@ -18,8 +18,14 @@
       "output_tokens": 0,
       "files": 46,
       "note": "subagent token totals recorded as input (no input/output split available)"
+    },
+    {
+      "date": "2026-09-18T08:55:34.321782+00:00",
+      "input_tokens": 0,
+      "output_tokens": 787956,
+      "files": 79
     }
   ],
   "total_input_tokens": 1759346,
-  "total_output_tokens": 0
+  "total_output_tokens": 787956
 }

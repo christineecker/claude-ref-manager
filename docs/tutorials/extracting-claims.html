@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Extracting claims · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Extracting claims</h1>
+  <p class="lede">You've got papers with full text or at least an abstract (see <a href="adding-papers.html">Adding papers</a>). Now turn each one into structured, quote-backed findings with <code>/ref:extract</code> — what a claim actually is, what PICO means here, how claims survive a rerun, and how to correct one without ever editing extracted data in place.</p>
+</header>
+
+<section>
+<h2>What "extracting claims" means</h2>
+<p><code>/ref:extract</code> doesn't summarize a paper — it pulls out every reported finding as its own structured record. A single paper with three reported results produces three separate claim objects. Extraction needs reading judgment, so Claude starts one <code>ref-extractor</code> subagent per PMID, all running in parallel; each reads the paper's committed full text if there is one, or its abstract otherwise. <code>extract.py</code> then validates whatever the subagent proposes, fills defaults, assigns IDs, and commits.</p>
+
+<h3>PICO, and the fields around it</h3>
+<p><strong>PICO</strong> is the standard way clinical/scientific literature frames a finding: <strong>P</strong>opulation, <strong>I</strong>ntervention, <strong>C</strong>omparator, <strong>O</strong>utcome — who was studied, what was done to them, what it was compared against, and what was measured. A claim needs more than that to be checkable, so <code>ref-extractor</code> reports twelve normalized fields per claim, all required (the literal string <code>"unknown"</code> counts as present — nothing is guessed to fill a gap):</p>
+<div class="cards">
+  <a class="card" style="cursor:default">
+    <span class="k">PICO</span>
+    <strong>population · intervention · comparator · outcome</strong>
+    <span class="d">Who, what was done, versus what, what was measured — the four fields the acronym names.</span>
+  </a>
+  <a class="card" style="cursor:default">
+    <span class="k">When &amp; how much</span>
+    <strong>timepoint · direction · effect_value · effect_measure · uncertainty_interval</strong>
+    <span class="d">When the outcome was assessed, which way it moved, and the reported size, unit, and interval — each "unknown" if the text doesn't state it.</span>
+  </a>
+  <a class="card" style="cursor:default">
+    <span class="k">Design context</span>
+    <strong>study_design · cohort_identity · adjustment_context</strong>
+    <span class="d">This claim's own design (which can differ from the paper's overall study_type), which cohort it draws on, and what covariates it was adjusted for.</span>
+  </a>
+</div>
+<p class="muted">Full field-by-field reference: <a href="../concepts.html#claims">Concepts &middot; the claim contract</a>.</p>
+</section>
+
+<section>
+<h2>Run it</h2>
+<p>If no PMID is given, Claude runs the shared recent/unresolved picker instead of asking you to recall PMIDs from memory. Otherwise, pass one or more PMIDs — each just needs a <code>meta.json</code> already on record (see <a href="adding-papers.html"><code>/ref:add</code></a>).</p>
+<p class="term-label">output from a scratch library · claims written by hand in the subagent's output shape</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 99000001 99000002</span>
+<span class="c">  # spawns 2 ref-extractor subagents in parallel, then:</span>
+<span class="o">99000001: extracted (study_type=imaging, claims=1)</span>
+<span class="o">99000002: extracted (study_type=cohort, claims=1)</span></pre>
+<ul>
+  <li><strong>The tier only goes up.</strong> 99000001 had full text, so its <code>extraction_tier</code> becomes <code>"full"</code>. A later rerun with thinner text never downgrades it. 99000002, abstract-only, stays <code>"abstract"</code>.</li>
+  <li><strong>Retraction status</strong> gets re-checked with <code>get_article_metadata</code> on every extraction. A failed or ambiguous check is saved as <code>"unknown"</code>, never as <code>"none"</code> — silence is never read as "not retracted."</li>
+  <li>Reads <code>meta.json</code> and the current <code>source.md</code> or abstract. Writes <code>versions/&lt;v&gt;/claims.json</code> + <code>manifest.json</code>, updates <code>current.json</code> and <code>claim_registry.json</code>, and updates <code>meta.json</code>'s <code>extraction_tier</code> / <code>retraction_status</code> / <code>checked_at</code>. Full reference: <a href="../commands/acquire.html#extract"><code>/ref:extract</code></a>.</li>
+</ul>
+</section>
+
+<section>
+<h2>A claim, in full</h2>
+<p>Every claim carries three groups of fields, not one flat bag: the twelve PICO+ fields above (<em>what was found</em>), provenance fields (<em>where it came from</em>), and identity/lifecycle fields (<em>how it's tracked over time</em>). This is one committed claim for 99000001 — the same finding <a href="../getting-started.html">Get started</a> retrieves later with <code>/ref:ask</code>:</p>
+<p class="term-label">output from a scratch library · versions/&lt;v&gt;/claims.json</p>
+<pre class="term"><span class="o">{
+  "claim_id": "c-d85223adbc65",
+  "pmid": "99000001",
+  "version_id": "v-&lt;hash&gt;",
+
+  "population": "autistic adults",
+  "intervention": "autism diagnosis",
+  "comparator": "non-autistic controls",
+  "outcome": "cortical thickness",
+  "timepoint": "unknown",
+  "direction": "increase",
+  "effect_value": "0.41",
+  "effect_measure": "Cohen's d",
+  "uncertainty_interval": "95% CI 0.15-0.67",
+  "study_design": "cross-sectional",
+  "cohort_identity": "unknown",
+  "adjustment_context": "unknown",
+
+  "locator": "Results",
+  "evidence_span": "Autistic adults showed increased cortical thickness in frontal regions (Cohen's d = 0.41, 95% CI 0.15-0.67).",
+  "evidence_tier": "full",
+  "study_type": "imaging",
+  "source_hash": "&lt;sha256&gt;",
+
+  "content_hash": "&lt;sha256 of the 12 normalized fields + study_type&gt;",
+  "status": "active",
+  "excluded_from_synthesis": false,
+  "supersedes": null,
+  "superseded_by": null
+}</span></pre>
+<ul>
+  <li><code>evidence_span</code> is a direct quote, never a paraphrase — you can always trace a claim back to the exact sentence it came from.</li>
+  <li><code>study_type</code> is the paper's overall design; this claim's own <code>study_design</code> can be more specific (a paper can be <code>mixed</code> overall while one claim inside it is a clean <code>RCT sub-study</code>).</li>
+  <li><code>status</code> and <code>excluded_from_synthesis</code> are independent axes. A claim can be <code>active</code> and excluded (a human rejected it, nothing has superseded it yet), or <code>superseded</code> and never excluded (a routine rerun replaced it, no human judgment involved). Retrieval filters on <em>both</em>.</li>
+</ul>
+</section>
+
+<section>
+<h2>Claim IDs stay stable across reruns</h2>
+<p><code>claim_registry.json</code> keeps <em>every</em> claim ever committed for a paper — nothing is ever deleted. Re-run <code>/ref:extract</code> on a paper, and for each incoming claim, <code>extract.py</code> compares it against whatever was active at that same <code>locator</code> before the run:</p>
+<ol>
+  <li><strong>Same <code>content_hash</code>:</strong> the claim keeps its existing <code>claim_id</code>. Nothing changed, so nothing new is minted.</li>
+  <li><strong>Hash differs, exactly one prior unconsumed claim at that locator:</strong> a genuine revision. The new claim gets a fresh ID and <code>supersedes</code> the old one; the old claim flips to <code>status: "superseded"</code> with <code>superseded_by</code> set — kept, not deleted.</li>
+  <li><strong>Hash differs, zero or several prior claims at that locator:</strong> ambiguous, so no supersession is asserted — the new claim just gets a fresh ID.</li>
+</ol>
+<p class="term-label">illustrative output · re-extracting after the source paper issued a correction</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 99000001</span>
+<span class="o">99000001: extracted (study_type=imaging, claims=1)</span>
+<span class="c"># at locator "Results", effect_value changed 0.41 -> 0.52 vs. the prior single active claim there:
+# old claim -> status: superseded, superseded_by: &lt;new claim_id&gt;, still in claim_registry.json
+# new claim -> fresh claim_id, supersedes: &lt;old claim_id&gt;</span></pre>
+<div class="note">This is the same immutable-history instinct as <code>raw/&lt;sha256&gt;/</code> for downloaded sources — nothing about a claim's history is overwritten, only superseded and kept.</div>
+</section>
+
+<section>
+<h2>Maintaining claims: corrections, not edits</h2>
+<p>Extracted data is never edited in place. A human review decision — accept, edit, or reject a specific claim — is recorded as a separate overlay with <code>/ref:verify claim</code>. Retrieval and synthesis read the claim <em>plus</em> its correction overlay together; the underlying <code>claims.json</code> stays exactly as extraction wrote it.</p>
+<div class="synopsis">/ref:verify claim &lt;pmid&gt; &lt;claim_id&gt; accept|edit|reject [--replacement &lt;json-file&gt;] [--rationale "…"] [--reviewer "…"]
+/ref:verify show &lt;pmid&gt;</div>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:verify claim 99000002 c-2b31957bd938 reject --rationale "Effect reported for adolescents, not adults"</span>
+<span class="o">{
+  "correction_id": "cor-…",
+  "target_type": "claim",
+  "target_id": "c-2b31957bd938",
+  "decision": "reject",
+  "original_value": { "population": "…", "intervention": "…", "comparator": "…", "outcome": "…" },
+  "replacement_value": null,
+  "rationale": "Effect reported for adolescents, not adults",
+  "reviewer": "user",
+  "timestamp": "…",
+  "status": "active"
+}</span></pre>
+<ul>
+  <li><code>reject</code> flips <code>excluded_from_synthesis</code> to <code>true</code> on the claim in the registry. It does <em>not</em> touch <code>status</code> — <code>"rejected"</code> isn't a status value; <code>status</code> only ever tracks <code>active</code>/<code>superseded</code>, a supersession event, not a human judgment.</li>
+  <li><code>edit</code> takes <code>--replacement &lt;json-file&gt;</code>, a corrected version of the claim's fields, recorded as an overlay rather than mutating <code>claims.json</code>.</li>
+  <li>Corrections carry over automatically when a rerun's evidence is unchanged. If re-extraction materially changes the evidence at that locator, the correction flips to <code>pending_review</code> instead of silently reapplying or silently dropping — <code>/ref:verify show &lt;pmid&gt;</code> revalidates and prints exactly that state.</li>
+</ul>
+<p class="muted">Full command reference: <a href="../commands/organize.html#verify"><code>/ref:verify</code></a>.</p>
+</section>
+
+<section>
+<h2>Minimal recipes</h2>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 40665956 40691132</span>
+<span class="p">›</span> <span class="cmd">/ref:extract</span> <span class="c"># no PMIDs -> picker over recent/unresolved papers</span>
+<span class="p">›</span> <span class="cmd">/ref:verify claim &lt;pmid&gt; &lt;claim_id&gt; reject --rationale "…"</span>
+<span class="p">›</span> <span class="cmd">/ref:verify show &lt;pmid&gt;</span> <span class="c"># revalidate + print corrections, including any now pending_review</span></pre>
+<p>Next: search and retrieve what you extracted with <code>/ref:search</code>/<code>/ref:ask</code> (<a href="../getting-started.html">Get started §7</a>), or roll extraction into a weekly cycle with the <a href="maintenance.html">Maintenance loop</a> tutorial.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="adding-papers.html"><small>Previous</small>Adding papers</a>
+  <a href="maintenance.html" style="text-align:right"><small>Next</small>Maintenance loop</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0-11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

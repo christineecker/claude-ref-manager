@@ -133,9 +133,9 @@
     <text x="624" y="154">Local PDF(s)</text>
     <text x="624" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:add-pdf</text>
 
-    <rect x="808" y="128" width="148" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
-    <text x="820" y="154">Mixed inputs</text>
-    <text x="820" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:import</text>
+    <rect x="792" y="128" width="164" height="66" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="804" y="154">Mixed inputs</text>
+    <text x="804" y="176" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">/ref:add-sources</text>
   </g>
 
   <g stroke="currentColor" stroke-width="1.5" stroke-opacity=".7">
@@ -143,7 +143,7 @@
     <line x1="490" y1="82" x2="311" y2="126" marker-end="url(#m2)"/>
     <line x1="490" y1="82" x2="507" y2="126" marker-end="url(#m2)"/>
     <line x1="490" y1="82" x2="703" y2="126" marker-end="url(#m2)"/>
-    <line x1="490" y1="82" x2="881" y2="126" marker-end="url(#m2)"/>
+    <line x1="490" y1="82" x2="874" y2="126" marker-end="url(#m2)"/>
   </g>
 
   <rect x="256" y="240" width="468" height="72" rx="9" fill="var(--amber-soft)" stroke="var(--amber)"/>
@@ -152,7 +152,7 @@
   <text x="272" y="302" font-family="IBM Plex Sans,sans-serif" font-size="11.5" fill-opacity=".78">Use --no-fetch when you only want metadata.</text>
 </svg>
 </div>
-<figcaption>Use /ref:import only for mixed batches.</figcaption>
+<figcaption>Use /ref:add-sources only for mixed batches.</figcaption>
 </figure>
 </section>
 
@@ -268,9 +268,9 @@ fetch:
 <span class="o">40665956: acquired (source=pmc_jats, figures=3, images=3/3)</span></pre>
 <div class="note">A PMID that failed to add is skipped at the fetch stage instead of producing a second, predictable failure.</div>
 
-<h3><code>/ref:import &lt;item…&gt; [--no-fetch]</code> — mixed batches</h3>
+<h3><code>/ref:add-sources &lt;item…&gt; [--no-fetch]</code> — mixed batches</h3>
 <p>Inherited a supervisor's Zotero export, a folder of PDFs, and three DOIs typed into a Slack thread? Dump it all in. One resolver (<code>lib_intake.py classify</code>) sorts every input into <code>pmid</code>, <code>doi</code>, <code>url</code>, <code>pdf</code>, <code>bib_entry</code>, <code>csl_entry</code>, or <code>unknown</code> — including expanding a folder of PDFs or parsing a <code>.bib</code>/<code>.csl.json</code> file into one entry per record.</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/luckhardt2025.pdf</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-sources 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/luckhardt2025.pdf</span>
 <span class="o">classify:
 40665956: pmid -> already imported as 40665956
 https://doi.org/10.1002/aur.70084: doi -> already imported as 40665956
@@ -278,6 +278,9 @@ https://doi.org/10.1002/aur.70084: doi -> already imported as 40665956
 
 add:
 40665956: already_present (citekey=luckhardt2025transcranial)
+
+attach:
+40665956: duplicate_noop
 
 fetch:
 40665956: duplicate_noop</span></pre>
@@ -340,7 +343,7 @@ fetch:
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:pubmed-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
 <span class="p">›</span> <span class="cmd">/ref:update-queries asd-tdcs</span>
 <span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 40691132</span>
-<span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/papers/</span></pre>
+<span class="p">›</span> <span class="cmd">/ref:add-sources 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/papers/</span></pre>
 
 <figure>
 <div class="svg-wrap">

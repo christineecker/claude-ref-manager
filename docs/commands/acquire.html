@@ -34,13 +34,11 @@
     <li><a href="#add-fetch"><code>/ref:add-fetch</code></a></li>
     <li><a href="#add-url"><code>/ref:add-url</code></a></li>
     <li><a href="#pubmed-add-fetch"><code>/ref:pubmed-add-fetch</code></a></li>
-    <li><a href="#import"><code>/ref:import</code></a></li>
+    <li><a href="#add-sources"><code>/ref:add-sources</code></a></li>
     <li><a href="#fetch"><code>/ref:fetch</code></a></li>
     <li><a href="#fetch-pdf"><code>/ref:fetch-pdf</code></a></li>
     <li><a href="#attach"><code>/ref:attach</code></a></li>
-    <li><a href="#read"><code>/ref:read</code></a></li>
     <li><a href="#extract"><code>/ref:extract</code></a></li>
-    <li><a href="#describe-figure"><code>/ref:describe-figure</code></a></li>
   </ol>
   <h4>Other groups</h4>
   <ul>
@@ -354,7 +352,7 @@ Example: /ref:add 12345678</span>
   <h4>Under the hood</h4>
   <p class="writes"><code>url_identify.py &lt;url…&gt;</code>, <code>lib_intake.py classify --repo … &lt;clue&gt;</code> for the pre-lookup duplicate check, PubMed MCP lookup/confirmation, <code>add.py add --repo … --metadata-file …</code>, then the same fetch path as <code>/ref:fetch</code>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#fetch"><code>/ref:fetch</code></a> · <a href="#import"><code>/ref:import</code></a></p>
+  <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#fetch"><code>/ref:fetch</code></a> · <a href="#add-sources"><code>/ref:add-sources</code></a></p>
 </article>
 
 <!-- ================= pubmed-add-fetch ================= -->
@@ -395,11 +393,11 @@ fetch:
   <p class="writes"><a href="find.html#pubmed-query"><code>/ref:pubmed-query</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="#add-fetch"><code>/ref:add-fetch</code></a></p>
 </article>
 
-<!-- ================= import ================= -->
-<article class="cmd" id="import">
-  <div class="cmd-head"><h3>/ref:import</h3><div class="chips"><span class="tag phase">phase 6</span><span class="tag net">PubMed MCP</span><span class="tag net">web fetch</span></div></div>
+<!-- ================= add-sources ================= -->
+<article class="cmd" id="add-sources">
+  <div class="cmd-head"><h3>/ref:add-sources</h3><div class="chips"><span class="tag phase">phase 6</span><span class="tag net">PubMed MCP</span><span class="tag net">web fetch</span></div></div>
   <p class="summary">Source-aware front door: feed it a mix of PMIDs, article URLs, local PDFs or folders, DOIs, or bibliography files, and it routes each one into the right add/fetch/attach flow.</p>
-  <div class="synopsis">/ref:import &lt;item…&gt; [--no-fetch]</div>
+  <div class="synopsis">/ref:add-sources &lt;item…&gt; [--no-fetch]</div>
   <h4>Arguments</h4>
   <dl class="args">
     <dt>&lt;item…&gt;</dt><dd>One or more inputs, in any mix: bare PMID tokens (<code>40691132</code>), article URLs, local PDF paths, folders containing PDFs, BibTeX (<code>.bib</code>) files, CSL-JSON (<code>.csl.json</code>) files, or bare DOI strings (<code>10.1038/s41586-026-00001-2</code>).</dd>
@@ -412,15 +410,16 @@ fetch:
     <li>Each parsed bibliography record (<code>bib_entry</code>/<code>csl_entry</code>) resolves the same way a URL/PDF clue does: use its <code>pmid</code> if present, else search PubMed by its <code>doi</code>, else ask you to pick a PMID for its title. A file that parses to zero entries is reported, not silently dropped.</li>
     <li>For every remaining item: a <code>pmid</code> kind is used directly; a <code>doi</code> clue is resolved through PubMed MCP <code>search_articles</code> (confirmation required on zero/multiple matches); a <code>pmcid</code>-only clue resolves the same way; a clue-less <code>url</code>/<code>pdf</code> falls back to page-HTML citation tags or the PDF's title guess, then repeats DOI/PMID/PMCID resolution; an <code>unknown</code> item is shown to you for a PMID/DOI/URL/path or a skip.</li>
     <li>Calls PubMed MCP <code>get_article_metadata</code> once for every resolved PMID and normalizes the results into the standard <a href="#add"><code>/ref:add</code></a> envelope, then runs the normal add path.</li>
+    <li>Attaches every local PDF input to its PMID through the same identity-checked pipeline as <a href="#attach"><code>/ref:attach</code></a> — including PDFs whose paper was <code>already_imported</code> or a <code>duplicate_in_batch</code>. <code>--no-fetch</code> does not skip this: attaching a local file is not network acquisition. A <code>refused</code> identity check is reported, never forced. Attach runs before fetch on purpose, so a later JATS acquisition (higher fidelity than PDF-converted text) ends up as the current version while the PDF stays stored.</li>
     <li>Unless <code>--no-fetch</code> was passed, runs the same fetch priority ladder as <a href="#fetch"><code>/ref:fetch</code></a> — PMC JATS, PubMed plain text, Unpaywall, publisher HTML, otherwise abstract-only — for every PMID that now has a record.</li>
-    <li>Prints every stage's output under <code>classify:</code>, <code>add:</code>, and <code>fetch:</code> headers, so you can see where each item came from and whether it was added, already imported, attached, or fetched.</li>
+    <li>Prints every stage's output under <code>classify:</code>, <code>add:</code>, <code>attach:</code>, and <code>fetch:</code> headers, so you can see where each item came from and whether it was added, already imported, attached, or fetched.</li>
   </ol>
   <p>PMID stays the identity key throughout: DOI, URL, PDF, and bibliography clues only resolve a candidate PMID, they never merge records. This command is a dispatcher, not a new storage path — it reuses the existing add, fetch, attach, and shared <code>lib_intake</code> classification. One input's failure never blocks the rest.</p>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads local PDFs/folders/bibliography files you point it at, and existing papers' <code>meta.json</code> for the pre-resolution duplicate check. Writes the same files as <a href="#add"><code>/ref:add</code></a> and, unless <code>--no-fetch</code> is passed, the same files as <a href="#fetch"><code>/ref:fetch</code></a> — nothing beyond what those commands already write.</p>
+  <p class="writes">Reads local PDFs/folders/bibliography files you point it at, and existing papers' <code>meta.json</code> for the pre-resolution duplicate check. Writes the same files as <a href="#add"><code>/ref:add</code></a>, for local PDF inputs the same files as <a href="#attach"><code>/ref:attach</code></a>, and, unless <code>--no-fetch</code> is passed, the same files as <a href="#fetch"><code>/ref:fetch</code></a> — nothing beyond what those commands already write.</p>
   <h4>Example</h4>
   <p class="term-label">illustrative output, mixed intake</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:import 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/luckhardt2025.pdf</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:add-sources 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/luckhardt2025.pdf</span>
 <span class="o">classify:
 40665956: pmid -> already imported as 40665956
 https://doi.org/10.1002/aur.70084: doi -> already imported as 40665956
@@ -429,10 +428,13 @@ https://doi.org/10.1002/aur.70084: doi -> already imported as 40665956
 add:
 40665956: already_present (citekey=luckhardt2025transcranial)
 
+attach:
+40665956: duplicate_noop
+
 fetch:
 40665956: duplicate_noop</span></pre>
   <h4>Under the hood</h4>
-  <p class="writes"><code>lib_intake.py classify --repo &lt;library_root&gt; &lt;item...&gt;</code> for local classification and duplicate detection (calling <code>url_identify.py</code>/<code>pdf_identify.py</code> internally for URL/PDF clues), PubMed MCP for DOI/PMCID/title resolution and <code>get_article_metadata</code>, then <code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code> and, unless skipped, the same <code>fetch.py</code> path as <code>/ref:fetch</code>.</p>
+  <p class="writes"><code>lib_intake.py classify --repo &lt;library_root&gt; &lt;item...&gt;</code> for local classification and duplicate detection (calling <code>url_identify.py</code>/<code>pdf_identify.py</code> internally for URL/PDF clues), PubMed MCP for DOI/PMCID/title resolution and <code>get_article_metadata</code>, then <code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code>, <code>attach.py --repo &lt;library_root&gt; &lt;pmid&gt; &lt;path&gt; …</code> for local PDF inputs, and, unless skipped, the same <code>fetch.py</code> path as <code>/ref:fetch</code>.</p>
   <h4>See also</h4>
   <p class="writes"><a href="#add"><code>/ref:add</code></a> · <a href="#add-pdf"><code>/ref:add-pdf</code></a> · <a href="#add-url"><code>/ref:add-url</code></a> · <a href="#fetch"><code>/ref:fetch</code></a></p>
 </article>
@@ -538,40 +540,6 @@ fetch:
   <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a> · <a href="write.html#export-papers"><code>/ref:export-papers</code></a> · <a href="../tutorials/papers-handoff.html">Papers handoff tutorial</a></p>
 </article>
 
-<!-- ================= read ================= -->
-<article class="cmd" id="read">
-  <div class="cmd-head"><h3>/ref:read</h3><div class="chips"><span class="tag phase">phase 3</span></div></div>
-  <p class="summary">Render a local reading copy from the current converted full text and any downloaded figure images.</p>
-  <div class="synopsis">/ref:read &lt;pmid…&gt; [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open]</div>
-  <h4>Arguments</h4>
-  <dl class="args">
-    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs. Each paper must already exist and have a current version with <code>source.md</code>.</dd>
-    <dt>--engine simple|quarto</dt><dd>Renderer. <code>simple</code> writes HTML directly; <code>quarto</code> writes <code>article.qmd</code> and renders through Quarto.</dd>
-    <dt>--format html|pdf|both</dt><dd>Output format for <code>--engine quarto</code>. The simple renderer supports HTML only.</dd>
-    <dt>--table-images</dt><dd>With Quarto HTML output, snapshot each rendered table to <code>reader/tables/table-&lt;n&gt;.png</code> and insert the image below the live table.</dd>
-    <dt>--open</dt><dd>Open the primary rendered file after rendering.</dd>
-  </dl>
-  <h4>What happens</h4>
-  <ol>
-    <li>Reads <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, and, when present, <code>versions/&lt;v&gt;/figures.json</code>.</li>
-    <li>Writes <code>papers/&lt;pmid&gt;/reader/article.html</code> with article metadata, converted text, and local figure links. In Quarto mode it also writes <code>article.qmd</code> and can produce <code>article.pdf</code>.</li>
-    <li>Rewrites inline figure references from converted JATS/Pandoc output to point at downloaded assets in <code>versions/&lt;v&gt;/figures/</code>; missing images do not fail the render.</li>
-    <li>When <code>--table-images</code> is set, keeps live/searchable HTML tables and adds PNG snapshots under them for stable visual reading.</li>
-  </ol>
-  <p>This is a reading reconstruction, not the publisher PDF layout. It is best for PMC JATS or attached-PDF conversions when you want a quick local page to read without importing into Papers.app.</p>
-  <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads <code>meta.json</code>, <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, and optional <code>figures.json</code>. Writes <code>reader/article.html</code>, <code>reader/manifest.json</code>, and in Quarto mode <code>reader/article.qmd</code> plus requested rendered outputs. With <code>--table-images</code>, also writes <code>reader/tables/*.png</code>.</p>
-  <h4>Example</h4>
-  <p class="term-label">render and open a paper with all figure assets</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:read 40665956 --engine quarto --format both --table-images --open</span>
-<span class="o">40665956: rendered -- /Users/.../papers/40665956/reader/article.html (figures=3, images=3/3) inline_figures_rewritten=3 table_images=3</span>
-<span class="o">  output: /Users/.../papers/40665956/reader/article.pdf</span></pre>
-  <h4>Under the hood</h4>
-  <p class="writes"><code>read_article.py --repo &lt;library_root&gt; [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open] &lt;pmid…&gt;</code>. No network, no subagent, no publisher scraping.</p>
-  <h4>See also</h4>
-  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#attach"><code>/ref:attach</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a></p>
-</article>
-
 <!-- ================= extract ================= -->
 <article class="cmd" id="extract">
   <div class="cmd-head"><h3>/ref:extract</h3><div class="chips"><span class="tag phase">phase 4</span><span class="tag agent">ref-extractor</span><span class="tag net">PubMed MCP</span></div></div>
@@ -601,54 +569,6 @@ fetch:
   <p class="writes"><code>extract.py --repo &lt;library_root&gt; --input-file &lt;json&gt; --extractor ref-extractor --model &lt;model&gt; --prompt-version 1</code>. The subagent (<span class="tag agent">ref-extractor</span>, <code>agents/ref-extractor.md</code>) only reads text and returns JSON; the script never sees full text or calls PubMed.</p>
   <h4>See also</h4>
   <p class="writes"><a href="organize.html#verify"><code>/ref:verify</code></a> · <a href="maintain.html#index"><code>/ref:index</code></a> · <a href="write.html#compare"><code>/ref:compare</code></a> · <a href="find.html#ask"><code>/ref:ask</code></a> · <a href="../api.html">API: subagent contracts</a></p>
-</article>
-
-<!-- ================= describe-figure ================= -->
-<article class="cmd" id="describe-figure">
-  <div class="cmd-head"><h3>/ref:describe-figure</h3><div class="chips"><span class="tag phase">phase 4</span></div></div>
-  <p class="summary">Ask for a model description of one figure, on demand, and cache it next to the figure without mixing it into the paper's own caption.</p>
-  <div class="synopsis">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt; [--model &lt;name&gt;] [--prompt &lt;text&gt;]</div>
-  <h4>Arguments</h4>
-  <dl class="args">
-    <dt>&lt;pmid&gt;</dt><dd>Required.</dd>
-    <dt>&lt;figure-id&gt;</dt><dd>Required. An <code>id</code> in <code>figures.json</code> of the paper's current version.</dd>
-    <dt>--model &lt;name&gt;</dt><dd>Defaults to the calling model's own name.</dd>
-    <dt>--prompt &lt;text&gt;</dt><dd>Defaults to a plain "describe this figure" prompt. The cache key is the exact (figure hash, model, prompt) triple, so a different prompt is a new request.</dd>
-  </dl>
-  <p>If no <code>&lt;pmid&gt;</code> is given at all, Claude runs the shared <code>lib_selector.py recent</code> picker and presents results via a multi-select question labelled <code>&lt;title&gt; (&lt;citekey&gt;, &lt;year&gt;)</code>, instead of asking you to recall a PMID from memory. Once a paper is picked, Claude runs <code>vision.py list --repo &lt;library_root&gt; --pmid &lt;pmid&gt;</code> so you can choose a figure from that version's inventory (id + caption) rather than needing to already know the figure ID.</p>
-  <h4>What happens</h4>
-  <ol>
-    <li><code>request</code> looks the figure up and branches on status:
-      <ul>
-        <li><code>cache_hit</code>: the stored description is shown, labelled as a prior model interpretation.</li>
-        <li><code>asset_unavailable</code>: the image bytes were never fetched (common, since JATS/HTML conversion records figure locators, not bytes). There is nothing to look at, so no description is written.</li>
-        <li><code>figure_not_found</code>: the figure ID is wrong.</li>
-        <li><code>needs_description</code>: Claude looks at the actual image and writes a description. It says so if the image isn't viewable, rather than guessing from the caption.</li>
-      </ul>
-    </li>
-    <li><code>store</code> saves the description in the figure's <code>vision</code> list with <code>kind: "model_interpretation"</code>, the figure hash, model, prompt, and timestamp. It replaces any earlier entry for the same model and prompt.</li>
-  </ol>
-  <p>This never runs automatically over every figure. A description is always presented as a model interpretation, separate from the caption and the paper's reported findings.</p>
-  <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads <code>current.json</code> and <code>versions/&lt;v&gt;/figures.json</code>; <code>store</code> writes the <code>vision[]</code> entry back into that <code>figures.json</code>.</p>
-  <h4>Example</h4>
-  <p class="term-label">illustrative output</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:describe-figure 31452104 F2</span>
-<span class="o">{</span>
-<span class="o">  "status": "asset_unavailable",</span>
-<span class="o">  "figure_id": "F2",</span>
-<span class="o">  "reason": "figure image bytes were not fetched during conversion; nothing to describe"</span>
-<span class="o">}</span></pre>
-  <p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:describe-figure 31452104 fig1</span>
-<span class="o">{</span>
-<span class="o">  "status": "figure_not_found",</span>
-<span class="o">  "figure_id": "fig1"</span>
-<span class="o">}</span></pre>
-  <h4>Under the hood</h4>
-  <p class="writes"><code>vision.py request --repo &lt;library_root&gt; --pmid &lt;pmid&gt; --figure-id &lt;id&gt; --model &lt;model&gt; --prompt &lt;prompt&gt;</code>, then on a cache miss <code>vision.py store … --description "&lt;text&gt;"</code>. The script never calls a vision model; the calling agent does the looking. Both accept <code>--version</code> (default <code>current</code>).</p>
-  <h4>See also</h4>
-  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="organize.html#verify"><code>/ref:verify</code></a> · <a href="../concepts.html">Concepts</a></p>
 </article>
 
 </div>

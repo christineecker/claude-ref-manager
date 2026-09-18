@@ -42,6 +42,9 @@ Steps:
    - a `bib_file`/`csl_file` result with `"result": "no_clues"` means the
      file parsed but had zero entries (or wasn't valid BibTeX/JSON). Report
      it and move on; there's nothing to resolve.
+
+   "Skip" above means skip resolution and add. A duplicate `pdf` item is still
+   attached in step 6.
 3. For every remaining item (not a batch/library duplicate), resolve to a PMID:
    - `kind: "pmid"` — use it directly.
    - `kind: "doi"` or a `doi` clue on a `url`/`pdf` item — call PubMed MCP
@@ -66,10 +69,25 @@ Steps:
    ```
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/add.py" add --repo <library_root> --metadata-file <temp-file>
    ```
-6. Unless `--no-fetch` was passed, fetch full text for every PMID that now has a
+6. Attach every `kind: "pdf"` input to its PMID — the PDF is a source file, not
+   just an identity clue. This includes `pdf` items flagged `already_imported`
+   (attach to `existing_pmid`) or `duplicate_in_batch` (attach to the PMID the
+   first occurrence resolved to); only skip a `pdf` item that never resolved to
+   a PMID or whose PMID has no `papers/<pmid>/meta.json` after step 5. Run one
+   call for all pairs:
+   ```
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/attach.py" --repo <library_root> <pmid1> <path1> [<pmid2> <path2> ...]
+   ```
+   `--no-fetch` does not skip this stage: attaching a local file is not network
+   acquisition. A `refused` identity check is reported, never forced — point the
+   user at `/ref:attach <pmid> <path> --force` if they accept the match. Attach
+   runs before fetch on purpose: each commits a new current version, and a
+   later JATS acquisition is higher fidelity than PDF-converted text, while the
+   PDF stays stored under `raw/<sha256>/source.pdf` either way.
+7. Unless `--no-fetch` was passed, fetch full text for every PMID that now has a
    `papers/<pmid>/meta.json`, using the same `/ref:fetch` priority ladder:
    PMC JATS, PubMed plain text, Unpaywall, publisher HTML, otherwise abstract-only.
-7. Print all stage output verbatim under headers so the user can see where each
+8. Print all stage output verbatim under headers so the user can see where each
    paper came from and whether it was added, already imported, attached, or fetched.
 
 Suggested output shape:
@@ -79,6 +97,9 @@ classify:
 
 add:
 ...
+
+attach:
+<pmid>: attached|duplicate_noop|refused|failed ...
 
 fetch:
 ...

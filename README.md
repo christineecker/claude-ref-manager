@@ -67,13 +67,13 @@ claude --plugin-dir /path/to/claude-ref-manager
 /ref:init <path-to-library-root>
 /ref:status
 /ref:add <pmid> [<pmid> ...]
-/ref:import <item...>
+/ref:add-sources <item...>
 ```
 
 `/ref:init` records the library root in `~/.config/ref-manager/config.json` (D2);
 every other command resolves it from there rather than taking `--repo`.
 For mixed intake from URLs, PDFs, DOI strings, or bibliography files, use
-`/ref:import` or the source-specific `/ref:add-url`, `/ref:add-pdf`, and
+`/ref:add-sources` or the source-specific `/ref:add-url`, `/ref:add-pdf`, and
 `/ref:add-fetch` commands.
 The [Get started](https://christineecker.github.io/claude-ref-manager/getting-started.html)
 tutorial walks through adding, fetching, extracting, searching and citing papers.

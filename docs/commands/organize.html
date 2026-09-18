@@ -28,6 +28,8 @@
   <h4>Organize</h4>
   <ol>
     <li><a href="#overview">How they fit</a></li>
+    <li><a href="#read"><code>/ref:read</code></a></li>
+    <li><a href="#describe-figure"><code>/ref:describe-figure</code></a></li>
     <li><a href="#project"><code>/ref:project</code></a></li>
     <li><a href="#queue"><code>/ref:queue</code></a></li>
     <li><a href="#screen"><code>/ref:screen</code></a></li>
@@ -163,6 +165,86 @@
 
 <section>
 <h2>Commands</h2>
+
+<article class="cmd" id="read">
+  <div class="cmd-head"><h3>/ref:read</h3><div class="chips"><span class="tag phase">phase 3</span></div></div>
+  <p class="summary">Render a local reading copy from the current converted full text and any downloaded figure images.</p>
+  <div class="synopsis">/ref:read &lt;pmid…&gt; [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid…&gt;</dt><dd>One or more PubMed IDs. Each paper must already exist and have a current version with <code>source.md</code>.</dd>
+    <dt>--engine simple|quarto</dt><dd>Renderer. <code>simple</code> writes HTML directly; <code>quarto</code> writes <code>article.qmd</code> and renders through Quarto.</dd>
+    <dt>--format html|pdf|both</dt><dd>Output format for <code>--engine quarto</code>. The simple renderer supports HTML only.</dd>
+    <dt>--table-images</dt><dd>With Quarto HTML output, snapshot each rendered table to <code>reader/tables/table-&lt;n&gt;.png</code> and insert the image below the live table.</dd>
+    <dt>--open</dt><dd>Open the primary rendered file after rendering.</dd>
+  </dl>
+  <h4>What happens</h4>
+  <ol>
+    <li>Reads <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, and, when present, <code>versions/&lt;v&gt;/figures.json</code>.</li>
+    <li>Writes <code>papers/&lt;pmid&gt;/reader/article.html</code> with article metadata, converted text, and local figure links. In Quarto mode it also writes <code>article.qmd</code> and can produce <code>article.pdf</code>.</li>
+    <li>Rewrites inline figure references from converted JATS/Pandoc output to point at downloaded assets in <code>versions/&lt;v&gt;/figures/</code>; missing images do not fail the render.</li>
+    <li>When <code>--table-images</code> is set, keeps live/searchable HTML tables and adds PNG snapshots under them for stable visual reading.</li>
+  </ol>
+  <p>This is a reading reconstruction, not the publisher PDF layout. It is best for PMC JATS or attached-PDF conversions when you want a quick local page to read without importing into Papers.app.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>meta.json</code>, <code>current.json</code>, <code>versions/&lt;v&gt;/source.md</code>, and optional <code>figures.json</code>. Writes <code>reader/article.html</code>, <code>reader/manifest.json</code>, and in Quarto mode <code>reader/article.qmd</code> plus requested rendered outputs. With <code>--table-images</code>, also writes <code>reader/tables/*.png</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">render and open a paper with all figure assets</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:read 40665956 --engine quarto --format both --table-images --open</span>
+<span class="o">40665956: rendered -- /Users/.../papers/40665956/reader/article.html (figures=3, images=3/3) inline_figures_rewritten=3 table_images=3</span>
+<span class="o">  output: /Users/.../papers/40665956/reader/article.pdf</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>read_article.py --repo &lt;library_root&gt; [--engine simple|quarto] [--format html|pdf|both] [--table-images] [--open] &lt;pmid…&gt;</code>. No network, no subagent, no publisher scraping.</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="acquire.html#attach"><code>/ref:attach</code></a> · <a href="maintain.html#open"><code>/ref:open</code></a></p>
+</article>
+
+<article class="cmd" id="describe-figure">
+  <div class="cmd-head"><h3>/ref:describe-figure</h3><div class="chips"><span class="tag phase">phase 4</span></div></div>
+  <p class="summary">Ask for a model description of one figure, on demand, and cache it next to the figure without mixing it into the paper's own caption.</p>
+  <div class="synopsis">/ref:describe-figure &lt;pmid&gt; &lt;figure-id&gt; [--model &lt;name&gt;] [--prompt &lt;text&gt;]</div>
+  <h4>Arguments</h4>
+  <dl class="args">
+    <dt>&lt;pmid&gt;</dt><dd>Required.</dd>
+    <dt>&lt;figure-id&gt;</dt><dd>Required. An <code>id</code> in <code>figures.json</code> of the paper's current version.</dd>
+    <dt>--model &lt;name&gt;</dt><dd>Defaults to the calling model's own name.</dd>
+    <dt>--prompt &lt;text&gt;</dt><dd>Defaults to a plain "describe this figure" prompt. The cache key is the exact (figure hash, model, prompt) triple, so a different prompt is a new request.</dd>
+  </dl>
+  <p>If no <code>&lt;pmid&gt;</code> is given at all, Claude runs the shared <code>lib_selector.py recent</code> picker and presents results via a multi-select question labelled <code>&lt;title&gt; (&lt;citekey&gt;, &lt;year&gt;)</code>, instead of asking you to recall a PMID from memory. Once a paper is picked, Claude runs <code>vision.py list --repo &lt;library_root&gt; --pmid &lt;pmid&gt;</code> so you can choose a figure from that version's inventory (id + caption) rather than needing to already know the figure ID.</p>
+  <h4>What happens</h4>
+  <ol>
+    <li><code>request</code> looks the figure up and branches on status:
+      <ul>
+        <li><code>cache_hit</code>: the stored description is shown, labelled as a prior model interpretation.</li>
+        <li><code>asset_unavailable</code>: the image bytes were never fetched (common, since JATS/HTML conversion records figure locators, not bytes). There is nothing to look at, so no description is written.</li>
+        <li><code>figure_not_found</code>: the figure ID is wrong.</li>
+        <li><code>needs_description</code>: Claude looks at the actual image and writes a description. It says so if the image isn't viewable, rather than guessing from the caption.</li>
+      </ul>
+    </li>
+    <li><code>store</code> saves the description in the figure's <code>vision</code> list with <code>kind: "model_interpretation"</code>, the figure hash, model, prompt, and timestamp. It replaces any earlier entry for the same model and prompt.</li>
+  </ol>
+  <p>This never runs automatically over every figure. A description is always presented as a model interpretation, separate from the caption and the paper's reported findings.</p>
+  <h4>Reads &amp; writes</h4>
+  <p class="writes">Reads <code>current.json</code> and <code>versions/&lt;v&gt;/figures.json</code>; <code>store</code> writes the <code>vision[]</code> entry back into that <code>figures.json</code>.</p>
+  <h4>Example</h4>
+  <p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:describe-figure 31452104 F2</span>
+<span class="o">{</span>
+<span class="o">  "status": "asset_unavailable",</span>
+<span class="o">  "figure_id": "F2",</span>
+<span class="o">  "reason": "figure image bytes were not fetched during conversion; nothing to describe"</span>
+<span class="o">}</span></pre>
+  <p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:describe-figure 31452104 fig1</span>
+<span class="o">{</span>
+<span class="o">  "status": "figure_not_found",</span>
+<span class="o">  "figure_id": "fig1"</span>
+<span class="o">}</span></pre>
+  <h4>Under the hood</h4>
+  <p class="writes"><code>vision.py request --repo &lt;library_root&gt; --pmid &lt;pmid&gt; --figure-id &lt;id&gt; --model &lt;model&gt; --prompt &lt;prompt&gt;</code>, then on a cache miss <code>vision.py store … --description "&lt;text&gt;"</code>. The script never calls a vision model; the calling agent does the looking. Both accept <code>--version</code> (default <code>current</code>).</p>
+  <h4>See also</h4>
+  <p class="writes"><a href="acquire.html#fetch"><code>/ref:fetch</code></a> · <a href="#verify"><code>/ref:verify</code></a> · <a href="../concepts.html">Concepts</a></p>
+</article>
 
 <article class="cmd" id="project">
   <div class="cmd-head"><h3>/ref:project</h3><div class="chips"><span class="tag phase">phase 1</span></div></div>

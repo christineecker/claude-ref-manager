@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Claim Schema Cheat Sheet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.86rem; }
+  th, td { border: 1px solid var(--rule); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td code { white-space: nowrap; }
+  tr.base { background: #faf8f2; }
+</style>
+</head>
+<body>
+
+<p class="kicker">Reference &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>Claim Schema Cheat Sheet</h1>
+<p class="lede">Every field in a <code>claims.json</code> entry, and the three-case supersession rule.</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <a href="../../concepts.html#claims">docs/concepts.html, &ldquo;The claim contract&rdquo;</a>,
+  <code>validate_claim</code> in <code>skills/ref-manager/scripts/lib_schema.py</code>. Narrative version:
+  <a href="../lessons/0004-the-claim-contract.html">Lesson 0004</a>.
+</div>
+
+<h2>Fields</h2>
+<table>
+  <tr><th>Field</th><th>Rule</th><th>Set by</th></tr>
+  <tr><td><code>claim_id</code></td><td>opaque <code>c-</code> + 12 hex</td><td><code>extract.py</code></td></tr>
+  <tr><td><code>pmid</code> / <code>version_id</code></td><td>required str</td><td><code>extract.py</code></td></tr>
+  <tr><td><code>evidence_tier</code></td><td><code>abstract</code> or <code>full</code></td><td>agent, else defaulted</td></tr>
+  <tr><td><code>source_hash</code></td><td>required str, may be empty</td><td>input record</td></tr>
+  <tr><td><code>locator</code></td><td>section / page / table / figure</td><td>agent</td></tr>
+  <tr><td><code>evidence_span</code></td><td>required str, direct quote</td><td>agent</td></tr>
+  <tr><td><code>study_type</code></td><td><code>rct cohort case_control meta_analysis molecular imaging review mixed unknown</code></td><td>agent (paper-level)</td></tr>
+  <tr class="base"><td>12 normalized fields</td><td><code>population intervention comparator outcome timepoint direction effect_value effect_measure uncertainty_interval study_design cohort_identity adjustment_context</code> &mdash; every key present, <code>"unknown"</code> counts as present</td><td>agent; missing &rarr; <code>"unknown"</code></td></tr>
+  <tr><td><code>content_hash</code></td><td>sha256 of the 12 normalized fields + <code>study_type</code></td><td><code>extract.py</code></td></tr>
+  <tr><td><code>status</code></td><td><code>active</code> or <code>superseded</code></td><td><code>extract.py</code></td></tr>
+  <tr><td><code>excluded_from_synthesis</code></td><td>bool, <code>true</code> after a <code>reject</code> correction</td><td><code>extract.py</code>, <code>lib_verify_link.py</code></td></tr>
+  <tr><td><code>supersedes</code> / <code>superseded_by</code></td><td>optional links</td><td><code>extract.py</code></td></tr>
+</table>
+
+<h2>Retrieval invariant</h2>
+<p>A claim is "in play" only when <strong>both</strong> hold:</p>
+<pre><code>status = 'active' AND excluded_from_synthesis = 0</code></pre>
+<p><code>status</code> tracks supersession (a rerun replaced it). <code>excluded_from_synthesis</code>
+tracks human rejection (<code>/ref:verify ... reject</code>). Independent axes &mdash; check both.</p>
+
+<h2>Stable IDs across reruns &mdash; three cases</h2>
+<table>
+  <tr><th>Content hash</th><th>Prior claims at same locator</th><th>Result</th></tr>
+  <tr><td>Matches</td><td>&mdash;</td><td>Keeps existing <code>claim_id</code>. Nothing new.</td></tr>
+  <tr><td>No match</td><td>Exactly one, unconsumed</td><td>New <code>claim_id</code> + <code>supersedes</code>; old flips to <code>status: superseded</code> + <code>superseded_by</code>, kept in registry.</td></tr>
+  <tr><td>No match</td><td>Zero or several</td><td>New <code>claim_id</code>, no supersession asserted.</td></tr>
+</table>
+<p><code>claim_registry.json</code> keeps every claim ever committed &mdash; nothing is ever deleted, only marked superseded.</p>
+
+<h2>A real claim</h2>
+<pre><code>{
+  "adjustment_context": "unknown", "claim_id": "c-2a41dbb8e59f",
+  "cohort_identity": "unknown", "comparator": "non-autistic controls",
+  "content_hash": "23d6faf2ca79f3fa25c048bf9021d18d11f0901a1b6517da5cbaaf9fe48fa9de",
+  "direction": "decrease", "effect_measure": "unknown", "effect_value": "unknown",
+  "evidence_span": "Autistic adults showed reduced cortical thickness compared with controls.",
+  "evidence_tier": "abstract", "excluded_from_synthesis": false,
+  "intervention": "autism diagnosis", "locator": "abstract",
+  "outcome": "cortical thickness", "pmid": "90000001",
+  "population": "autistic adults", "source_hash": "", "status": "active",
+  "study_design": "cohort", "study_type": "cohort", "timepoint": "unknown",
+  "uncertainty_interval": "unknown", "version_id": "v-ff60b1f75514"
+}</code></pre>
+
+<div class="nav-links">
+  See also: <a href="../lessons/0001-paper-repo-anatomy.html">Lesson 0001</a>,
+  <a href="../lessons/0003-acquire-to-extract-pipeline.html">Lesson 0003</a>,
+  <a href="../lessons/0004-the-claim-contract.html">Lesson 0004</a>,
+  <a href="pipeline-commands.html">Pipeline Command Cheat Sheet</a>.
+</div>
+
+</body>
+</html>

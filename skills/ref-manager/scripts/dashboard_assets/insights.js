@@ -273,8 +273,8 @@ window.RefDashInsights = function (ctx) {
     var wrap = el("div", { className: "pcmds" }, [
       el("button", { className: "cmdbtn", text: "Copy PubMed query", attrs: { type: "button", title: q }, on: { click: function () { copyText(q); } } }),
       el("button", {
-        className: "cmdbtn", text: "Copy /ref:search-pubmed", attrs: { type: "button" },
-        on: { click: function () { copyText("/ref:search-pubmed '" + q + "' --slug " + slug + " --create"); } },
+        className: "cmdbtn", text: "Copy /ref:query-pubmed", attrs: { type: "button" },
+        on: { click: function () { copyText("/ref:query-pubmed '" + q + "' --slug " + slug + " --create"); } },
       }),
     ]);
     if (candidates && candidates.size) {

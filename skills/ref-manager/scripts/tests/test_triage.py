@@ -156,10 +156,10 @@ class TestInitAndBatches(TriageFixture):
     def test_failed_fetch_leaves_earlier_batches_intact(self):
         triage.init(self.root, "asd-ct")
         triage.load_batch(self.root, "asd-ct", 2, fetcher=FakeFetcher())
-        before = sorted(p.name for p in (self.root / "triage" / "asd-ct" / "metadata").iterdir())
+        before = sorted(p.name for p in (self.root / "queries" / "asd-ct" / "metadata").iterdir())
         with self.assertRaises(lib_eutils.EutilsError):
             triage.load_batch(self.root, "asd-ct", 2, fetcher=FakeFetcher(fail=True))
-        after = sorted(p.name for p in (self.root / "triage" / "asd-ct" / "metadata").iterdir())
+        after = sorted(p.name for p in (self.root / "queries" / "asd-ct" / "metadata").iterdir())
         self.assertEqual(before, after)
 
     def test_explicit_pmids_must_belong_to_the_search(self):
@@ -168,11 +168,43 @@ class TestInitAndBatches(TriageFixture):
             triage.load_batch(self.root, "asd-ct", pmids=["99999999"], fetcher=FakeFetcher())
 
     def test_saved_query_file_is_never_modified(self):
-        qpath = self.root / "queries" / "asd-ct.yaml"
+        qpath = self.root / "queries" / "asd-ct" / "query.yaml"
         before = qpath.read_bytes()
         self.init_loaded()
         triage.decide(self.root, "asd-ct", PMIDS[:2], "included")
         self.assertEqual(qpath.read_bytes(), before)
+
+
+class TestLegacyLayoutMigration(TriageFixture):
+    def make_legacy(self):
+        """Rewind the fixture to the old queries/<slug>.yaml + triage/<slug>/ layout."""
+        self.init_loaded("proj-a")
+        triage.decide(self.root, "asd-ct", PMIDS[:1], "excluded")
+        qdir = self.root / "queries" / "asd-ct"
+        (self.root / "queries" / "asd-ct.yaml").write_bytes((qdir / "query.yaml").read_bytes())
+        (qdir / "query.yaml").unlink()
+        shutil.move(str(qdir), str(self.root / "triage" / "asd-ct"))
+
+    def test_legacy_library_is_migrated_on_first_access(self):
+        self.make_legacy()
+        self.assertEqual(pubmed_query.list_queries(self.root), ["asd-ct"])
+        qdir = self.root / "queries" / "asd-ct"
+        self.assertTrue((qdir / "query.yaml").is_file())
+        self.assertTrue((qdir / "triage.json").is_file())
+        self.assertTrue((qdir / "decisions.jsonl").is_file())
+        self.assertTrue((qdir / "metadata").is_dir())
+        self.assertFalse((self.root / "queries" / "asd-ct.yaml").exists())
+        self.assertFalse((self.root / "triage").exists())
+        self.assertEqual(project.linked_triages(self.root, "proj-a"), ["asd-ct"])
+        self.assertEqual(triage.view(self.root, "asd-ct", rows=[])["counts"]["decisions"]["excluded"], 1)
+
+    def test_migration_never_overwrites_existing_targets(self):
+        self.make_legacy()
+        (self.root / "queries" / "asd-ct").mkdir()
+        (self.root / "queries" / "asd-ct" / "triage.json").write_text('{"slug": "asd-ct", "project": null}')
+        pubmed_query.list_queries(self.root)
+        self.assertEqual(json.loads((self.root / "queries" / "asd-ct" / "triage.json").read_text())["project"], None)
+        self.assertTrue((self.root / "triage" / "asd-ct" / "triage.json").is_file())
 
 
 class TestDecisions(TriageFixture):

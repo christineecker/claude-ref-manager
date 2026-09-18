@@ -439,7 +439,7 @@
   </dl>
   <h4>What happens · --prisma</h4>
   <ol>
-    <li>Identified and duplicates come from <code>queries/&lt;slug&gt;.yaml</code> run histories; screened and excluded (by reason) from <code>projects/&lt;slug&gt;/screening.jsonl</code>; sought and not-retrieved from each included paper's <code>full_text</code> flag; included studies from <code>studies/studies.jsonl</code>.</li>
+    <li>Identified and duplicates come from <code>queries/&lt;slug&gt;/query.yaml</code> run histories; screened and excluded (by reason) from <code>projects/&lt;slug&gt;/screening.jsonl</code>; sought and not-retrieved from each included paper's <code>full_text</code> flag; included studies from <code>studies/studies.jsonl</code>.</li>
     <li>Nothing is re-run or estimated. Counts with no committed evidence read <code>"unknown"</code> and are named in <code>unresolved_query_specs</code> or <code>unevidenced_*</code> rather than fudged to make the arithmetic balance.</li>
     <li>Included publications and included studies are reported separately, since several papers can report one study.</li>
   </ol>
@@ -492,7 +492,7 @@
   <h4>Under the hood</h4>
   <p class="writes">Appraised: <code>appraise.py --repo &lt;root&gt; [selector] --batch &lt;label&gt; [--refresh]</code>; reviews recorded with <code>verify.py review-appraisal --pmid … --checklist RoB2|Newcastle-Ottawa|AMSTAR-2 --domain-key … --decision accept|edit|reject --reviewer … --rationale …</code>. PRISMA: <code>prisma.py --repo &lt;root&gt; --project &lt;slug&gt; [--query …] [--refresh]</code>. No subagent in either mode.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="organize.html#screen">/ref:screen</a> · <a href="find.html#search-pubmed">/ref:search-pubmed</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="organize.html#study">/ref:study</a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+  <p class="writes"><a href="organize.html#screen">/ref:screen</a> · <a href="find.html#query-pubmed">/ref:query-pubmed</a> · <a href="organize.html#verify">/ref:verify</a> · <a href="organize.html#study">/ref:study</a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
 </article>
 
 <!-- ================================================================ check-citations -->

@@ -4,7 +4,7 @@ then add and fetch a bounded set of results.
 Parse `$ARGUMENTS` for:
 - `<question or PICO>` — required. Can also be an explicit PubMed query.
 - `--slug <slug>` — required. Names the saved search run under
-  `queries/<slug>.yaml`.
+  `queries/<slug>/query.yaml`.
 - `--create` — pass for the first run of a new slug.
 - `--limit <N>` — optional cap on PMIDs to ingest. Default `20`. Refuse values
   above `100` unless the user explicitly confirms.

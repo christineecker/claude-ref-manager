@@ -6,11 +6,11 @@
 """`/ref:review --prisma --project <slug>` -- PRISMA 2020 flow record (§5a).
 
 Every count is a query over already-committed state, never a re-derivation:
-  - identified   <- queries/<slug>.yaml immutable run histories (explicit
+  - identified   <- queries/<slug>/query.yaml immutable run histories (explicit
                      --query <slug> args select which saved queries feed
                      this project. Without --query, the saved searches
                      whose triage is linked to the project
-                     (triage/<slug>/triage.json "project") are used --
+                     (queries/<slug>/triage.json "project") are used --
                      a triage's slug is its saved query's slug
                      (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md P3). With neither,
                      identified stays "unknown")
@@ -42,6 +42,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_ids import gen_opaque_id
+from lib_queries import query_file
 from project import linked_triages
 
 
@@ -50,7 +51,7 @@ def _project_dir(library_root: Path, slug: str) -> Path:
 
 
 def _load_query_run(library_root: Path, query_slug: str, run_id: str | None) -> dict | None:
-    p = library_root / "queries" / f"{query_slug}.yaml"
+    p = query_file(library_root, query_slug)
     if not p.exists():
         return None
     doc = json.loads(p.read_text())

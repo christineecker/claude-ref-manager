@@ -137,9 +137,7 @@ class TestSearchScopeLabels(TempLibrary):
 
     def test_all_scope_matches_saved_query_context(self):
         self.add_paper("2008", "Saved Query Paper", "about queries", [author("Query", "Quinn")])
-        queries_dir = self.library_root / "queries"
-        queries_dir.mkdir(parents=True, exist_ok=True)
-        atomic_write_json(queries_dir / "q1.yaml", {
+        atomic_write_json(self.library_root / "queries" / "q1" / "query.yaml", {
             "slug": "q1",
             "runs": [{
                 "run_id": "run-abc",

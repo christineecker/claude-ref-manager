@@ -150,7 +150,7 @@ table.sel td:first-child{white-space:normal}
   <tbody>
     <tr><td>mcp__claude_ai_PubMed__get_article_metadata</td><td><a href="commands/acquire.html#add"><code>/ref:add</code></a>, <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> (retraction status), <a href="commands/maintain.html#audit"><code>/ref:audit</code></a></td></tr>
     <tr><td>mcp__claude_ai_PubMed__get_full_text_article</td><td><a href="commands/acquire.html#fetch"><code>/ref:fetch</code></a></td></tr>
-    <tr><td>mcp__claude_ai_PubMed__search_articles</td><td><a href="commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a>, <a href="commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a></td></tr>
+    <tr><td>mcp__claude_ai_PubMed__search_articles</td><td><a href="commands/find.html#query-pubmed"><code>/ref:query-pubmed</code></a>, <a href="commands/graph.html#hypothesize"><code>/ref:hypothesize</code></a></td></tr>
     <tr><td>mcp__claude_ai_PubMed__find_related_articles</td><td><a href="commands/find.html#related"><code>/ref:related</code></a></td></tr>
   </tbody>
 </table>
@@ -378,8 +378,8 @@ options:
 </article>
 <article class="cmd" id="cli-pubmed-query">
   <div class="cmd-head"><h3>pubmed_query.py</h3></div>
-  <p class="summary">Saved PubMed queries in <code>queries/&lt;slug&gt;.yaml</code> with immutable run histories.</p>
-  <p class="writes">Called by <a href="commands/find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="commands/find.html#update-queries"><code>/ref:update-queries</code></a> · stdout: JSON document</p>
+  <p class="summary">Saved PubMed queries in <code>queries/&lt;slug&gt;/query.yaml</code> with immutable run histories.</p>
+  <p class="writes">Called by <a href="commands/find.html#query-pubmed"><code>/ref:query-pubmed</code></a> · <a href="commands/find.html#update-query"><code>/ref:update-query</code></a> · stdout: JSON document</p>
   <details><summary><code>pubmed_query.py --help</code></summary><pre class="code">usage: pubmed_query.py [-h] --repo REPO [--slug SLUG]
                        [--query-text QUERY_TEXT] [--source SOURCE]
                        [--pmids-file PMIDS_FILE] [--create]
@@ -1209,6 +1209,15 @@ options:
   <dt>make_citekey_base(author_lastname, year, first_title_word)</dt><dd>Returns <code>authorYearFirstword</code>, lowercased and alphanumeric only.</dd>
   <dt>allocate_citekey(library_root, author_lastname, year, first_title_word)</dt><dd>Adds a <code>-2</code>, <code>-3</code> … suffix under the lock and records it in <code>index/citekeys.json</code>.</dd>
   <dt>gen_opaque_id(prefix="")</dt><dd>Prefix + <code>secrets.token_hex(6)</code>.</dd>
+</dl>
+
+<h3>lib_queries.py: saved-query folder layout</h3>
+<dl class="args">
+  <dt>query_dir(library_root, slug)</dt><dd><code>queries/&lt;slug&gt;/</code>: holds <code>query.yaml</code> and, once triaged, <code>triage.json</code>, <code>metadata/</code>, <code>decisions.jsonl</code>, <code>pending.json</code>.</dd>
+  <dt>query_file(library_root, slug)</dt><dd><code>queries/&lt;slug&gt;/query.yaml</code>.</dd>
+  <dt>query_slugs(library_root)</dt><dd>Sorted slugs that have a <code>query.yaml</code>.</dd>
+  <dt>triage_files(library_root)</dt><dd>Every <code>queries/*/triage.json</code>.</dd>
+  <dt>migrate(library_root)</dt><dd>Moves a legacy <code>queries/&lt;slug&gt;.yaml</code> + <code>triage/&lt;slug&gt;/</code> library into the folder layout. Idempotent, never overwrites; every accessor above calls it first.</dd>
 </dl>
 
 <h3>lib_schema.py: record validators</h3>

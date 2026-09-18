@@ -3,8 +3,8 @@ and open the Triage tab so you can screen the results.
 
 Parse `$ARGUMENTS` for:
 - `<question text>` or an explicit PubMed query expression.
-- `--slug <slug>` — required, names the saved query (`queries/<slug>.yaml`) and
-  its triage (`triage/<slug>/`).
+- `--slug <slug>` — required, names the saved query folder `queries/<slug>/`, which
+  holds the query (`query.yaml`) and its triage files.
 - `--create` — pass when this is the first run for a new slug.
 - `--project <slug>` — optional, link the triage to an existing project so
   decisions also go into that project's screening log. A triage without a
@@ -29,8 +29,9 @@ Steps:
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/pubmed_query.py" new-run --repo <library_root> --slug <slug> --query-text "<exact query>" --source pubmed --pmids-file <temp-file> [--create]
    ```
    Print the script's own output verbatim. The saved run is immutable — a later
-   `/ref:update-queries <slug>` re-runs this exact stored expression, it does not
-   re-derive a new one from the original question.
+   `/ref:update-query <slug>` re-runs this exact stored expression (or one
+   refined by explicit update terms), it does not re-derive a new one from the
+   original question.
 5. Unless `--no-triage` was passed:
    a. Print, then run (creates the triage, or reuses an existing one):
       ```

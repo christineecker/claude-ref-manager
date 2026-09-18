@@ -45,9 +45,9 @@ Steps:
 - `/ref:search` — search the library's evidence, or your personal notes, with distinct labels
 - `/ref:ask <question>` — retrieve evidence and write one grounded answer with `[^pmid]` citations
 - `/ref:pubmed-query <question>` — translate a prompt or PICO into a PubMed query without running it
-- `/ref:search-pubmed` — turn a question into a PubMed query, save the run immutably, and open its Triage tab
+- `/ref:query-pubmed` — turn a question into a PubMed query, save the run immutably, and open its Triage tab
 - `/ref:triage <slug>` — screen a saved search in the dashboard: Include adds papers, optional project link, load more in batches of 100, `apply` fetches pending full text
-- `/ref:update-queries <slug>` — manually re-run a saved query and append a new run
+- `/ref:update-query <slug> [update terms]` — re-run a saved query, optionally refined, and append a new run (asks for terms or exit when none given)
 - `/ref:related <pmid>` — snowball backward through references and forward via PubMed
 
 **Organize & review**

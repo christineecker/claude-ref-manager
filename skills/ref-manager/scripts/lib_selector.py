@@ -35,6 +35,7 @@ import json
 from pathlib import Path
 
 from lib_atomic import read_json
+from lib_queries import query_file
 
 
 class SelectorError(ValueError):
@@ -56,7 +57,7 @@ def _project_membership(library_root: Path, slug: str) -> list[dict]:
 
 
 def _query_run_pmids(library_root: Path, slug: str, run_id: str | None) -> tuple[list[str], str]:
-    qpath = library_root / "queries" / f"{slug}.yaml"
+    qpath = query_file(library_root, slug)
     if not qpath.exists():
         raise SelectorError(f"--query {slug!r}: no such saved query")
     doc = read_json(qpath, {"runs": []})

@@ -29,14 +29,14 @@
 <header class="page">
   <p class="eyebrow">Tutorial</p>
   <h1>A systematic review, from saved search to PRISMA flow</h1>
-  <p class="lede">You'll run a PubMed search you can reproduce, screen the hits with a written reason for every decision, get full text, render a PRISMA 2020 flow record from what's on disk, and then run an appraised review over the included set. Commands used: <code>/ref:project</code>, <code>/ref:search-pubmed</code>, <code>/ref:update-queries</code>, <code>/ref:add</code>, <code>/ref:screen</code>, <code>/ref:fetch</code>, <code>/ref:attach</code>, <code>/ref:review --prisma</code>, and <code>/ref:review</code>.</p>
+  <p class="lede">You'll run a PubMed search you can reproduce, screen the hits with a written reason for every decision, get full text, render a PRISMA 2020 flow record from what's on disk, and then run an appraised review over the included set. Commands used: <code>/ref:project</code>, <code>/ref:query-pubmed</code>, <code>/ref:update-query</code>, <code>/ref:add</code>, <code>/ref:screen</code>, <code>/ref:fetch</code>, <code>/ref:attach</code>, <code>/ref:review --prisma</code>, and <code>/ref:review</code>.</p>
 </header>
 
 <section>
 <h2>The journey</h2>
 <figure>
 <div class="svg-wrap">
-<svg viewBox="0 0 940 300" role="img" aria-label="Journey map in six steps. /ref:search-pubmed and /ref:update-queries write immutable runs to queries/slug.yaml. /ref:add writes papers/pmid/meta.json. /ref:screen appends to projects/slug/screening.jsonl. /ref:fetch and /ref:attach add full text and set the full_text flag. /ref:review --prisma reads all of these and writes projects/slug/prisma/snapshot-id/. /ref:review with --screened included writes projects/slug/reviews/batch/.">
+<svg viewBox="0 0 940 300" role="img" aria-label="Journey map in six steps. /ref:query-pubmed and /ref:update-query write immutable runs to queries/slug/query.yaml. /ref:add writes papers/pmid/meta.json. /ref:screen appends to projects/slug/screening.jsonl. /ref:fetch and /ref:attach add full text and set the full_text flag. /ref:review --prisma reads all of these and writes projects/slug/prisma/snapshot-id/. /ref:review with --screened included writes projects/slug/reviews/batch/.">
   <defs>
     <marker id="srArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
     <marker id="srArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
@@ -45,8 +45,8 @@
     <!-- step boxes -->
     <rect x="14" y="30" width="138" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
     <text x="26" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">1 SEARCH</text>
-    <text x="26" y="70" fill-opacity=".7">search-pubmed</text>
-    <text x="26" y="85" fill-opacity=".7">update-queries</text>
+    <text x="26" y="70" fill-opacity=".7">query-pubmed</text>
+    <text x="26" y="85" fill-opacity=".7">update-query</text>
 
     <rect x="168" y="30" width="138" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
     <text x="180" y="52" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">2 ADD</text>
@@ -84,7 +84,7 @@
   <text x="14" y="140" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">WHAT EACH STEP LEAVES ON DISK</text>
   <g font-family="IBM Plex Mono,monospace" font-size="11" fill="currentColor">
     <rect x="14" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
-    <text x="24" y="172">queries/</text><text x="24" y="188">&lt;slug&gt;.yaml</text>
+    <text x="24" y="172">queries/</text><text x="24" y="188">&lt;slug&gt;/query.yaml</text>
     <rect x="168" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
     <text x="178" y="172">papers/&lt;pmid&gt;/</text><text x="178" y="188">meta.json</text>
     <rect x="322" y="152" width="138" height="46" rx="6" fill="var(--card)" stroke="currentColor"/>
@@ -140,7 +140,7 @@
 <h3>Search PubMed into a saved query</h3>
 <p>Give Claude a question or an explicit PubMed expression. Claude writes the boolean query, runs it through the PubMed MCP tool, and then saves the exact expression, the source, a timestamp and the result PMIDs. Pass <code>--create</code> on the first run of a new slug.</p>
 <p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-pubmed "Does tDCS improve working memory?" --slug tdcs-wm --create</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:query-pubmed "Does tDCS improve working memory?" --slug tdcs-wm --create</span>
 <span class="c"># Claude translates the question into this expression, runs it, then saves the run:</span>
 <span class="o">{
   "run_id": "run-004c50fe5cfa",
@@ -149,7 +149,7 @@
   "retrieved_at": "2026-09-15T10:15:58.976036+00:00",
   "pmids": ["38000101", "38000102", "38000103", "38000104", "38000105"]
 }</span>
-<span class="p">›</span> <span class="cmd">/ref:search-pubmed "tDCS AND ADHD" --slug tdcs-wm-adhd --create</span>
+<span class="p">›</span> <span class="cmd">/ref:query-pubmed "tDCS AND ADHD" --slug tdcs-wm-adhd --create</span>
 <span class="o">{
   "run_id": "run-d5d8e9f70664",
   "query": "tDCS AND ADHD",
@@ -161,9 +161,9 @@
 
 <li>
 <h3>Re-run the search when you choose to</h3>
-<p><code>/ref:update-queries</code> re-runs the <em>stored</em> expression. It doesn't re-derive a query from your original question. It appends a new run and lists what changed since the previous one. Nothing re-runs on a schedule.</p>
+<p><code>/ref:update-query</code> re-runs the <em>stored</em> expression. It doesn't re-derive a query from your original question. It appends a new run and lists what changed since the previous one. Nothing re-runs on a schedule. With no update terms, Claude asks whether to refine the query, re-run it unchanged, or exit. For a systematic review, re-run unchanged so every run uses the same expression; a changed scope belongs in a new slug.</p>
 <p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-queries tdcs-wm</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-query tdcs-wm</span>
 <span class="o">{
   "run": {
     "run_id": "run-9ff45f72904c",
@@ -284,8 +284,8 @@
     <!-- identified -->
     <rect x="60" y="56" width="400" height="100" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
     <text x="76" y="80" font-size="12" font-weight="600">Records identified from PubMed  n = 9</text>
-    <text x="76" y="102" font-family="IBM Plex Mono,monospace" fill-opacity=".75">queries/tdcs-wm.yaml         latest run  6</text>
-    <text x="76" y="120" font-family="IBM Plex Mono,monospace" fill-opacity=".75">queries/tdcs-wm-adhd.yaml    latest run  3</text>
+    <text x="76" y="102" font-family="IBM Plex Mono,monospace" fill-opacity=".75">queries/tdcs-wm/query.yaml       latest run  6</text>
+    <text x="76" y="120" font-family="IBM Plex Mono,monospace" fill-opacity=".75">queries/tdcs-wm-adhd/query.yaml  latest run  3</text>
     <text x="76" y="142" fill-opacity=".6">from --query args; none given → "unknown"</text>
 
     <rect x="560" y="56" width="366" height="100" rx="8" fill="var(--card)" stroke="currentColor"/>
@@ -408,8 +408,8 @@
 <h2>What you now have</h2>
 <pre class="tree">&lt;LIBRARY&gt;/
   queries/
-    tdcs-wm.yaml                         <span class="c"># two immutable runs: the original and the manual re-run</span>
-    tdcs-wm-adhd.yaml                    <span class="c"># one run</span>
+    tdcs-wm/query.yaml                   <span class="c"># two immutable runs: the original and the manual re-run</span>
+    tdcs-wm-adhd/query.yaml              <span class="c"># one run</span>
   papers/38000101/ … 38000103/
     meta.json · authorship.json · funding.json · raw/&lt;sha256&gt;/response.json
     <span class="m">acquisitions.json · versions/&lt;id&gt;/  # after fetch/attach and extract</span>

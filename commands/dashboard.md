@@ -105,7 +105,7 @@ Both modes:
   population × outcome coloured by effect direction), gaps (a population ×
   outcome grid per intervention concept using the same rule as `/ref:gaps`,
   plus heuristic sparse pairs, single-study findings and unresolved
-  conflicts, with PubMed/`/ref:search-pubmed` suggestions), topic timeline,
+  conflicts, with PubMed/`/ref:query-pubmed` suggestions), topic timeline,
   knowledge graph (concepts / papers & authors / claim network / a 1–2 hop
   neighborhood around one paper or concept — "Show in graph" in the paper
   drawer; every relation type and its review state drawn distinctly, with

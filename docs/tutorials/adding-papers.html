@@ -54,7 +54,7 @@
 
     <rect x="444" y="34" width="180" height="74" rx="8" fill="none" stroke="currentColor"/>
     <text x="458" y="58">SAVE RUN</text>
-    <text x="458" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">queries/&lt;slug&gt;.yaml</text>
+    <text x="458" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">queries/&lt;slug&gt;/query.yaml</text>
     <text x="458" y="95" font-family="IBM Plex Sans,sans-serif" font-size="11" fill-opacity=".72">full hit list frozen</text>
 
     <rect x="656" y="34" width="140" height="74" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
@@ -291,9 +291,9 @@ fetch:
   current.json</pre>
 <div class="note">All three inputs here resolve to the same PMID — <code>duplicate_in_batch</code> is reported when that happens within one call, <code>already_imported</code> when it already matches a library paper. Neither is an error.</div>
 
-<h3><code>/ref:update-queries &lt;slug&gt;</code> — rerun a saved search unchanged</h3>
-<p>For a running literature search you revisit weekly. This re-runs the exact query frozen in <code>queries/&lt;slug&gt;.yaml</code> and diffs the new hit list against the last saved run — it does not touch <code>papers/</code> at all, only reports what changed.</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-queries asd-cortex</span>
+<h3><code>/ref:update-query &lt;slug&gt; [update terms]</code> — rerun or refine a saved query</h3>
+<p>For a running literature search you revisit weekly. This re-runs the query stored in <code>queries/&lt;slug&gt;/query.yaml</code> and diffs the new hit list against the last saved run — it does not touch <code>papers/</code> at all, only reports what changed. Add update terms (<code>/ref:update-query asd-cortex add fMRI</code>) to refine the expression first; with no terms, Claude asks whether to enter terms, re-run unchanged, or exit.</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-query asd-cortex</span>
 <span class="o">{
   "run": {
     "run_id": "run-47456189b1d6",
@@ -305,8 +305,8 @@ fetch:
   "added": ["39999992"],
   "removed": ["39999991"]
 }</span></pre>
-<pre class="tree"><span class="a">queries/asd-cortex.yaml</span>   <span class="c"># saved query expression + immutable runs[] history, appended to on rerun</span></pre>
-<div class="note">The stored query expression is reused exactly — this is not a new search, just the same one run again. Pair with <code>/ref:add-fetch</code> on the <code>added</code> PMIDs to pull in full text.</div>
+<pre class="tree"><span class="a">queries/asd-cortex/query.yaml</span>   <span class="c"># saved query expression + immutable runs[] history, appended to on rerun</span></pre>
+<div class="note">Without update terms the stored expression is reused exactly — not a new search, just the same one run again. A refined expression is saved as the new run and becomes the base for later updates; earlier runs never change. Pair with <code>/ref:add-fetch</code> on the <code>added</code> PMIDs to pull in full text.</div>
 </section>
 
 <section>
@@ -341,7 +341,7 @@ fetch:
 <h2>Minimal recipes</h2>
 <p>Copy, paste, adjust the slug. Done.</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:pubmed-add-fetch "children autism tDCS sham social cognition" --slug asd-tdcs --create --limit 20</span>
-<span class="p">›</span> <span class="cmd">/ref:update-queries asd-tdcs</span>
+<span class="p">›</span> <span class="cmd">/ref:update-query asd-tdcs</span>
 <span class="p">›</span> <span class="cmd">/ref:add-fetch 40665956 40691132</span>
 <span class="p">›</span> <span class="cmd">/ref:add-sources 40665956 https://doi.org/10.1002/aur.70084 ~/Downloads/papers/</span></pre>
 
@@ -354,11 +354,11 @@ fetch:
   <rect x="24" y="30" width="286" height="82" rx="9" fill="var(--accent-soft)" stroke="var(--accent)"/>
   <text x="40" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">1) first run</text>
   <text x="40" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:pubmed-add-fetch ... --slug S --create</text>
-  <text x="40" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">writes queries/S.yaml + selected papers</text>
+  <text x="40" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">writes queries/S/query.yaml + selected papers</text>
 
   <rect x="346" y="30" width="286" height="82" rx="9" fill="none" stroke="currentColor"/>
   <text x="362" y="58" font-family="IBM Plex Mono,monospace" font-size="12.5" font-weight="600">2) rerun later</text>
-  <text x="362" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:update-queries S</text>
+  <text x="362" y="80" font-family="IBM Plex Sans,sans-serif" font-size="11.5">/ref:update-query S</text>
   <text x="362" y="98" font-family="IBM Plex Sans,sans-serif" font-size="11.5">keeps exact stored query expression</text>
 
   <rect x="668" y="30" width="286" height="82" rx="9" fill="var(--amber-soft)" stroke="var(--amber)"/>

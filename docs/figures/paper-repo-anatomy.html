@@ -448,8 +448,8 @@ table.sel tr.base td:first-child{font-weight:500}
     <dl class="cmd-list">
       <dt>/ref:search &lt;query&gt;</dt><dd>lexical FTS5 search over indexed passages; <code>--scope notes</code> searches notes, annotations, and project comments, labeled as personal content</dd>
       <dt>/ref:ask &lt;question&gt;</dt><dd>expand terms (MeSH, synonyms), retrieve passage + graph evidence, answer with <code>[^pmid]</code> citations</dd>
-      <dt>/ref:search-pubmed &lt;question&gt;</dt><dd>parse into PICO, run PubMed, log include/exclude screening decisions</dd>
-      <dt>/ref:update-queries</dt><dd>manually rerun saved <code>queries/*.yaml</code>, dedupe against prior hits — never scheduled</dd>
+      <dt>/ref:query-pubmed &lt;question&gt;</dt><dd>parse into PICO, run PubMed, log include/exclude screening decisions</dd>
+      <dt>/ref:update-query</dt><dd>manually rerun saved <code>queries/*/query.yaml</code>, optionally with refined terms, dedupe against prior hits — never scheduled</dd>
       <dt>/ref:related &lt;pmid&gt;</dt><dd>snowball — backward references from full text, forward citations via ELink</dd>
     </dl>
   </div>

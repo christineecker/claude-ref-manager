@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""`/ref:search-pubmed` / `/ref:update-queries` — immutable saved search runs
+"""`/ref:query-pubmed` / `/ref:update-query` — immutable saved search runs
 (D15, §5c "`--query <slug> [--run <id>]` — one immutable saved search run").
 
 PICO parsing and the actual PubMed call happen in the calling command
@@ -12,7 +12,7 @@ given: exact query string, source, retrieval date, result PMIDs. Runs
 append; nothing is ever mutated or replaced, so a saved comparison never
 silently changes membership underneath its conclusions.
 
-queries/<slug>.yaml shape:
+queries/<slug>/query.yaml shape (lib_queries):
 {"slug": "...", "runs": [{"run_id": "<opaque>", "query": "<exact expr>",
                            "source": "pubmed", "retrieved_at": "<iso8601>",
                            "pmids": ["..."]}]}
@@ -26,10 +26,11 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, now_iso
 from lib_ids import allocate_slug, gen_opaque_id, SlugError
+from lib_queries import query_file, query_slugs
 
 
 def _path(library_root: Path, slug: str) -> Path:
-    return library_root / "queries" / f"{slug}.yaml"
+    return query_file(library_root, slug)
 
 
 def _load(library_root: Path, slug: str) -> dict:
@@ -61,16 +62,18 @@ def new_run(library_root: Path, slug: str, query_text: str, source: str, pmids: 
     return run
 
 
-def rerun(library_root: Path, slug: str, pmids: list[str]) -> dict:
+def rerun(library_root: Path, slug: str, pmids: list[str], query_text: str | None = None) -> dict:
     """Re-run the query's own stored expression (D9: explicit manual re-run
-    only) and append a new run — never mutates prior runs (§5c)."""
+    only) and append a new run — never mutates prior runs (§5c). A
+    `query_text` records a user-refined expression for this run instead;
+    added/removed are still reported against the prior run."""
     doc = _load(library_root, slug)
     if not doc["runs"]:
         raise SlugError(f"saved query {slug!r} has no prior run to re-run")
     last = doc["runs"][-1]
     run = {
         "run_id": gen_opaque_id("run-"),
-        "query": last["query"],  # exact stored expression, not re-derived
+        "query": query_text or last["query"],  # stored expression unless explicitly refined
         "source": last["source"],
         "retrieved_at": now_iso(),
         "pmids": pmids,
@@ -87,8 +90,7 @@ def show(library_root: Path, slug: str) -> dict:
 
 
 def list_queries(library_root: Path) -> list[str]:
-    d = library_root / "queries"
-    return sorted(p.stem for p in d.glob("*.yaml")) if d.is_dir() else []
+    return query_slugs(library_root)
 
 
 def main() -> int:
@@ -117,7 +119,7 @@ def main() -> int:
                 raise SlugError("--query-text is required for new-run")
             result = new_run(library_root, args.slug, args.query_text, args.source, pmids, args.create)
         elif args.action == "rerun":
-            result = rerun(library_root, args.slug, pmids)
+            result = rerun(library_root, args.slug, pmids, args.query_text)
         elif args.action == "show":
             result = show(library_root, args.slug)
         else:

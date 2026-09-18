@@ -227,7 +227,7 @@
   <li>A population or outcome that matches <em>any</em> concept's name or alias counts as that concept. Once "SBP" is an alias of <em>systolic blood pressure</em>, both land in one column. Other values stay as written, and nothing is fuzzy-matched.</li>
   <li>Placeholder values ("unknown", "not reported", "n/a", …) are not a population or outcome.</li>
 </ul>
-<p>Click a gap cell to see the claims that establish its population and its outcome (<code>population_evidenced_by</code>, <code>outcome_evidenced_by</code>). The panel also offers <em>Copy PubMed query</em>, <em>Copy /ref:search-pubmed</em>, <em>Candidate papers</em>, and the matching <code>/ref:gaps</code> command.</p>
+<p>Click a gap cell to see the claims that establish its population and its outcome (<code>population_evidenced_by</code>, <code>outcome_evidenced_by</code>). The panel also offers <em>Copy PubMed query</em>, <em>Copy /ref:query-pubmed</em>, <em>Candidate papers</em>, and the matching <code>/ref:gaps</code> command.</p>
 <p class="term-label">illustrative output</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps --project tdcs-review --intervention-concept tdcs --types population_outcome_gap</span>
 <span class="o">{ "gaps": { "population_outcome_gap": [ { "missing_population": "older adults", "missing_outcome": "working memory", "population_evidenced_by": [ … ], "outcome_evidenced_by": [ … ] } ] } }</span></pre>
@@ -318,8 +318,8 @@
 <span class="p">›</span> <span class="cmd">/ref:dashboard --open --view 'tab=insights&amp;insight=maturity&amp;project=tdcs-review'</span>
 <span class="c"># Maturity → open conflicts → claim network → relation panel → copy the review command</span>
 <span class="p">›</span> <span class="cmd">/ref:weave review rel-… contradicts --rationale "…"</span>
-<span class="c"># ↻ refresh → Gaps → Population × outcome → gap cell → copy /ref:search-pubmed</span>
-<span class="p">›</span> <span class="cmd">/ref:search-pubmed '("tdcs") AND ("older adults") AND ("working memory")' --slug gap-tdcs-older-adults --create</span></pre>
+<span class="c"># ↻ refresh → Gaps → Population × outcome → gap cell → copy /ref:query-pubmed</span>
+<span class="p">›</span> <span class="cmd">/ref:query-pubmed '("tdcs") AND ("older adults") AND ("working memory")' --slug gap-tdcs-older-adults --create</span></pre>
 <p>Command reference: <a href="../commands/maintain.html#dashboard"><code>/ref:dashboard</code></a>, <a href="../commands/graph.html#gaps"><code>/ref:gaps</code></a>, <a href="../commands/graph.html#weave"><code>/ref:weave</code></a>, <a href="../commands/graph.html#concept"><code>/ref:concept</code></a>. Related tutorials: <a href="library-viewer.html">Library viewer</a>, <a href="graph-discovery.html">Graph discovery</a>, <a href="systematic-review.html">Systematic review</a>.</p>
 </section>
 

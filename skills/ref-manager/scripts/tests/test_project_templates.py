@@ -76,7 +76,7 @@ class TestCli(TempLibrary):
         payload = json.loads(proc.stdout)
         self.assertEqual(payload["template"], "systematic-review")
         self.assertTrue(any("tdcs-review" in step for step in payload["next_steps"]))
-        self.assertTrue(any(step.startswith("/ref:search-pubmed") for step in payload["next_steps"]))
+        self.assertTrue(any(step.startswith("/ref:query-pubmed") for step in payload["next_steps"]))
 
     def test_create_without_template_has_no_next_steps(self):
         proc = self._run("create", "--repo", str(self.library_root), "--slug", "plain")

@@ -108,7 +108,9 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
     .library.lock                 <span class="c"># library-wide flock</span>
     <span class="a">.locks/</span>&lt;pmid&gt;.lock            <span class="c"># per-paper flock</span>
     <span class="a">aliases/</span>&lt;kind&gt;.json            <span class="c"># slug registry: live slugs + rename aliases</span>
-  <span class="a">queries/</span>&lt;slug&gt;.yaml              <span class="c"># saved PubMed query + immutable runs[]</span>
+  <span class="a">queries/</span>&lt;slug&gt;/
+    query.yaml                    <span class="c"># saved PubMed query + immutable runs[]</span>
+    triage.json · decisions.jsonl · pending.json · <span class="a">metadata/</span>  <span class="c"># /ref:triage state</span>
   <span class="a">exports/</span>
     &lt;batch&gt;/                      <span class="c"># /ref:export: references.bib, references.csl.json, manifest.json</span>
     <span class="a">papers/</span>&lt;batch&gt;/                <span class="c"># /ref:export-papers: references.bib, PDFs, manifest.json</span>
@@ -208,7 +210,7 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
   <rect x="14" y="318" width="904" height="86" rx="8" fill="none" stroke="currentColor"/>
   <text x="28" y="340" font-size="10.5" fill="currentColor" fill-opacity=".6" letter-spacing="1" font-weight="500">AUTHORITATIVE LIBRARY RECORDS · atomic temp-file + os.replace writes</text>
   <text x="28" y="362" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">meta.json · authorship.json · funding.json · citations.json (append-only) · graph/concepts|relations.jsonl</text>
-  <text x="28" y="380" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">studies/*.jsonl · people/&lt;slug&gt;.json · grants/&lt;slug&gt;.json · queries/&lt;slug&gt;.yaml · index/citekeys.json</text>
+  <text x="28" y="380" font-family="IBM Plex Mono,monospace" font-size="11.5" fill="currentColor">studies/*.jsonl · people/&lt;slug&gt;.json · grants/&lt;slug&gt;.json · queries/&lt;slug&gt;/query.yaml · index/citekeys.json</text>
   <text x="28" y="397" font-size="11" fill="currentColor" fill-opacity=".65">locks: index/.locks/&lt;pmid&gt;.lock per paper · index/.library.lock for citekeys, slug registries, graph commits</text>
 </svg>
 </div>
@@ -463,7 +465,7 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
   <thead><tr><th>Kind</th><th>Stored at</th><th>Existence check</th></tr></thead>
   <tbody>
     <tr><td>project</td><td><code>projects/{slug}</code></td><td>directory</td></tr>
-    <tr><td>query</td><td><code>queries/{slug}.yaml</code></td><td>file</td></tr>
+    <tr><td>query</td><td><code>queries/{slug}/query.yaml</code></td><td>file</td></tr>
     <tr><td>person · lab · grant</td><td><code>people/</code> · <code>labs/</code> · <code>grants/{slug}.json</code></td><td>file</td></tr>
     <tr><td>study · dataset · method</td><td><code>studies/{studies,datasets,methods}.jsonl</code></td><td>alias registry</td></tr>
     <tr><td>concept</td><td><code>graph/concepts.jsonl</code></td><td>alias registry</td></tr>
@@ -528,7 +530,7 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
     <tr><td>D4</td><td>Tiered extraction (<code>unavailable|abstract|full</code>) with promotion that only goes up.</td></tr>
     <tr><td>D5</td><td>Papers: push with <code>/ref:open</code>, selective pull with <code>/ref:pull-annotations</code> from a read-only snapshot; no bulk import.</td></tr>
     <tr><td>D8</td><td>Study type classified per paper, with <code>mixed</code>/<code>unknown</code> as fallbacks.</td></tr>
-    <tr><td>D9</td><td>Discovery is manual; saved queries rerun only through <code>/ref:update-queries</code>.</td></tr>
+    <tr><td>D9</td><td>Discovery is manual; saved queries rerun only through <code>/ref:update-query</code>.</td></tr>
     <tr><td>D10</td><td>CSL-JSON generated from <code>meta.json</code>, with BibTeX rendered from it (<code>lib_cite.py</code>).</td></tr>
     <tr><td>D11</td><td>PubMed only; PMID is identity; DOI matches are flagged, never merged.</td></tr>
     <tr><td>D12</td><td>The library starts empty; <code>init</code> creates directories only.</td></tr>

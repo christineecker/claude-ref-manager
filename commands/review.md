@@ -28,7 +28,7 @@ Steps:
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/prisma.py" --repo <library_root> --project <slug> [--query <slug>[:<run_id>] ...] [--refresh]
    ```
 3. Print the script's own output verbatim. Every count is a query over already-
-   committed state (`queries/*.yaml` run histories, `screening.jsonl`,
+   committed state (`queries/*/query.yaml` run histories, `screening.jsonl`,
    `meta.json`'s `full_text` flag, `studies/studies.jsonl` if present) — nothing is
    re-run or estimated. `unresolved_query_specs` and `unevidenced_*` fields in the
    output name counts that have no committed evidence; these read `"unknown"`

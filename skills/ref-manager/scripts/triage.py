@@ -5,17 +5,18 @@
 # ///
 """`/ref:triage` -- screen a saved PubMed search (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md).
 
-One triage per saved query (T2): `triage/<slug>/` sits beside
-`queries/<slug>.yaml`, never inside it, so saved runs stay immutable (D15).
+One triage per saved query (T2): its files sit in the saved query's own
+folder, beside `queries/<slug>/query.yaml`, which triage never rewrites, so
+saved runs stay immutable (D15). Layout lives in lib_queries.
 
-  triage/<slug>/triage.json              {slug, project|null, created_at, project_linked_at,
-                                          synced_run_ids, batch_size}
-  triage/<slug>/metadata/batch-NNNN.json one efetch batch: {batch, loaded_at, source,
-                                          records[add.py envelope + display fields], missing}
-  triage/<slug>/decisions.jsonl          append-only {pmid, decision, reason, timestamp,
-                                          run_id, origin}; newest line per PMID wins
-  triage/<slug>/pending.json             {pmid: {kind, why, queued_at}} -- full-text work
-                                          only Claude can do (MCP / WebFetch)
+  queries/<slug>/triage.json              {slug, project|null, created_at, project_linked_at,
+                                           synced_run_ids, batch_size}
+  queries/<slug>/metadata/batch-NNNN.json one efetch batch: {batch, loaded_at, source,
+                                           records[add.py envelope + display fields], missing}
+  queries/<slug>/decisions.jsonl          append-only {pmid, decision, reason, timestamp,
+                                           run_id, origin}; newest line per PMID wins
+  queries/<slug>/pending.json             {pmid: {kind, why, queued_at}} -- full-text work
+                                           only Claude can do (MCP / WebFetch)
 
 Decision rules (§5): included -> add.add_one() first (T4), then the linked
 project's screen.decide(), then the triage log. excluded never touches the
@@ -23,7 +24,7 @@ library. `cleared` un-sets a decision and mirrors to a project as `pending`.
 A project is optional (T3); linking one later replays every current decision
 into its screening log.
 
-Project -> triages is derived by scanning triage/*/triage.json; project.yaml
+Project -> triages is derived by scanning queries/*/triage.json; project.yaml
 is not changed (§4.1).
 """
 from __future__ import annotations
@@ -40,6 +41,7 @@ import project as project_module
 import screen as screen_module
 from lib_atomic import atomic_write_json, triage_lock, now_iso, read_json
 from lib_ids import SlugError, validate_slug
+from lib_queries import query_dir, query_file, triage_files
 from lib_schema import SchemaError
 
 DECISIONS = ("included", "excluded", "pending", "cleared")
@@ -54,15 +56,13 @@ class TriageError(Exception):
 
 
 def _dir(library_root: Path, slug: str) -> Path:
-    validate_slug(slug)
-    return library_root / "triage" / slug
+    return query_dir(library_root, slug)
 
 
 def _query_doc(library_root: Path, slug: str) -> dict:
-    validate_slug(slug)
-    p = library_root / "queries" / f"{slug}.yaml"
+    p = query_file(library_root, slug)
     if not p.exists():
-        raise TriageError(f"saved query {slug!r} does not exist -- run /ref:search-pubmed --slug {slug} --create first")
+        raise TriageError(f"saved query {slug!r} does not exist -- run /ref:query-pubmed --slug {slug} --create first")
     return json.loads(p.read_text())
 
 
@@ -145,7 +145,7 @@ def init(library_root: Path, slug: str, project: str | None = None) -> dict:
 
 
 def sync(library_root: Path, slug: str) -> dict:
-    """Record runs appended since the last sync (e.g. by /ref:update-queries)
+    """Record runs appended since the last sync (e.g. by /ref:update-query)
     and report which PMIDs they brought in or dropped."""
     runs = _query_doc(library_root, slug).get("runs", [])
     d = _dir(library_root, slug)
@@ -535,14 +535,8 @@ def view(library_root: Path, slug: str, rows: list[dict] | None = None) -> dict:
 
 
 def list_triages(library_root: Path, project: str | None = None) -> list[dict]:
-    base = library_root / "triage"
     out = []
-    if not base.is_dir():
-        return out
-    for d in sorted(base.iterdir()):
-        tp = d / "triage.json"
-        if not tp.is_file():
-            continue
+    for tp in triage_files(library_root):
         tri = json.loads(tp.read_text())
         if project is not None and tri.get("project") != project:
             continue

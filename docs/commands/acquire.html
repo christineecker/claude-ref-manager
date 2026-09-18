@@ -246,7 +246,7 @@ Example: /ref:add 12345678</span>
   <h4>Under the hood</h4>
   <p class="writes"><code>add.py add --repo &lt;library_root&gt; --metadata-file &lt;json&gt;</code>. The script never calls the network; the command resolves metadata through PubMed MCP first and hands it the envelope documented in <code>commands/add.md</code>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#project"><code>/ref:project</code></a> · <a href="write.html#cite"><code>/ref:cite</code></a></p>
+  <p class="writes"><a href="#fetch"><code>/ref:fetch</code></a> · <a href="#extract"><code>/ref:extract</code></a> · <a href="find.html#query-pubmed"><code>/ref:query-pubmed</code></a> · <a href="organize.html#project"><code>/ref:project</code></a> · <a href="write.html#cite"><code>/ref:cite</code></a></p>
 </article>
 
 <!-- ================= add-pdf ================= -->
@@ -375,7 +375,7 @@ Example: /ref:add 12345678</span>
     <li>Prints separate <code>search</code>, <code>save-run</code>, <code>add</code>, and <code>fetch</code> stage outputs.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, then the same paper files as <a href="#add"><code>/ref:add</code></a> and <a href="#fetch"><code>/ref:fetch</code></a> for selected PMIDs.</p>
+  <p class="writes">Writes <code>queries/&lt;slug&gt;/query.yaml</code>, then the same paper files as <a href="#add"><code>/ref:add</code></a> and <a href="#fetch"><code>/ref:fetch</code></a> for selected PMIDs.</p>
   <h4>Example</h4>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:pubmed-add-fetch "autism tDCS sham social cognition" --slug autism-tdcs --create --limit 20</span>
 <span class="o">search:
@@ -390,7 +390,7 @@ fetch:
   <h4>Under the hood</h4>
   <p class="writes">PubMed MCP <code>search_articles</code> → <code>pubmed_query.py new-run</code> → PubMed MCP <code>get_article_metadata</code> → <code>add.py</code> → full-text acquisition ladder → <code>fetch.py</code>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="find.html#pubmed-query"><code>/ref:pubmed-query</code></a> · <a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="#add-fetch"><code>/ref:add-fetch</code></a></p>
+  <p class="writes"><a href="find.html#pubmed-query"><code>/ref:pubmed-query</code></a> · <a href="find.html#query-pubmed"><code>/ref:query-pubmed</code></a> · <a href="#add-fetch"><code>/ref:add-fetch</code></a></p>
 </article>
 
 <!-- ================= add-sources ================= -->

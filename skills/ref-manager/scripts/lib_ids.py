@@ -29,7 +29,7 @@ SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # a filesystem path) or a single file (person/lab/grant).
 _SLUG_LAYOUT = {
     "project": ("projects/{slug}", "dir"),
-    "query": ("queries/{slug}.yaml", "file"),
+    "query": ("queries/{slug}/query.yaml", "file"),
     "person": ("people/{slug}.json", "file"),
     "lab": ("labs/{slug}.json", "file"),
     "grant": ("grants/{slug}.json", "file"),

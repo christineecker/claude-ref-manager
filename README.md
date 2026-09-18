@@ -22,7 +22,7 @@ Status: phases 0–11 implemented.
 | [Claude Code](https://claude.com/claude-code) | Every `/ref:*` command is a Claude Code slash command. |
 | Python ≥ 3.11 | Scripts are standard-library-only, single-file Python. |
 | PubMed MCP connector | `/ref:add`, `/ref:fetch` and `/ref:extract` resolve metadata and full text through it. Papers can't be ingested without it. |
-| NCBI E-utilities access + `ncbi_email` in config | `/ref:search-pubmed` / `/ref:triage` load search-result metadata from eutils.ncbi.nlm.nih.gov in batches of 100. |
+| NCBI E-utilities access + `ncbi_email` in config | `/ref:query-pubmed` / `/ref:triage` load search-result metadata from eutils.ncbi.nlm.nih.gov in batches of 100. |
 | pandoc *(optional)* | Converts JATS XML to Markdown. |
 | uv *(optional)* | Runs the trafilatura worker for publisher HTML. |
 | anydoc *(optional)* | Converts PDFs for `/ref:attach`. |

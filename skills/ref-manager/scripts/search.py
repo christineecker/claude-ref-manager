@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from lib_atomic import read_json
+from lib_queries import query_file, query_slugs
 from lib_selector import source_badge
 
 
@@ -77,15 +78,12 @@ def _funding_text(obs: dict) -> str:
 def _query_matches(library_root: Path, query: str) -> list[dict]:
     q = query.lower()
     hits = []
-    queries_dir = library_root / "queries"
-    if not queries_dir.is_dir():
-        return hits
-    for path in sorted(queries_dir.glob("*.yaml")):
+    for path in (query_file(library_root, s) for s in query_slugs(library_root)):
         try:
             doc = json.loads(path.read_text())
         except (OSError, ValueError):
             continue
-        slug = doc.get("slug") or path.stem
+        slug = doc.get("slug") or path.parent.name
         for run in doc.get("runs", []):
             haystack = "\n".join([
                 slug,

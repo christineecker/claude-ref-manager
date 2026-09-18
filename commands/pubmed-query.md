@@ -27,7 +27,7 @@ Steps:
    - `notes:` limitations or likely follow-up filters, especially when an
      author-position, age, outcome, or date constraint is approximate.
 4. Do not call PubMed MCP, do not write files, and do not add papers. Point the
-   user to `/ref:search-pubmed "<query>" --slug <slug> --create` to run and
+   user to `/ref:query-pubmed "<query>" --slug <slug> --create` to run and
    save it.
 
 Output example:
@@ -43,5 +43,5 @@ Sensitive PICO translation with MeSH/free-text population terms and outcome
 synonyms kept in title/abstract fields.
 
 notes:
-Run with /ref:search-pubmed when ready.
+Run with /ref:query-pubmed when ready.
 ```

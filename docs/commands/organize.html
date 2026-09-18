@@ -300,7 +300,7 @@
   "questions": [],
   "template": "systematic-review",
   "next_steps": [
-    "/ref:search-pubmed \"&lt;question&gt;\" --slug &lt;query-slug&gt; --create",
+    "/ref:query-pubmed \"&lt;question&gt;\" --slug &lt;query-slug&gt; --create",
     "/ref:add &lt;pmid...&gt;",
     "/ref:project add-paper tdcs-review &lt;pmid&gt;",
     "/ref:screen --project tdcs-review --pmid &lt;pmid&gt; --decision included|excluded --reason \"&lt;text&gt;\"",
@@ -386,7 +386,7 @@
   <h4>Under the hood</h4>
   <p class="writes"><code>screen.py decide --repo … --project … --pmid … --decision … --reason "…" [--run …]</code></p>
   <h4>See also</h4>
-  <p class="writes"><a href="find.html#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+  <p class="writes"><a href="find.html#query-pubmed"><code>/ref:query-pubmed</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
 </article>
 
 <article class="cmd" id="note">

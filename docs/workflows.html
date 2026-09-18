@@ -66,7 +66,7 @@
 <p>The 40 commands fall into seven groups, and every group works through the same library folder on disk. <em>Acquire</em> fills it. <em>Organize</em> adds your project state and review decisions. The remaining groups mostly read from it and write their own derived outputs next to it.</p>
 <figure>
 <div class="svg-wrap">
-<svg class="wf" viewBox="0 0 960 570" role="img" aria-label="Command map. Seven groups of commands surround a central library root box listing papers, projects and queries, index/catalog.sqlite, graph, people and grants, and tables, summaries and briefs. Acquire (init, add, fetch, attach, extract) writes paper records into the library. Find (search, ask, search-pubmed, update-queries, related) reads the catalog and writes saved queries. Organize (describe-figure, project, queue, screen, note, verify, study) writes project membership, screening and corrections. Maintain (audit, index, status, open, pull-annotations) updates retraction status, citation observations and the catalog. People (person, publications, grant, discover, report) reads authorship and funding. Write (compare, methods, summarize, review, brief, check-citations, cite, export, export-papers) and Graph (weave, concept, gaps, hypothesize) read active claims and write derived artifacts.">
+<svg class="wf" viewBox="0 0 960 570" role="img" aria-label="Command map. Seven groups of commands surround a central library root box listing papers, projects and queries, index/catalog.sqlite, graph, people and grants, and tables, summaries and briefs. Acquire (init, add, fetch, attach, extract) writes paper records into the library. Find (search, ask, query-pubmed, update-query, related) reads the catalog and writes saved queries. Organize (describe-figure, project, queue, screen, note, verify, study) writes project membership, screening and corrections. Maintain (audit, index, status, open, pull-annotations) updates retraction status, citation observations and the catalog. People (person, publications, grant, discover, report) reads authorship and funding. Write (compare, methods, summarize, review, brief, check-citations, cite, export, export-papers) and Graph (weave, concept, gaps, hypothesize) read active claims and write derived artifacts.">
   <defs>
     <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
     <marker id="m1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
@@ -109,15 +109,15 @@
   <g class="m" font-size="11.5">
     <a href="commands/find.html#search"><text x="356" y="66">search</text></a>
     <a href="commands/find.html#ask"><text x="356" y="84">ask</text></a>
-    <a href="commands/find.html#search-pubmed"><text x="356" y="102">search-pubmed</text></a>
-    <a href="commands/find.html#update-queries"><text x="356" y="120">update-queries</text></a>
+    <a href="commands/find.html#query-pubmed"><text x="356" y="102">query-pubmed</text></a>
+    <a href="commands/find.html#update-query"><text x="356" y="120">update-query</text></a>
     <a href="commands/find.html#related"><text x="356" y="138">related</text></a>
   </g>
   <g font-size="11">
     <text x="476" y="66" class="cap">READS</text>
     <text x="476" y="84" class="m mu">catalog.sqlite</text>
     <text x="476" y="106" class="cap ac">WRITES</text>
-    <text x="476" y="124" class="m mu">queries/&lt;slug&gt;.yaml</text>
+    <text x="476" y="124" class="m mu">queries/&lt;slug&gt;/query.yaml</text>
     <text x="476" y="142" class="m mu">related.json</text>
   </g>
 
@@ -230,7 +230,7 @@
   <span><span class="sw" style="height:0;border-width:0 0 2px;border-radius:0;border-color:var(--accent)"></span>teal arrow: the group mainly writes into the library</span>
   <span><span class="sw" style="height:0;border-width:0 0 2px;border-radius:0"></span>dark arrow: the group mainly reads from it</span>
 </div>
-<figcaption>All 40 commands, grouped as in the <a href="commands/index.html">command reference</a>. The main dependencies between groups: <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> claims feed <em>find</em>, <em>write</em> and <em>graph</em>. <a href="commands/organize.html#project">project</a>, <a href="commands/organize.html#screen">screening</a> and <a href="commands/find.html#search-pubmed">saved-query</a> state feeds the selectors used by <em>write</em>. <a href="commands/organize.html#verify"><code>/ref:verify</code></a> rejections remove claims from retrieval and the graph. <a href="commands/maintain.html#audit"><code>/ref:audit</code></a> status changes show up when <em>write</em> artifacts are refreshed.</figcaption>
+<figcaption>All 40 commands, grouped as in the <a href="commands/index.html">command reference</a>. The main dependencies between groups: <a href="commands/acquire.html#extract"><code>/ref:extract</code></a> claims feed <em>find</em>, <em>write</em> and <em>graph</em>. <a href="commands/organize.html#project">project</a>, <a href="commands/organize.html#screen">screening</a> and <a href="commands/find.html#query-pubmed">saved-query</a> state feeds the selectors used by <em>write</em>. <a href="commands/organize.html#verify"><code>/ref:verify</code></a> rejections remove claims from retrieval and the graph. <a href="commands/maintain.html#audit"><code>/ref:audit</code></a> status changes show up when <em>write</em> artifacts are refreshed.</figcaption>
 </figure>
 </section>
 

@@ -2,7 +2,7 @@
 
 Screen a saved PubMed search: open its Triage tab, link it to a project, load
 more metadata, or hand pending full-text work to Claude. One triage per saved search; re-runs
-from `/ref:update-queries` merge into it.
+from `/ref:update-query` merge into it.
 
 In the Triage tab, **Include** adds the paper to the library immediately.
 **Exclude** never removes anything from the library. With a linked project,
@@ -30,7 +30,7 @@ Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).
 
 2. `<slug>` (open):
-   a. If `triage/<slug>/triage.json` doesn't exist, print, then run:
+   a. If `queries/<slug>/triage.json` doesn't exist, print, then run:
       ```bash
       python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/triage.py" init --repo <library_root> --slug <slug>
       ```
@@ -92,8 +92,8 @@ Notes:
 - Metadata comes from NCBI E-utilities `efetch` (stdlib HTTP, ≤3 requests/s, or
   10/s with `ncbi_api_key`). It needs `ncbi_email` (or `unpaywall_email`) in
   `~/.config/ref-manager/config.json`.
-- Files: `triage/<slug>/triage.json`, `metadata/batch-NNNN.json`,
+- Files: `queries/<slug>/triage.json`, `metadata/batch-NNNN.json`,
   `decisions.jsonl` (append-only, newest per PMID wins), `pending.json`.
-  `queries/<slug>.yaml` is never modified.
+  `queries/<slug>/query.yaml` is never modified.
 - The dashboard's **Get PDFs** downloads PMC Open Access PDFs itself; papers
   without one are queued for `apply`.

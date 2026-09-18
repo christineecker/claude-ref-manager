@@ -115,9 +115,14 @@ def project_lock(library_root: Path, slug: str):
 
 
 def triage_lock(library_root: Path, slug: str):
-    """Per-triage lock: every write under triage/<slug>/. Lock order is
+    """Per-triage lock: every triage write under queries/<slug>/. Lock order is
     always pmid -> project -> triage."""
     return _flock(library_root / "index" / ".locks" / f"triage-{slug}.lock")
+
+
+def queries_layout_lock(library_root: Path):
+    """Serializes the one-time legacy queries/triage layout migration."""
+    return _flock(library_root / "index" / ".locks" / "queries-layout.lock")
 
 
 def commit_version(paper_dir: Path, version_id: str, write_fn) -> Path:

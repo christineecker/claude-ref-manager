@@ -32,8 +32,8 @@
     <li><a href="#search"><code>/ref:search</code></a></li>
     <li><a href="#ask"><code>/ref:ask</code></a></li>
     <li><a href="#pubmed-query"><code>/ref:pubmed-query</code></a></li>
-    <li><a href="#search-pubmed"><code>/ref:search-pubmed</code></a></li>
-    <li><a href="#update-queries"><code>/ref:update-queries</code></a></li>
+    <li><a href="#query-pubmed"><code>/ref:query-pubmed</code></a></li>
+    <li><a href="#update-query"><code>/ref:update-query</code></a></li>
     <li><a href="#triage"><code>/ref:triage</code></a></li>
     <li><a href="#related"><code>/ref:related</code></a></li>
   </ol>
@@ -60,7 +60,7 @@
 <h2>How they fit</h2>
 <figure>
 <div class="svg-wrap">
-<svg viewBox="0 0 940 390" role="img" aria-label="Find commands and the files they touch. Inside the library: /ref:search scans meta.json, raw abstracts, notes.md and project papers.yaml by substring, and returns labelled hits. /ref:ask expands the question, retrieves with ask_retrieve.py over the rebuilt FTS5 catalog, optionally constrained by a selector, hands the candidates to one ref-synthesizer subagent, then validate_citations.py checks every citation against the candidates; nothing is persisted. Outward to PubMed: /ref:search-pubmed appends a run to queries/slug.yaml, /ref:update-queries re-runs the stored expression and appends another run with added and removed PMIDs, and /ref:related writes backward and forward candidates to papers/pmid/related.json. Only /ref:add brings a candidate into the library.">
+<svg viewBox="0 0 940 390" role="img" aria-label="Find commands and the files they touch. Inside the library: /ref:search scans meta.json, raw abstracts, notes.md and project papers.yaml by substring, and returns labelled hits. /ref:ask expands the question, retrieves with ask_retrieve.py over the rebuilt FTS5 catalog, optionally constrained by a selector, hands the candidates to one ref-synthesizer subagent, then validate_citations.py checks every citation against the candidates; nothing is persisted. Outward to PubMed: /ref:query-pubmed appends a run to queries/slug/query.yaml, /ref:update-query re-runs the stored expression and appends another run with added and removed PMIDs, and /ref:related writes backward and forward candidates to papers/pmid/related.json. Only /ref:add brings a candidate into the library.">
   <defs>
     <marker id="fArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
     <marker id="fArrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
@@ -115,15 +115,15 @@
 
   <!-- pubmed lane -->
   <rect x="14" y="266" width="200" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
-  <text x="28" y="288" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:search-pubmed</text>
+  <text x="28" y="288" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:query-pubmed</text>
   <text x="28" y="305" font-size="11" fill="currentColor" fill-opacity=".7">first run, --create</text>
   <rect x="14" y="326" width="200" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
-  <text x="28" y="348" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:update-queries</text>
+  <text x="28" y="348" font-family="IBM Plex Mono,monospace" font-size="12" fill="var(--accent)" font-weight="500">/ref:update-query</text>
   <text x="28" y="365" font-size="11" fill="currentColor" fill-opacity=".7">same stored expression</text>
   <line x1="214" y1="291" x2="262" y2="310" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
   <line x1="214" y1="351" x2="262" y2="332" stroke="currentColor" stroke-width="1.5" marker-end="url(#fArr)"/>
   <rect x="266" y="286" width="250" height="68" rx="8" fill="var(--card)" stroke="currentColor" stroke-width="1.5"/>
-  <text x="280" y="308" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">queries/&lt;slug&gt;.yaml</text>
+  <text x="280" y="308" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" font-weight="500">queries/&lt;slug&gt;/query.yaml</text>
   <text x="280" y="326" font-size="11" fill="currentColor" fill-opacity=".65">runs append, never mutate</text>
   <text x="280" y="342" font-size="11" fill="currentColor" fill-opacity=".65">→ --query &lt;slug&gt; [--run &lt;id&gt;]</text>
 
@@ -161,7 +161,7 @@
     <tr class="base"><td>&lt;pmid…&gt;</td><td>exactly those PMIDs (de-duplicated)</td><td>base case</td></tr>
     <tr><td>--from-file &lt;path&gt;</td><td>one PMID per line from a file</td><td>for long lists</td></tr>
     <tr><td>--project &lt;slug&gt;</td><td>members in <code>projects/&lt;slug&gt;/papers.yaml</code></td><td>unknown slug is an error</td></tr>
-    <tr><td>--query &lt;slug&gt; [--run &lt;id&gt;]</td><td>PMIDs of one saved run in <code>queries/&lt;slug&gt;.yaml</code></td><td>most recent run if <code>--run</code> is omitted</td></tr>
+    <tr><td>--query &lt;slug&gt; [--run &lt;id&gt;]</td><td>PMIDs of one saved run in <code>queries/&lt;slug&gt;/query.yaml</code></td><td>most recent run if <code>--run</code> is omitted</td></tr>
     <tr><td>--study &lt;id&gt;</td><td>PMIDs grouped in <code>studies/studies.jsonl</code></td><td></td></tr>
     <tr><td>--search "&lt;expr&gt;"</td><td>PMIDs of <code>/ref:search --scope evidence</code> hits</td><td>substring, resolved once</td></tr>
     <tr><td>--screened included|excluded|pending</td><td>narrows to the latest screening decision</td><td>requires <code>--project</code></td></tr>
@@ -310,19 +310,19 @@
  AND (sham[tiab] OR placebo[tiab])
  AND ("social cognition"[tiab] OR "theory of mind"[tiab]))</span></pre>
   <h4>Under the hood</h4>
-  <p class="writes">No script and no network call. The query is produced by the command layer so the user can inspect or edit it before running <a href="#search-pubmed"><code>/ref:search-pubmed</code></a>.</p>
+  <p class="writes">No script and no network call. The query is produced by the command layer so the user can inspect or edit it before running <a href="#query-pubmed"><code>/ref:query-pubmed</code></a>.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="acquire.html#pubmed-add-fetch"><code>/ref:pubmed-add-fetch</code></a></p>
+  <p class="writes"><a href="#query-pubmed"><code>/ref:query-pubmed</code></a> · <a href="acquire.html#pubmed-add-fetch"><code>/ref:pubmed-add-fetch</code></a></p>
 </article>
 
-<article class="cmd" id="search-pubmed">
-  <div class="cmd-head"><h3>/ref:search-pubmed</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
+<article class="cmd" id="query-pubmed">
+  <div class="cmd-head"><h3>/ref:query-pubmed</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
   <p class="summary">Turn a question into a PubMed query, run it, save the exact expression and its results as an immutable run, and open the results in the dashboard's Triage tab.</p>
-  <div class="synopsis">/ref:search-pubmed &lt;question or query&gt; --slug &lt;slug&gt; [--create] [--project &lt;slug&gt;] [--no-triage]</div>
+  <div class="synopsis">/ref:query-pubmed &lt;question or query&gt; --slug &lt;slug&gt; [--create] [--project &lt;slug&gt;] [--no-triage]</div>
   <h4>Arguments</h4>
   <dl class="args">
     <dt>&lt;question or query&gt;</dt><dd>Natural language, which Claude turns into a PICO-framed boolean query with MeSH and free-text terms. An explicit PubMed expression is used verbatim.</dd>
-    <dt>--slug &lt;slug&gt;</dt><dd>Required. Names <code>queries/&lt;slug&gt;.yaml</code>.</dd>
+    <dt>--slug &lt;slug&gt;</dt><dd>Required. Names <code>queries/&lt;slug&gt;/query.yaml</code>.</dd>
     <dt>--create</dt><dd>Required for a slug's first run. Without it, a new slug is refused.</dd>
     <dt>--project &lt;slug&gt;</dt><dd>Optional. Links the triage to an existing project, so decisions also go into that project's screening log.</dd>
     <dt>--no-triage</dt><dd>Save the run only: no metadata loading, no dashboard.</dd>
@@ -336,10 +336,10 @@
     <li>The dashboard opens on the <a href="#triage">Triage tab</a>. No paper is added until you mark it <em>Include</em> there.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Writes <code>queries/&lt;slug&gt;.yaml</code>, which is JSON despite the extension. Runs only ever append, so any artifact frozen on <code>--query &lt;slug&gt; --run &lt;id&gt;</code> still resolves to the same set later.</p>
+  <p class="writes">Writes <code>queries/&lt;slug&gt;/query.yaml</code>, which is JSON despite the extension. Runs only ever append, so any artifact frozen on <code>--query &lt;slug&gt; --run &lt;id&gt;</code> still resolves to the same set later.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library (PMIDs supplied by hand in place of the MCP call)</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:search-pubmed '("Autism Spectrum Disorder"[MeSH]) AND cortical thickness[tiab]' --slug asd-cortex --create</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:query-pubmed '("Autism Spectrum Disorder"[MeSH]) AND cortical thickness[tiab]' --slug asd-cortex --create</span>
 <span class="o">{
   "run_id": "run-24eadfb8f77b",
   "query": "(\"Autism Spectrum Disorder\"[MeSH]) AND cortical thickness[tiab]",
@@ -354,30 +354,32 @@
   <h4>Under the hood</h4>
   <p class="writes">MCP <code>search_articles</code> → <code>pubmed_query.py new-run --repo … --slug … --query-text "…" --source pubmed --pmids-file … [--create]</code>. The script also has <code>show</code> and <code>list</code> actions.</p>
   <h4>See also</h4>
-  <p class="writes"><a href="#update-queries"><code>/ref:update-queries</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
+  <p class="writes"><a href="#update-query"><code>/ref:update-query</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a> · <a href="write.html#review"><code>/ref:review --prisma</code></a> · <a href="../tutorials/systematic-review.html">Systematic review tutorial</a></p>
 </article>
 
-<article class="cmd" id="update-queries">
-  <div class="cmd-head"><h3>/ref:update-queries</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
-  <p class="summary">Re-run a saved query's stored expression, unchanged, and record what was added or removed.</p>
-  <div class="synopsis">/ref:update-queries &lt;slug&gt;</div>
+<article class="cmd" id="update-query">
+  <div class="cmd-head"><h3>/ref:update-query</h3><div class="chips"><span class="tag phase">phase 2</span><span class="tag net">PubMed MCP</span></div></div>
+  <p class="summary">Re-run a saved query, unchanged or refined by update terms you give, and record what was added or removed.</p>
+  <div class="synopsis">/ref:update-query &lt;slug&gt; [update terms]</div>
   <h4>Arguments</h4>
   <dl class="args">
     <dt>&lt;slug&gt;</dt><dd>Required. A saved query with at least one prior run.</dd>
+    <dt>[update terms]</dt><dd>Optional free text describing how to refine the query, e.g. <code>add fMRI</code> or <code>limit to 2020 onwards</code>. Without it, Claude asks: enter update terms, re-run unchanged, or exit without searching.</dd>
   </dl>
   <h4>What happens</h4>
   <ol>
-    <li><code>pubmed_query.py show</code> reads the saved query.</li>
-    <li>Claude calls the PubMed MCP search with the exact <code>query</code> from the most recent run, unaltered.</li>
-    <li><code>pubmed_query.py rerun</code> appends a new run that reuses the stored <code>query</code> and <code>source</code>, then reports <code>added</code> and <code>removed</code> PMIDs against the previous run.</li>
+    <li><code>pubmed_query.py show</code> reads the saved query and prints the most recent expression.</li>
+    <li>With update terms, Claude edits only what the terms ask for, shows old and new expressions, and asks you to run, edit the terms, or exit. Without terms, it asks first; <em>Exit</em> stops with nothing searched or written.</li>
+    <li>Claude calls the PubMed MCP search with the final expression.</li>
+    <li><code>pubmed_query.py rerun</code> appends a new run — the stored <code>query</code>, or the refined one passed as <code>--query-text</code> — then reports <code>added</code> and <code>removed</code> PMIDs against the previous run. A refined expression becomes the base for later updates.</li>
     <li>If the search has a triage, <code>triage.py sync</code> merges the run into it. Up to 100 new PMIDs load straight away; above that Claude asks first. They show under <em>New since last run</em>.</li>
   </ol>
-  <p class="writes">Re-runs only happen when you ask. Nothing is scheduled, and earlier runs are never edited.</p>
+  <p class="writes">Re-runs only happen when you ask. Nothing is scheduled, and earlier runs are never edited. If the update terms change the population, intervention, or outcome, save a new query under its own slug with <a href="#query-pubmed"><code>/ref:query-pubmed</code></a> instead, so this query's run history stays comparable.</p>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads and appends to <code>queries/&lt;slug&gt;.yaml</code>.</p>
+  <p class="writes">Reads and appends to <code>queries/&lt;slug&gt;/query.yaml</code>.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library</p>
-<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-queries asd-cortex</span>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:update-query asd-cortex</span>
 <span class="o">{
   "run": {
     "run_id": "run-47456189b1d6",
@@ -392,7 +394,7 @@
   <h4>Under the hood</h4>
   <p class="writes"><code>pubmed_query.py show</code> → MCP search → <code>pubmed_query.py rerun --repo … --slug … --pmids-file …</code></p>
   <h4>See also</h4>
-  <p class="writes"><a href="#search-pubmed"><code>/ref:search-pubmed</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a></p>
+  <p class="writes"><a href="#query-pubmed"><code>/ref:query-pubmed</code></a> · <a href="organize.html#screen"><code>/ref:screen</code></a></p>
 </article>
 <article class="cmd" id="triage">
   <div class="cmd-head"><h3>/ref:triage</h3><div class="chips"><span class="tag net">NCBI E-utilities</span></div></div>
@@ -417,7 +419,7 @@
     <li>Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>i</kbd>/<kbd>m</kbd>/<kbd>x</kbd> decide (the selection, or the current row), <kbd>Space</kbd> selects, <kbd>Enter</kbd> shows the abstract, <kbd>/</kbd> filters.</li>
   </ul>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Writes <code>triage/&lt;slug&gt;/triage.json</code> (linked project), <code>metadata/batch-NNNN.json</code> (one file per loaded batch), <code>decisions.jsonl</code> (append-only; the newest line per PMID wins) and <code>pending.json</code>. Include writes <code>papers/&lt;pmid&gt;/</code> through <code>add.py</code>; a linked project gets <code>screening.jsonl</code> and <code>papers.yaml</code> updates. <code>queries/&lt;slug&gt;.yaml</code> is never modified.</p>
+  <p class="writes">Writes <code>queries/&lt;slug&gt;/triage.json</code> (linked project), <code>metadata/batch-NNNN.json</code> (one file per loaded batch), <code>decisions.jsonl</code> (append-only; the newest line per PMID wins) and <code>pending.json</code>. Include writes <code>papers/&lt;pmid&gt;/</code> through <code>add.py</code>; a linked project gets <code>screening.jsonl</code> and <code>papers.yaml</code> updates. <code>queries/&lt;slug&gt;/query.yaml</code> is never modified.</p>
 </article>
 
 

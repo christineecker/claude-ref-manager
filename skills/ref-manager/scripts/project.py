@@ -23,6 +23,7 @@ from pathlib import Path
 
 from lib_atomic import atomic_write_json, now_iso, read_json
 from lib_ids import allocate_slug, check_question_id, SlugError
+from lib_queries import triage_files
 from lib_selector import source_badge
 from lib_schema import validate_project, SchemaError
 
@@ -54,7 +55,7 @@ TEMPLATES = {
     "systematic-review": {
         "description": "saved search -> screen -> full text -> PRISMA flow -> appraised review",
         "next_steps": [
-            '/ref:search-pubmed "<question>" --slug <query-slug> --create',
+            '/ref:query-pubmed "<question>" --slug <query-slug> --create',
             "/ref:add <pmid...>",
             "/ref:project add-paper <slug> <pmid>",
             '/ref:screen --project <slug> --pmid <pmid> --decision included|excluded --reason "<text>"',
@@ -206,13 +207,10 @@ def set_reasons(library_root: Path, slug: str, decision: str, reasons: list[str]
 
 def linked_triages(library_root: Path, slug: str) -> list[str]:
     """Saved-search triages linked to this project. Derived from
-    triage/*/triage.json -- project.yaml has no triage field
+    queries/*/triage.json -- project.yaml has no triage field
     (PUBMED_TRIAGE_IMPLEMENTATION_PLAN.md §4.1)."""
-    base = library_root / "triage"
-    if not base.is_dir():
-        return []
     out = []
-    for p in sorted(base.glob("*/triage.json")):
+    for p in triage_files(library_root):
         try:
             if json.loads(p.read_text()).get("project") == slug:
                 out.append(p.parent.name)

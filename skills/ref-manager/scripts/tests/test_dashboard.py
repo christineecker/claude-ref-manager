@@ -140,6 +140,18 @@ class TestBuildProducesIndexAndDetails(DashboardFixture):
         real_detail = lib_inventory.detail(self.library_root, "55555")
         self.assertEqual(embedded_detail, real_detail)
 
+    def test_projects_payload_embedded(self):
+        """phase 3 §3.1: GET /api/projects and the static build embed the
+        same `_projects_payload()` shape."""
+        (self.library_root / "projects" / "proj-a" / "project.yaml").write_text(json.dumps(
+            {"slug": "proj-a", "scope": "scope text", "questions": []}
+        ))
+        dashboard.build(self.library_root)
+        data = self._embedded_data()
+        self.assertEqual([p["slug"] for p in data["projects"]], ["proj-a"])
+        self.assertEqual(data["projects"][0]["summary"]["paper_count"], 1)
+        self.assertEqual(data["projects"][0]["queries"], [])
+
     def test_matrix_and_lint_embedded(self):
         dashboard.build(self.library_root)
         data = self._embedded_data()

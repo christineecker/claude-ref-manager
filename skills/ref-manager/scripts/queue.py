@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from lib_atomic import atomic_write_json, read_json
-from project import READING_STATES, _paper_source_counts, _project_dir
+from project import READING_STATES, _paper_source_counts, _project_dir, set_paper_questions
 from lib_schema import SchemaError
 
 
@@ -72,6 +72,8 @@ def main() -> int:
     ap.add_argument("--status")
     ap.add_argument("--priority", type=int)
     ap.add_argument("--why")
+    ap.add_argument("--question", action="append", help="set: link this pmid to a project question; repeatable (phase 5 §2)")
+    ap.add_argument("--no-question", action="append", help="set: unlink this pmid from a project question; repeatable")
     args = ap.parse_args()
 
     library_root = Path(args.repo).expanduser().resolve()
@@ -84,6 +86,8 @@ def main() -> int:
             if not args.pmid:
                 raise SchemaError("--pmid is required for set")
             result = set_state(library_root, args.project, args.pmid, args.status, args.priority, args.why)
+            if args.question or args.no_question:
+                result = set_paper_questions(library_root, args.project, args.pmid, args.question, args.no_question)
         else:
             result = show(library_root, args.project, args.pmid)
     except SchemaError as e:

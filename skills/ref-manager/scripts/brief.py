@@ -78,6 +78,7 @@ def save_brief(
     library_root: Path, project: str | None, key: str, question: str,
     resolution: dict | None, candidates: list[dict], answer: str,
     unresolved_questions: list[str] | None, refresh: bool,
+    question_id: str | None = None,
 ) -> dict:
     latest_id = _latest_snapshot_id(library_root, project, key)
 
@@ -90,6 +91,15 @@ def save_brief(
         if edits:
             result["user_edit"] = edits
         return result
+
+    # phase 5 §3: an optional link to one of the project's own questions,
+    # so the Summary subtab can show "brief: <key>" per question instead of
+    # guessing the association from the brief's key/free-text question.
+    if question_id is not None:
+        if not project:
+            raise ValueError("--question-id requires --project")
+        import project as project_module
+        project_module._validate_question_ids(library_root, project, [question_id])
 
     prior_evidence: list[dict] = []
     if latest_id:
@@ -119,6 +129,7 @@ def save_brief(
     evidence_hash = _evidence_hash(candidates)
     manifest = {
         "snapshot_id": snapshot_id, "key": key, "project": project, "question": question,
+        "question_id": question_id,
         "selector_expression": resolution["selector_expression"] if resolution else "<all>",
         "pmids_at_resolution": resolution["pmids"] if resolution else None,
         "resolved_at": now_iso(),
@@ -185,6 +196,7 @@ def main() -> int:
     ap.add_argument("--key", required=True)
     ap.add_argument("--project")
     ap.add_argument("--question")
+    ap.add_argument("--question-id", help="link this brief to one of the project's questions (phase 5 §3)")
     ap.add_argument("--answer-file")
     ap.add_argument("--evidence-file", help="ask_retrieve.py's candidates JSON")
     ap.add_argument("--resolution-file")
@@ -204,7 +216,8 @@ def main() -> int:
             resolution = json.loads(Path(args.resolution_file).read_text()) if args.resolution_file else None
             answer = Path(args.answer_file).read_text()
             result = save_brief(library_root, args.project, args.key, args.question,
-                                 resolution, candidates, answer, args.unresolved, args.refresh)
+                                 resolution, candidates, answer, args.unresolved, args.refresh,
+                                 question_id=args.question_id)
         elif args.action == "edit":
             revision = Path(args.revision_file).read_text()
             result = edit_brief(library_root, args.project, args.key, revision)

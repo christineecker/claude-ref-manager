@@ -220,7 +220,9 @@ def _authors_short(authors: list[dict], limit: int = 3) -> str | None:
 
 
 def _project_index(library_root: Path) -> dict[str, list[dict]]:
-    """pmid -> [{slug, reading_status, added_at}], scanned once (§4.2)."""
+    """pmid -> [{slug, reading_status, added_at, questions}], scanned once
+    (§4.2). `questions` (phase 5 §5) backs the dashboard drawer's question
+    multi-select."""
     index: dict[str, list[dict]] = {}
     projects_dir = library_root / "projects"
     if not projects_dir.is_dir():
@@ -239,6 +241,7 @@ def _project_index(library_root: Path) -> dict[str, list[dict]]:
                 "slug": slug,
                 "reading_status": m.get("reading_status"),
                 "added_at": m.get("added_at"),
+                "questions": m.get("questions") or [],
             })
     return index
 

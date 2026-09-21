@@ -131,9 +131,29 @@ def add_question(library_root: Path, slug: str, qid: str, text: str) -> dict:
     return project
 
 
+def _question_ids(library_root: Path, slug: str) -> set[str]:
+    project_path = _project_dir(library_root, slug) / "project.yaml"
+    if not project_path.exists():
+        raise SlugError(f"project {slug!r} does not exist")
+    return {q["id"] for q in json.loads(project_path.read_text()).get("questions", [])}
+
+
+def _validate_question_ids(library_root: Path, slug: str, qids: list[str]) -> None:
+    """phase 5 §1: every `questions` entry on a membership record (or a
+    brief's `question_id`) must name a question that actually exists on
+    this project -- `lib_ids.check_question_id()` checks the opposite
+    direction (a *new* id doesn't collide), so this is its own small
+    lookup rather than a reuse."""
+    known = _question_ids(library_root, slug)
+    bad = sorted(set(qids) - known)
+    if bad:
+        raise SchemaError(f"unknown question id(s) for project {slug!r}: {', '.join(bad)}")
+
+
 def add_paper(
     library_root: Path, slug: str, pmid: str, relevance: str | None,
     priority: int | None, reading_status: str | None,
+    questions: list[str] | None = None,
 ) -> dict:
     pdir = _project_dir(library_root, slug)
     papers_path = pdir / "papers.yaml"
@@ -141,6 +161,8 @@ def add_paper(
         raise SlugError(f"project {slug!r} does not exist")
     if reading_status is not None and reading_status not in READING_STATES:
         raise SchemaError(f"reading_status must be one of {READING_STATES}")
+    if questions:
+        _validate_question_ids(library_root, slug, questions)
 
     doc = read_json(papers_path, {"papers": []})
     for m in doc["papers"]:
@@ -155,10 +177,41 @@ def add_paper(
         "why_saved": None,
         "screening": None,
         "added_at": now_iso(),
+        # phase 5 §1: which of the project's questions this paper answers;
+        "questions": list(dict.fromkeys(questions or [])),
     }
     doc["papers"].append(membership)
     atomic_write_json(papers_path, doc)
     return membership
+
+
+def set_paper_questions(
+    library_root: Path, slug: str, pmid: str,
+    add: list[str] | None = None, remove: list[str] | None = None,
+) -> dict:
+    """phase 5 §2/§6: `/ref:queue set --question/--no-question` and the
+    dashboard's single + bulk question-assign POSTs all go through this --
+    same add/remove-by-list shape either way."""
+    papers_path = _project_dir(library_root, slug) / "papers.yaml"
+    if not papers_path.exists():
+        raise SlugError(f"project {slug!r} does not exist")
+    add = add or []
+    remove = remove or []
+    if add:
+        _validate_question_ids(library_root, slug, add)
+
+    doc = read_json(papers_path, {"papers": []})
+    for m in doc["papers"]:
+        if m["pmid"] == pmid:
+            current = list(m.get("questions") or [])
+            for q in add:
+                if q not in current:
+                    current.append(q)
+            current = [q for q in current if q not in remove]
+            m["questions"] = current
+            atomic_write_json(papers_path, doc)
+            return m
+    raise SchemaError(f"pmid {pmid!r} is not a member of project {slug!r} (add it first via /ref:project)")
 
 
 def screening_reasons(library_root: Path, slug: str | None) -> dict[str, list[str]]:
@@ -246,6 +299,54 @@ def show(library_root: Path, slug: str) -> dict:
     }
 
 
+def dashboard_summary(library_root: Path, slug: str) -> dict:
+    """Everything the dashboard's Projects folder tree/Summary needs for one
+    project (DASHBOARD_NAV_IMPLEMENTATION_PLAN.md phase 3 §3.1) -- `show()`
+    plus the template's `next_steps` and a reading-queue slice. Linked-query
+    counts are attached by `dashboard.py` (needs `triage.py`, which already
+    imports `project`, so it can't be reused the other way round)."""
+    info = show(library_root, slug)
+    proj = info["project"]
+    template = proj.get("template")
+    members = info["papers"].get("papers", [])
+    papers = sorted(members, key=lambda m: (m.get("priority") is None, m.get("priority")))
+    # phase 5 §5: per-question paper counts (D8) -- "unassigned" is members
+    # with no `questions` at all, not a question id of its own.
+    question_counts = {q["id"]: 0 for q in proj.get("questions", [])}
+    unassigned = 0
+    for m in members:
+        qids = m.get("questions") or []
+        if not qids:
+            unassigned += 1
+        for qid in qids:
+            if qid in question_counts:
+                question_counts[qid] += 1
+    questions = [dict(q, paper_count=question_counts.get(q["id"], 0)) for q in proj.get("questions", [])]
+    return {
+        "slug": proj["slug"],
+        "scope": proj.get("scope"),
+        "template": template,
+        "next_steps": TEMPLATES[template]["next_steps"] if template in TEMPLATES else [],
+        "questions": questions,
+        "unassigned_papers": unassigned,
+        "summary": info["summary"],
+        "screening_reasons": info["screening_reasons"],
+        "reading_queue": [
+            {"pmid": m["pmid"], "priority": m.get("priority"), "why_saved": m.get("why_saved"),
+             "reading_status": m.get("reading_status")}
+            for m in papers[:20]
+        ],
+        # phase 5 §5: full membership (Papers subtab, D8's question chip row)
+        # -- `reading_queue` above stays a short "what to read next" slice.
+        "papers": [
+            {"pmid": m["pmid"], "priority": m.get("priority"), "why_saved": m.get("why_saved"),
+             "reading_status": m.get("reading_status"), "questions": m.get("questions") or []}
+            for m in papers
+        ],
+        "triage_slugs": info["triages"],
+    }
+
+
 def list_projects(library_root: Path) -> list[dict]:
     projects_dir = library_root / "projects"
     out = []
@@ -287,6 +388,7 @@ def main() -> int:
     ap.add_argument("--relevance")
     ap.add_argument("--priority", type=int)
     ap.add_argument("--reading-status")
+    ap.add_argument("--question", action="append", help="add-paper: link the paper to this project question; repeatable (phase 5 §2)")
     ap.add_argument("--decision", choices=sorted(DEFAULT_SCREENING_REASONS), help="set-reasons: which decision's chips")
     ap.add_argument("--reason", action="append", help="set-reasons: one chip; repeatable, in display order")
     ap.add_argument("--reset", action="store_true", help="set-reasons: go back to the default chips")
@@ -319,7 +421,7 @@ def main() -> int:
         elif args.action == "add-question":
             result = add_question(library_root, args.slug, args.question_id, args.text)
         elif args.action == "add-paper":
-            result = add_paper(library_root, args.slug, args.pmid, args.relevance, args.priority, args.reading_status)
+            result = add_paper(library_root, args.slug, args.pmid, args.relevance, args.priority, args.reading_status, questions=args.question)
         elif args.action == "show":
             result = show(library_root, args.slug)
         elif args.action == "set-reasons":

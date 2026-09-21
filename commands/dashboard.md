@@ -21,9 +21,11 @@ Parse `$ARGUMENTS` for:
 - `--open` — open the dashboard in the default browser after it's ready
   (built index.html for `--static`; the served URL for `serve`).
 - `--view '<query>'` — serve mode only. Reopen a shared view: the query part
-  of a "Copy link" URL (e.g. `tab=insights&project=foo`). Only
-  `tab`, `q`, `project`, `issue`, `source`, `missing`, `sort`, `insight`,
-  `center`, `hops` are accepted.
+  of a "Copy link" URL (e.g. `sec=insights&project=foo`, or a link copied
+  before the nav redesign, `tab=insights&project=foo`, which still maps onto
+  the right rail section). Only `tab`, `q`, `project`, `issue`, `source`,
+  `missing`, `sort`, `insight`, `center`, `hops`, `sec`, `item`, `sub` are
+  accepted.
 
 Steps:
 
@@ -69,7 +71,17 @@ Notes (serve mode):
   `/api/health` (per-source status + warnings; 503 only if rows fail),
   `/api/summary` (counts, coverage, top issue buckets, ranked next actions;
   `?scope=project|issue`, `?detail=pmids`), `/api/knowledge` (claims,
-  concepts, relations, MeSH terms for the Insights tab).
+  concepts, relations, MeSH terms for the Insights tab), `/api/projects`
+  (the Projects folder tree/Summary: scope, template, next steps, questions
+  with per-question paper counts, linked queries with decision counts),
+  `/api/project/<slug>/screening` (paginated screening-decision log),
+  `/api/project/<slug>/reports` (report cards: project summary, briefs,
+  comparison matrix, PRISMA flow, appraised synthesis, gap analysis) and
+  `/api/project/<slug>/report/<kind>/<id>` (one report's rendered body).
+  Two writes beyond notes/highlights/triage/PDFs: `POST
+  /api/project/<slug>/paper/<pmid>` and `POST /api/project/<slug>/papers`
+  (bulk) link/unlink a paper to one of its project's questions — same
+  token/Origin checks as everything else.
 
 Notes (static mode, `--static`):
 
@@ -85,6 +97,17 @@ Notes (static mode, `--static`):
 
 Both modes:
 
+- Five rail sections: Library, Overview, Projects, Queries, Insights. A
+  project is a folder in the Projects sidebar; selecting one opens
+  Summary / Papers / Queries / Reports / Screening-log subtabs (the
+  screening view itself is a single instance, re-parented into whichever
+  of Projects/Queries needs it — never two live copies). Queries lists
+  every saved search/query, grouped "Not in a project" then one group per
+  project (a linked query opens inside its project's Queries subtab, marked
+  ↗). Reports is a card grid (project summary, briefs, comparison matrix,
+  PRISMA flow, appraised synthesis, gap analysis) that opens into a
+  full-width reader; a stale card states why (e.g. "3 new papers since
+  snapshot").
 - Filters, sort, tab and Insights view live in the URL ("Copy link"); the
   toolbar's `missing: pdf` / `missing: full-text` chips are one-click filters.
 - Serve mode only: the **Add papers** panel takes dropped PDFs, PMIDs, DOIs

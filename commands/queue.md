@@ -6,7 +6,9 @@ model promotion).
 
 Parse `$ARGUMENTS` for:
 
-- `set --project <slug> --pmid <pmid> [--status to_screen|to_read|reading|read] [--priority N] [--why "<text>"]`
+- `set --project <slug> --pmid <pmid> [--status to_screen|to_read|reading|read] [--priority N] [--why "<text>"] [--question <qid> ...] [--no-question <qid> ...]`
+  — `--question`/`--no-question` are each repeatable and link/unlink this pmid to one of the
+  project's questions (§3d question link, phase 5); every other flag is still independent.
 - `show --project <slug> [--pmid <pmid>]` — omit `--pmid` to list the whole project's queue.
   The output includes reading-state and source/completeness summaries so the
   project queue doubles as a quick dashboard.
@@ -17,7 +19,7 @@ Steps:
 2. Print, then run:
 
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/queue.py" set --repo <library_root> --project <slug> --pmid <pmid> [--status <state>] [--priority N] [--why "<text>"]
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/queue.py" set --repo <library_root> --project <slug> --pmid <pmid> [--status <state>] [--priority N] [--why "<text>"] [--question <qid> ...] [--no-question <qid> ...]
    python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/queue.py" show --repo <library_root> --project <slug> [--pmid <pmid>]
    ```
 

@@ -1,5 +1,5 @@
 Parse a research question into a PubMed search, save the run immutably (D15),
-and open the Triage tab so you can screen the results.
+and open the Queries section so you can screen the results.
 
 Parse `$ARGUMENTS` for:
 - `<question text>` or an explicit PubMed query expression.
@@ -44,8 +44,8 @@ Steps:
       If it fails because no contact email is configured, relay the error — it
       names the `ncbi_email` key to add to `~/.config/ref-manager/config.json`.
    c. Print one summary line:
-      `found: <N> · metadata loaded: <loaded> · remaining: <remaining> (load more from the Triage tab, or /ref:triage <slug> --more)`
-   d. Start the dashboard on the Triage tab in the background (it blocks until
+      `found: <N> · metadata loaded: <loaded> · remaining: <remaining> (load more from the Queries section, or /ref:triage <slug> --more)`
+   d. Start the dashboard on the Queries section in the background (it blocks until
       stopped), then print the launch URL line it prints verbatim:
       ```
       python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/dashboard.py" serve --repo <library_root> --open --triage <slug>

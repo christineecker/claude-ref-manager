@@ -208,6 +208,8 @@ def resolve(
             m = members_by_pmid.get(pmid)
             if m is None:
                 continue
+            if question is not None and question not in (m.get("questions") or []):
+                continue
             if screened is not None and (m.get("screening") or {}).get("decision") != screened:
                 continue
             if read and m.get("reading_status") != "read":

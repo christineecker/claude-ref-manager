@@ -1,10 +1,10 @@
 # /ref:triage
 
-Screen a saved PubMed search: open its Triage tab, link it to a project, load
+Screen a saved PubMed search: open its Queries section, link it to a project, load
 more metadata, or hand pending full-text work to Claude. One triage per saved search; re-runs
 from `/ref:update-query` merge into it.
 
-In the Triage tab, **Include** adds the paper to the library immediately.
+In the Queries section, **Include** adds the paper to the library immediately.
 **Exclude** never removes anything from the library. With a linked project,
 every decision is also recorded in that project's screening log
 (`/ref:screen`, feeding `/ref:review --prisma`, which uses linked triages as
@@ -62,7 +62,7 @@ Steps:
       ```bash
       python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/triage.py" load-batch --repo <library_root> --slug <slug>
       ```
-      Print the output verbatim. An open Triage tab picks the batch up on refresh.
+      Print the output verbatim. An open Queries section picks the batch up on refresh.
 
 5. `apply <slug>`:
    a. Print, then run:
@@ -80,7 +80,7 @@ Steps:
       python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/triage.py" clear-pending --repo <library_root> --slug <slug> --pmids-file <temp-file>
       ```
    d. Print the fetch output and the clear-pending output verbatim. `failed`
-      PMIDs stay pending so a later `apply` retries them. An open Triage tab
+      PMIDs stay pending so a later `apply` retries them. An open Queries section
       updates by itself within a few seconds.
 
 6. `list`: print, then run

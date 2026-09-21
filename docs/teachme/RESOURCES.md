@@ -27,7 +27,13 @@
 - [skills/ref-manager/scripts/triage.py](../../skills/ref-manager/scripts/triage.py) and [skills/ref-manager/scripts/okf_emit.py](../../skills/ref-manager/scripts/okf_emit.py)
   Reference implementations of acquisition triage and OKF-note emission (concepts/papers/people/grants). Use for: ground-truth behavior when docs are ambiguous.
 - `graphify query` / `graphify path` / `graphify explain` (this repo's own graphify-out/ graph)
-  Fastest way to find where a concept lives in code before reading raw files. Use for: every "where is X" or "how does X connect to Y" question in this repo.
+  Fastest way to find where a concept lives in code before reading raw files. Use for: every "where is X" or "how does X connect to Y" question in this repo. Note: graphify-out/ can lag a rename (it still indexed `commands/ref-weave.md`; the real file is `commands/weave.md` after the 2026-09-18 command-rename commit) — cross-check with `find`/`grep` if a graphify hit 404s.
+- [commands/weave.md](../../commands/weave.md)
+  The `/ref:weave` spec — builds/reviews `graph/concepts.jsonl` + `graph/relations.jsonl` from claims, then regenerates `okf/` and `graph/people_relations.jsonl`. Use for: exactly how a claim becomes a concept-graph edge.
+- [skills/ref-manager/scripts/concept.py](../../skills/ref-manager/scripts/concept.py)
+  `find`/`create`/`add-alias` — the concept-matching primitives weave.md calls. Use for: how concept dedup and alias matching actually work (exact, case/whitespace-normalized only, no fuzzy match).
+- [docs/concepts.html](../concepts.html) (identifier-contract section)
+  One-line source for the MeSH-terms-as-aliases claim: "MeSH terms and other codes resolve to a concept's slug through its aliases."
 
 ## Wisdom (Communities)
 

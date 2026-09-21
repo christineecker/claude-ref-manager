@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weave and the Concept Graph</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">Lesson 0005 &middot; Maintaining the claude-ref-manager paper repo</p>
+<h1>Weave and the Concept Graph</h1>
+<p class="lede"><code>/ref:weave</code> turns free-text claim fields into a graph of stable concepts and
+typed relations, then regenerates every derived view from that graph &mdash; the step PLAN.md
+calls WEAVE: &ldquo;structured concepts/relations &rarr; generated OKF views.&rdquo;</p>
+
+<div class="callout source">
+  <strong>Primary source:</strong> <a href="../../../commands/weave.md">commands/weave.md</a> (the command
+  spec) plus <a href="../../../skills/ref-manager/scripts/concept.py">concept.py</a> and
+  <a href="../../../docs/concepts.html">docs/concepts.html</a> for the MeSH-alias detail. This lesson assumes
+  <a href="0004-the-claim-contract.html">Lesson 0004</a> &mdash; weave consumes exactly the claim objects that
+  lesson described.
+</div>
+
+<h2>Why no dedicated subagent</h2>
+<p>
+  Concept mapping &mdash; deciding that a claim's free-text <code>intervention</code>/<code>outcome</code>
+  is &ldquo;the same thing&rdquo; as an existing concept &mdash; needs judgment. PLAN.md only names two
+  subagents, <code>ref-extractor</code> and <code>ref-synthesizer</code>, and neither fits this job. So
+  <code>/ref:weave</code> does the mapping inline in the calling session, the same pattern
+  <code>/ref:check-citations</code> already established for a different judgment task.
+</p>
+
+<h2>Two things live under one command name</h2>
+<p>
+  PLAN.md's step 5 (WEAVE) bundles two halves that <code>weave.md</code> keeps as separate phases:
+</p>
+<ol>
+  <li><strong>Build/review the graph</strong> (steps 1&ndash;4, only when a selector is given): map claims to
+    concepts, propose relation edges between claims that share a concept pair.</li>
+  <li><strong>Regenerate derived views</strong> (step 5, always run): rebuild the OKF bundle and the
+    researcher/grant graph from whatever concepts/relations currently exist.</li>
+</ol>
+<p>
+  <code>--regenerate-only</code> (or omitting the selector entirely) skips straight to step 5 &mdash;
+  useful after a <code>/ref:verify</code> correction or an <code>/ref:extract</code> rerun changes
+  underlying data without adding new claims to weave.
+</p>
+
+<h2>Step 3&ndash;4: how a claim becomes a graph edge</h2>
+<p>For each active claim in the resolved papers:</p>
+<ul>
+  <li><strong>Find before create.</strong> <code>concept.py find</code> is always called first. Only when
+    no existing concept or alias matches does the command call <code>concept.py create</code>.</li>
+  <li><strong>Near-matches become aliases, not new concepts.</strong> If a claim says &ldquo;myocardial
+    infarction&rdquo; and a concept named &ldquo;MI&rdquo; already exists, the claim's wording is added via
+    <code>concept.py add-alias</code> &mdash; one concept, two ways to spell it.</li>
+  <li><strong>Edges only form between different papers.</strong> When two claims from <em>different</em>
+    PMIDs map to the same subject/object concept pair, <code>relation.py propose</code> checks whether
+    they report opposite directions (<code>increase</code> vs <code>decrease</code>) with matching
+    comparator/effect_measure/timepoint/population. Only then does it return a proposal, and it is always
+    <code>potential_conflict</code> &mdash; the deterministic check can't derive <code>supports</code>/
+    <code>extends</code>/<code>replicates</code> from PICO fields alone. A claim never gets compared
+    against another claim from its own paper.</li>
+  <li><strong>Judgment-based edges are explicit.</strong> When you (the agent) read two papers and judge
+    that one genuinely extends or replicates another, that's <code>relation.py create-manual --type
+    supports|extends|replicates</code> &mdash; a separate, stated-reasoning path, never something
+    <code>propose</code> infers.</li>
+  <li><strong><code>contradicts</code> is never minted here.</strong> Promoting a <code>potential_conflict</code>
+    edge to <code>contradicts</code> is always a separate <code>/ref:weave review &lt;relation-id&gt;
+    contradicts --rationale "..."</code> action, and it's refused without a non-empty rationale.</li>
+</ul>
+
+<div class="callout">
+  <strong>concept.py never guesses a match.</strong> Its own docstring is explicit: matching is exact,
+  case-insensitive, whitespace-normalized string comparison against a concept's <code>name</code> or its
+  <code>aliases</code> list &mdash; nothing fuzzier. The judgment (is &ldquo;MI&rdquo; the same thing as
+  &ldquo;myocardial infarction&rdquo;?) belongs to whichever agent calls <code>find</code>/<code>create</code>/
+  <code>add-alias</code>, not to the script.
+</div>
+
+<h2>What mesh terms are, here</h2>
+<p>
+  MeSH (Medical Subject Headings) terms are PubMed's own controlled vocabulary, attached to a paper's
+  metadata when it's fetched. They aren't a separate graph layer &mdash; <code>docs/concepts.html</code>
+  states the mapping directly: <em>&ldquo;MeSH terms and other codes resolve to a concept's slug through
+  its aliases.&rdquo;</em> A MeSH term is just one more string that can match (or be added as) an alias on
+  a <code>graph/concepts.jsonl</code> row, exactly like a claim's free-text wording. There's no separate
+  MeSH ingestion pipeline in this repo &mdash; the same <code>find</code>/<code>create</code>/
+  <code>add-alias</code> machinery from step 3 is what a MeSH code would go through if an agent chose to
+  weave it in.
+</p>
+
+<h2>Step 5: two regeneration scripts, two purposes</h2>
+<table style="width:100%; border-collapse:collapse; font-size:0.88rem; margin: 0.8rem 0;">
+  <tr style="background:var(--code-bg);">
+    <th style="text-align:left; padding:0.4rem 0.6rem; border:1px solid var(--rule);">Script</th>
+    <th style="text-align:left; padding:0.4rem 0.6rem; border:1px solid var(--rule);">Reads</th>
+    <th style="text-align:left; padding:0.4rem 0.6rem; border:1px solid var(--rule);">Writes</th>
+  </tr>
+  <tr>
+    <td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>okf_emit.py</code></td>
+    <td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>graph/concepts.jsonl</code>,
+      <code>graph/relations.jsonl</code>, paper/people/grant records</td>
+    <td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>okf/</code> &mdash; a conformant
+      OKF v0.2 bundle, readable by the <code>okf</code> plugin's <code>search_concepts</code>/
+      <code>read_concept</code>/<code>get_neighbors</code> MCP tools</td>
+  </tr>
+  <tr>
+    <td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>graph_people.py</code></td>
+    <td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);">committed authorship/funding data
+      (phases 1&ndash;3)</td>
+    <td style="padding:0.4rem 0.6rem; border:1px solid var(--rule);"><code>graph/people_relations.jsonl</code>
+      &mdash; <code>researcher_authored_publication</code>, <code>publication_acknowledges_grant</code></td>
+  </tr>
+</table>
+<p>
+  <code>graph/people_relations.jsonl</code> is a deliberately separate file from
+  <code>graph/relations.jsonl</code> (the scientific concept/claim graph from steps 1&ndash;4) &mdash; the
+  two schemas were designed independently and merging them wasn't worth the risk.
+  <code>publication_supports_aim</code> and <code>researcher_lab_membership</code> are schema-ready columns
+  with nothing populating them yet: nothing in the plugin currently links a publication to a specific grant
+  aim or lab-membership record, and the script says so plainly rather than fabricating a link.
+</p>
+<p>
+  Both scripts are pure regeneration: never hand-edit anything under <code>okf/</code> or
+  <code>graph/people_relations.jsonl</code> &mdash; edit the JSONL/JSON sources and re-run
+  <code>/ref:weave --regenerate-only</code>.
+</p>
+
+<h2>The other two modes</h2>
+<p>
+  <code>/ref:weave review &lt;relation-id&gt; &lt;type&gt; --rationale "..."</code> promotes or demotes a
+  relation (e.g. <code>potential_conflict</code> &rarr; <code>contradicts</code>), and
+  <code>/ref:weave neighbors &lt;concept-slug&gt;</code> answers &ldquo;what supports/conflicts
+  with/contradicts X&rdquo; &mdash; the structural retrieval layer over the graph. Both skip steps
+  3&ndash;5 entirely and just print the matching <code>relation.py</code> subcommand's output verbatim.
+</p>
+
+<div class="callout">
+  <strong>Scope guardrail.</strong> Comparing every claim pair across a whole library is expensive and
+  usually pointless. Weave-mode only compares claims already mapped to the same concept pair, and only
+  within the papers the selector resolved to &mdash; never library-wide. A library-wide sweep is an
+  explicit operation the calling agent batches by selector (e.g. one project at a time), never something
+  this command does unprompted.
+</div>
+
+<div class="quiz" data-quiz="q1" data-answer="b">
+  <p class="q">Two claims from different papers both report an effect on the same concept pair, one
+    finding an increase and one a decrease, with matching comparator/effect_measure/timepoint/population.
+    What does <code>relation.py propose</code> return?</p>
+  <div class="choices">
+    <label><input type="radio" name="q1" value="a"> A <code>contradicts</code> edge, since the directions are opposite.</label>
+    <label><input type="radio" name="q1" value="b"> A <code>potential_conflict</code> edge &mdash; propose/create never produce anything stronger.</label>
+    <label><input type="radio" name="q1" value="c"> Nothing, because <code>propose</code> only handles claims within the same paper.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; the deterministic opposite-direction check can only ever produce <code>potential_conflict</code>. Promoting it to <code>contradicts</code> is a separate, rationale-required <code>review</code> action.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; <code>propose</code>/<code>create</code> can only ever output <code>potential_conflict</code>; it can't derive <code>contradicts</code>, <code>supports</code>, <code>extends</code>, or <code>replicates</code> from PICO fields alone. And it explicitly requires the two claims to come from different PMIDs.</p>
+</div>
+
+<div class="quiz" data-quiz="q2" data-answer="c">
+  <p class="q">A claim's <code>intervention</code> field says &ldquo;MI&rdquo; and a MeSH term on the same
+    paper is &ldquo;myocardial infarction.&rdquo; Where does the MeSH term go, if an agent chooses to
+    weave it into the concept graph?</p>
+  <div class="choices">
+    <label><input type="radio" name="q2" value="a"> Into a separate <code>graph/mesh.jsonl</code> file, since MeSH is a distinct vocabulary from claim text.</label>
+    <label><input type="radio" name="q2" value="b"> It's ignored &mdash; <code>concept.py</code> only maps claim fields, never external codes.</label>
+    <label><input type="radio" name="q2" value="c"> As an alias on the same concept, via the same <code>find</code>/<code>create</code>/<code>add-alias</code> path as any other wording.</label>
+  </div>
+  <p class="feedback correct" data-correct>Right &mdash; docs/concepts.html says it directly: MeSH terms and other codes resolve to a concept's slug through its aliases, using the exact same matching machinery as any claim's free-text wording.</p>
+  <p class="feedback incorrect" data-incorrect>Not quite &mdash; there's no separate MeSH file or MeSH-specific code path. A MeSH term is just another string that can be matched or added as an alias on an existing <code>graph/concepts.jsonl</code> row.</p>
+</div>
+
+<p class="ask-agent">Want to watch a real weave run &mdash; a concept get created, an alias added, a
+<code>potential_conflict</code> edge proposed &mdash; against a scratch library? Ask your agent to walk
+through it end to end with two synthetic claims.</p>
+
+<div class="nav-links">
+  Previous: <a href="0004-the-claim-contract.html">Lesson 0004 &mdash; The Claim Contract</a>.
+  Next up: the retrieval layer (<code>/ref:ask</code>, <code>index/catalog.sqlite</code>, FTS) &mdash; or
+  the OKF bundle itself in more depth (what <code>okf/concepts/&lt;id&gt;.md</code> actually looks like,
+  how <code>get_neighbors</code> walks it). Say which.
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.quiz').forEach(function (quiz) {
+    var inputs = quiz.querySelectorAll('input[type=radio]');
+    var correct = quiz.querySelector('.feedback.correct');
+    var incorrect = quiz.querySelector('.feedback.incorrect');
+    var answer = quiz.getAttribute('data-answer');
+    inputs.forEach(function (input) {
+      input.addEventListener('change', function () {
+        var isCorrect = input.value === answer;
+        correct.classList.toggle('show', isCorrect);
+        incorrect.classList.toggle('show', !isCorrect);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

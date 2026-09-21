@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-21 · [`bd79841`](https://github.com/christineecker/claude-ref-manager/commit/bd79841) chore(graphify): incremental graph update
 - 2026-09-21 · [`a5deae4`](https://github.com/christineecker/claude-ref-manager/commit/a5deae4) feat: markdown findings reports and stricter appraisal drafts
 - 2026-09-21 · [`a4a46eb`](https://github.com/christineecker/claude-ref-manager/commit/a4a46eb) docs(tutorials): add claim-to-concept-graph tutorial
 - 2026-09-21 · [`2323999`](https://github.com/christineecker/claude-ref-manager/commit/2323999) docs(teachme): add lesson 0005 on weave and the concept graph
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-17 · [`8d0427d`](https://github.com/christineecker/claude-ref-manager/commit/8d0427d) docs: document the dashboard Insights graph features
 - 2026-09-17 · [`0012be6`](https://github.com/christineecker/claude-ref-manager/commit/0012be6) docs: align plugin version (0.4.0) across docs; remove implemented plan
 - 2026-09-17 · [`5947cc7`](https://github.com/christineecker/claude-ref-manager/commit/5947cc7) ci: pin setup-uv to v10.1.0
-- 2026-09-17 · [`32f3cd1`](https://github.com/christineecker/claude-ref-manager/commit/32f3cd1) ci: move workflow actions to Node 24 releases and test on Node 24
 <!-- changelog:end -->

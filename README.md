@@ -85,6 +85,8 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-18 · [`c2b552a`](https://github.com/christineecker/claude-ref-manager/commit/c2b552a) feat: dashboard nav redesign — rail+sidebar shell, projects/queries, reports, question links
+- 2026-09-18 · [`0d47cbc`](https://github.com/christineecker/claude-ref-manager/commit/0d47cbc) refactor: nest triage under queries/<slug>/; rename query commands
 - 2026-09-18 · [`879ef7b`](https://github.com/christineecker/claude-ref-manager/commit/879ef7b) refactor: rename /ref:import to /ref:add-sources; add claim docs
 - 2026-09-18 · [`bb4bc6a`](https://github.com/christineecker/claude-ref-manager/commit/bb4bc6a) fix: update stale dashboard viewer tests after coverage-matrix merge
 - 2026-09-18 · [`2a1fc70`](https://github.com/christineecker/claude-ref-manager/commit/2a1fc70) refactor: rename /ref:search-add-fetch to /ref:pubmed-add-fetch
@@ -98,6 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-17 · [`426c5e9`](https://github.com/christineecker/claude-ref-manager/commit/426c5e9) ci: install pandoc and uv for the conversion tests
 - 2026-09-17 · [`929dab8`](https://github.com/christineecker/claude-ref-manager/commit/929dab8) feat: dashboard graph visualization (plan phases 1-5)
 - 2026-09-17 · [`1b65776`](https://github.com/christineecker/claude-ref-manager/commit/1b65776) docs: graph visualization implementation plan (v2)
-- 2026-09-17 · [`baf5c84`](https://github.com/christineecker/claude-ref-manager/commit/baf5c84) feat: triage follow-ups (PRISMA link, --triage selector, reason chips)
-- 2026-09-17 · [`5783b81`](https://github.com/christineecker/claude-ref-manager/commit/5783b81) feat: dashboard insights, next actions, shareable views, PDF upload
 <!-- changelog:end -->

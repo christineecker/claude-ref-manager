@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Appraising evidence · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+<style>
+.svg-wrap svg .node{fill:var(--card);stroke:currentColor;stroke-opacity:.5;stroke-width:1.5}
+.svg-wrap svg .store{fill:var(--amber-soft);stroke:var(--amber);stroke-width:1.5}
+.svg-wrap svg .grade{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.svg-wrap svg .human{fill:none;stroke:currentColor;stroke-opacity:.6;stroke-width:1.5;stroke-dasharray:4 3}
+.svg-wrap svg .t{font:500 12.5px "IBM Plex Mono",ui-monospace,monospace;fill:currentColor}
+.svg-wrap svg .s{font:400 11px "IBM Plex Sans",system-ui,sans-serif;fill:currentColor;fill-opacity:.65}
+.svg-wrap svg .l{font:400 11px "IBM Plex Mono",ui-monospace,monospace;fill:currentColor;fill-opacity:.8}
+.svg-wrap svg .band{font:500 10.5px "IBM Plex Mono",ui-monospace,monospace;fill:var(--accent);letter-spacing:1px}
+.svg-wrap svg .rule{stroke:var(--line);stroke-width:1;fill:none}
+.svg-wrap svg .edge{stroke:currentColor;stroke-opacity:.55;stroke-width:1.5;fill:none}
+.svg-wrap svg .edge.h{stroke-dasharray:5 3}
+.svg-wrap svg .c{font:500 10.5px "IBM Plex Mono",ui-monospace,monospace;fill:var(--accent)}
+.svg-wrap svg .arrow{fill:currentColor;fill-opacity:.55}
+table.sel td:first-child{white-space:normal}
+table.sel td.rate{font-family:"IBM Plex Mono",monospace;color:var(--ink);white-space:nowrap}
+.levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem;margin:1rem 0;max-width:52rem}
+.levels div{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:.7rem .85rem;font-size:.84rem;color:var(--muted);line-height:1.5}
+.levels b{display:block;font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:.8rem;color:var(--accent);margin-bottom:.2rem}
+.cast{font-size:.84rem}
+.cast td:first-child{font-family:"IBM Plex Mono",monospace}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>Appraising evidence: risk of bias and GRADE</h1>
+  <p class="lede">What <code>/ref:review --batch</code> does when it appraises a set of papers: which checklist each paper gets (RoB&nbsp;2, Newcastle-Ottawa or AMSTAR-2), what every domain is actually based on, and how those ratings roll up into one GRADE certainty for the set. Every rule here is taken from <code>appraise.py</code>; the worked example is a real run against a scratch library.</p>
+</header>
+
+<section id="pipeline">
+<h2>The pipeline</h2>
+<p>Appraisal is entirely deterministic: no LLM reads the papers at this stage. It works from the claims <a href="extracting-claims.html"><code>/ref:extract</code></a> already committed, so it can only rate what the claim schema records. The schema records PICO and effect data, not methods detail like blinding or allocation concealment, so expect many domains to say <code>insufficient_information</code>. That is the honest answer, not a failure.</p>
+<figure>
+<div class="svg-wrap">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 340" role="img" aria-label="Appraisal pipeline. An abstract-tier paper is marked insufficient_information. A full-tier paper's majority study_type picks a checklist: rct gets RoB 2, cohort and case_control get Newcastle-Ottawa, meta_analysis gets AMSTAR-2, anything else gets a note and no rating. Each checklist result is reduced to a per-paper signal: assessed, and high risk if a RoB 2 domain is high, an assessable Newcastle-Ottawa category has zero stars, or AMSTAR-2 is critically low. The signals feed GRADE's risk-of-bias factor; relations.jsonl feeds inconsistency. GRADE starts at a baseline of high if every claim is from an RCT, otherwise low, subtracts one level per downgrading factor, and floors at very low.">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+
+<rect class="human" x="20" y="30" width="170" height="64" rx="8"/>
+<text class="t" x="36" y="56">abstract-tier</text>
+<text class="s" x="36" y="76">insufficient_information</text>
+
+<rect class="store" x="20" y="120" width="170" height="96" rx="8"/>
+<text class="t" x="36" y="146">full-tier paper</text>
+<text class="l" x="36" y="168">claim_registry.json</text>
+<text class="s" x="36" y="188">study_type = majority</text>
+<text class="s" x="36" y="204">of active claims</text>
+
+<rect class="node" x="250" y="30" width="210" height="52" rx="8"/>
+<text class="t" x="266" y="52">RoB 2</text>
+<text class="s" x="266" y="70">rct · 5 domains, rated</text>
+<rect class="node" x="250" y="94" width="210" height="52" rx="8"/>
+<text class="t" x="266" y="116">Newcastle-Ottawa</text>
+<text class="s" x="266" y="134">cohort, case_control · stars</text>
+<rect class="node" x="250" y="158" width="210" height="52" rx="8"/>
+<text class="t" x="266" y="180">AMSTAR-2</text>
+<text class="s" x="266" y="198">meta_analysis · 7 of 16 items</text>
+<rect class="human" x="250" y="222" width="210" height="52" rx="8"/>
+<text class="t" x="266" y="244">no checklist</text>
+<text class="s" x="266" y="262">any other study_type · a note</text>
+
+<path class="edge" d="M190,168 C220,168 220,56 248,56" marker-end="url(#ah)"/>
+<path class="edge" d="M190,168 C220,168 220,120 248,120" marker-end="url(#ah)"/>
+<path class="edge" d="M190,168 C220,168 220,184 248,184" marker-end="url(#ah)"/>
+<path class="edge h" d="M190,168 C220,168 220,248 248,248" marker-end="url(#ah)"/>
+
+<rect class="node" x="520" y="70" width="190" height="150" rx="8"/>
+<text class="t" x="536" y="96">per-paper signal</text>
+<text class="l" x="536" y="120">assessed: any real rating</text>
+<text class="l" x="536" y="144">high risk if:</text>
+<text class="s" x="536" y="164">RoB 2 domain = high</text>
+<text class="s" x="536" y="182">NOS: assessable, 0 stars</text>
+<text class="s" x="536" y="200">AMSTAR-2 = critically_low</text>
+
+<path class="edge" d="M460,56 C490,56 490,110 518,110" marker-end="url(#ah)"/>
+<path class="edge" d="M460,120 C490,120 490,145 518,145" marker-end="url(#ah)"/>
+<path class="edge" d="M460,184 C490,184 490,180 518,180" marker-end="url(#ah)"/>
+
+<rect class="store" x="520" y="250" width="190" height="56" rx="8"/>
+<text class="l" x="536" y="274">graph/relations.jsonl</text>
+<text class="s" x="536" y="294">conflict edges among the set</text>
+
+<rect class="grade" x="770" y="30" width="190" height="280" rx="8"/>
+<text class="band" x="786" y="54">GRADE · PER BATCH</text>
+<text class="l" x="786" y="80">baseline</text>
+<text class="s" x="786" y="98">high if all rct, else low</text>
+<text class="l" x="786" y="124">− risk_of_bias</text>
+<text class="l" x="786" y="146">− inconsistency</text>
+<text class="l" x="786" y="168">− imprecision</text>
+<text class="l" x="786" y="190">− indirectness</text>
+<text class="s" x="786" y="212">publication_bias: not assessed</text>
+<line class="rule" x1="786" y1="228" x2="944" y2="228"/>
+<text class="t" x="786" y="254">= certainty</text>
+<text class="s" x="786" y="274">high · moderate · low</text>
+<text class="s" x="786" y="292">very_low (floor)</text>
+
+<path class="edge" d="M710,145 C740,145 740,120 768,120" marker-end="url(#ah)"/>
+<path class="edge" d="M710,278 C740,278 740,142 768,142" marker-end="url(#ah)"/>
+<text class="c" x="716" y="136">signals</text>
+</svg>
+</div>
+<figcaption>Solid boxes are rated; dashed boxes produce a note instead of a rating. Imprecision, indirectness and the baseline read the claims directly. Everything lands in <code>reviews/&lt;batch&gt;/</code>: <code>appraisals/&lt;pmid&gt;.json</code>, <code>grade.json</code>, <code>manifest.json</code> and a readable <code>review.md</code>.</figcaption>
+</figure>
+</section>
+
+<section id="gate">
+<h2>Full text first</h2>
+<p>RoB&nbsp;2, Newcastle-Ottawa, AMSTAR-2 and GRADE all need methods detail an abstract doesn't carry. So the tier gate runs before anything else:</p>
+<ul>
+  <li><strong>No full-tier paper in the set:</strong> the review is refused and nothing is written.</li>
+  <li><strong>Mixed set:</strong> full-tier papers are appraised; each abstract-tier paper is listed as <code>insufficient_information</code>, not dropped.</li>
+</ul>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review 99000203 --batch abstract-only</span>
+<span class="o">{
+  "status": "refused",
+  "batch": "abstract-only",
+  "reason": "selected set is wholly abstract-tier -- appraisal needs full-text detail; not proceeding (§8 phase-10 gate)",
+  "by_extraction_tier": { "abstract": 1, "full": 0, "unavailable": 0, "missing_record": 0 }
+}</span></pre>
+<p>To fix a refusal, get full text with <a href="../commands/acquire.html#fetch"><code>/ref:fetch</code></a> or <a href="../commands/acquire.html#attach"><code>/ref:attach</code></a> and re-extract.</p>
+</section>
+
+<section id="checklists">
+<h2>Which checklist a paper gets</h2>
+<p>A paper's study type is the most common <code>study_type</code> among its active claims, set by the extractor. That picks exactly one checklist:</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>study_type</th><th>Checklist</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td>rct</td><td>RoB&nbsp;2</td><td>Cochrane's risk-of-bias tool for randomised trials (Sterne et&nbsp;al., <em>BMJ</em> 2019). Five domains, each rated low / some concerns / high.</td></tr>
+<tr><td>cohort, case_control</td><td>Newcastle-Ottawa (NOS)</td><td>A star system for non-randomised studies (Wells et&nbsp;al.). Three categories: selection (up to 4 stars), comparability (2), outcome or exposure (3).</td></tr>
+<tr><td>meta_analysis</td><td>AMSTAR-2</td><td>A tool for rating systematic reviews (Shea et&nbsp;al., <em>BMJ</em> 2017). 16 items, 7 of them critical, rolled up into an overall confidence.</td></tr>
+<tr><td>anything else</td><td>none</td><td>A note that no standard checklist applies. No rating is forced.</td></tr>
+</tbody></table></div>
+
+<h3>RoB 2: five domains</h3>
+<p>Each domain looks for one signal in the claims. Three domains can be rated from claim data; the other two are always <code>insufficient_information</code>.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Domain</th><th>What the tool looks at</th><th>Possible drafts</th></tr></thead>
+<tbody>
+<tr><td>randomization_process</td><td><strong>high</strong> if <code>study_design</code> or <code>evidence_span</code> describes quasi-random or non-random allocation ("quasi-randomised", "not randomised", "allocated by date of birth", "alternate allocation"); otherwise <strong>low</strong> if either mentions "randomised" or "randomized"</td><td class="rate">high · low · insufficient</td></tr>
+<tr><td>deviations_from_intended_interventions</td><td>Nothing: the claim schema has no adherence data</td><td class="rate">insufficient</td></tr>
+<tr><td>missing_outcome_data</td><td>An attrition phrase in <code>evidence_span</code> ("dropout", "dropped out", "attrition", "lost to / loss to follow-up", "withdrew", "discontinued"). A proportion stated nearby ("15%" or "9 of 60") of <strong>20% or more</strong> gives high; a lower or unstated one gives some concerns</td><td class="rate">high · some_concerns · insufficient</td></tr>
+<tr><td>measurement_of_outcome</td><td>Both <code>outcome</code> and <code>effect_measure</code> known</td><td class="rate">low · insufficient</td></tr>
+<tr><td>selection_of_reported_result</td><td>Nothing: no pre-registration data</td><td class="rate">insufficient</td></tr>
+</tbody></table></div>
+<div class="note warn"><strong>The 20% cut-off is a rule of thumb.</strong> RoB&nbsp;2 itself sets no attrition threshold, and whether missing data biases a result depends on why it is missing. Treat a drafted high or some-concerns rating as a prompt to read the paper's flow diagram. Matching is still literal wording, so rephrased attrition can be missed.</div>
+
+<h3>Newcastle-Ottawa: three star categories</h3>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Category</th><th>Stars awarded</th><th>Max</th></tr></thead>
+<tbody>
+<tr><td>selection</td><td>1 if any claim has a known <code>population</code>, +1 if any has a known <code>cohort_identity</code>. The other selection items aren't in the schema. 0 stars here means neither is known: not assessable</td><td class="rate">4</td></tr>
+<tr><td>comparability</td><td>2 if any claim names an <code>adjustment_context</code> (confounders adjusted for). 0 if the claims say the analysis was unadjusted (<code>"none"</code>, "unadjusted", "crude"). 0 and <em>not assessable</em> if it is <code>unknown</code></td><td class="rate">2</td></tr>
+<tr><td>outcome_exposure</td><td>1 if <code>outcome</code> and <code>effect_measure</code> are both known. Follow-up length and completeness aren't captured. 0 stars means not assessable</td><td class="rate">3</td></tr>
+</tbody></table></div>
+<div class="note"><strong>Missing data is not a zero.</strong> Each category carries <code>assessable</code>. A 0 that only means "the claims don't record this" shows as <code>0/2 ★ (not assessable)</code> and doesn't affect GRADE. Only an assessable 0, such as an analysis the paper itself calls unadjusted, marks the paper high-risk. A human-scored category always counts as assessable.</div>
+
+<h3>AMSTAR-2: seven of sixteen items</h3>
+<p>Each item has two text patterns searched in the claims' <code>evidence_span</code>. A stated shortcoming gives <code>no</code> and is checked first; otherwise a match on the expected signal gives <code>yes</code>; otherwise <code>insufficient_information</code>.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Item</th><th>Critical</th><th>Yes on</th><th>No on</th></tr></thead>
+<tbody>
+<tr><td>protocol_registered_prior</td><td>yes</td><td>"PROSPERO", "protocol … registered"</td><td>"no protocol", "not registered", "unregistered"</td></tr>
+<tr><td>adequate_literature_search</td><td>yes</td><td>"systematic search", "PRISMA", "search strategy"</td><td>"single database", "no grey literature", "English-language only"</td></tr>
+<tr><td>study_selection_duplicate</td><td>no</td><td>"independently screened/selected", "duplicate screening"</td><td>"single reviewer screened", "screened by one author"</td></tr>
+<tr><td>list_of_excluded_studies</td><td>no</td><td>"excluded studies"</td><td>"no list of excluded", "excluded studies not reported"</td></tr>
+<tr><td>risk_of_bias_assessment_included_studies</td><td>yes</td><td>"risk of bias", "quality assessment"</td><td>"risk of bias not assessed", "no quality assessment"</td></tr>
+<tr><td>risk_of_bias_accounted_in_results</td><td>yes</td><td>"risk of bias" near "interpret", "discuss" or "result"</td><td>"did not consider risk of bias"</td></tr>
+<tr><td>publication_bias_assessed</td><td>no</td><td>"funnel plot", "publication bias", "Egger"</td><td>"publication bias not assessed", "too few studies to assess"</td></tr>
+</tbody></table></div>
+<p>Overall confidence follows the AMSTAR-2 rule:</p>
+<ul>
+  <li>any critical item rated <code>no</code> gives <strong>critically low</strong>;</li>
+  <li>if a critical item is only <code>insufficient_information</code>, overall confidence is <strong>insufficient_information</strong> too, and the note names the unconfirmed items;</li>
+  <li>with every critical item confirmed, more than one non-critical <code>no</code> gives <strong>low</strong>, exactly one gives <strong>moderate</strong>, none gives <strong>high</strong>.</li>
+</ul>
+<div class="note warn"><strong>Only 7 of the 16 items are checked.</strong> Even a draft "high" covers the representative subset in the table, not the full instrument. Critically low marks the paper high-risk for GRADE.</div>
+</section>
+
+<section id="grade">
+<h2>GRADE: one certainty for the set</h2>
+<p>GRADE (Guyatt et&nbsp;al., <em>BMJ</em> 2008) rates how confident you can be that an effect estimate is close to the true effect. <code>/ref:review</code> gives one rating per batch, not per outcome, so keep a batch to one question.</p>
+<div class="levels">
+  <div><b>high</b>Very confident the true effect lies close to the estimate.</div>
+  <div><b>moderate</b>The true effect is likely close, but could be substantially different.</div>
+  <div><b>low</b>Limited confidence; the true effect may be substantially different.</div>
+  <div><b>very_low</b>Very little confidence; the true effect is likely substantially different.</div>
+</div>
+<p><strong>Baseline:</strong> <code>high</code> if every active claim in the set comes from an RCT, otherwise <code>low</code>. Then each factor below that downgrades takes the rating down one level, stopping at <code>very_low</code>.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Factor</th><th>Downgrades when</th><th>Not assessed when</th></tr></thead>
+<tbody>
+<tr><td>risk_of_bias</td><td>Any paper is high-risk: a RoB&nbsp;2 domain rated high, an assessable NOS category with 0 stars, or AMSTAR-2 critically low</td><td>No paper has a single real rating</td></tr>
+<tr><td>inconsistency</td><td>A <code>potential_conflict</code> or <code>contradicts</code> relation (not stale) links the set's papers</td><td>No relations touch these papers yet; run <a href="claim-to-concept.html"><code>/ref:weave</code></a></td></tr>
+<tr><td>imprecision</td><td>No active claim reports an <code>uncertainty_interval</code> (CI, SE or p-value)</td><td>No active claims</td></tr>
+<tr><td>indirectness</td><td>Claims disagree on <code>population</code>, <code>intervention</code>, <code>outcome</code> or <code>comparator</code> (unknowns ignored)</td><td>No active claims</td></tr>
+<tr><td>publication_bias</td><td>Never</td><td>Always: a curated library has no funnel plot or search-completeness data</td></tr>
+</tbody></table></div>
+<p>Compared with full GRADE, this is deliberately simpler. Each factor moves one level at most (no "very serious" two-level downgrade), there is no upgrading for large effects or dose-response, and indirectness treats any difference in PICO values as a mismatch. The rating is a starting point for your own judgement.</p>
+</section>
+
+<section id="walkthrough">
+<h2>Worked example</h2>
+<p>A scratch library with five fictional papers on aerobic exercise and working memory in adults. The PMIDs start with <code>99</code>, outside PubMed's range. All outputs below are real runs of <code>appraise.py</code> and <code>verify.py</code>, trimmed with <code>…</code>.</p>
+<div class="tbl-wrap"><table class="sel cast">
+<thead><tr><th>PMID</th><th>Tier</th><th>study_type</th><th>What its claim records</th></tr></thead>
+<tbody>
+<tr><td>99000201</td><td>full</td><td>rct</td><td>"randomised 1:1; 9 of 60 (15%) dropped out", SMD 0.31 with 95% CI</td></tr>
+<tr><td>99000202</td><td>full</td><td>rct</td><td>SMD 0.22 with 95% CI, no attrition mentioned</td></tr>
+<tr><td>99000203</td><td>abstract</td><td>rct</td><td>abstract only</td></tr>
+<tr><td>99000204</td><td>full</td><td>cohort</td><td>older adults, inactive comparator, named cohort, no adjustment recorded</td></tr>
+<tr><td>99000205</td><td>full</td><td>meta_analysis</td><td>"Registered in PROSPERO; a systematic search …; risk of bias assessed with RoB 2; Egger's test …"</td></tr>
+</tbody></table></div>
+
+<ol class="steps">
+<li>
+<h3>Appraise the trials</h3>
+<p>Start with the three RCTs, one of them abstract-tier:</p>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review 99000201 99000202 99000203 --batch rct-only</span>
+<span class="o">{
+  "status": "created",
+  "grade": {
+    "baseline": "high", "baseline_reason": "study_types=['rct']",
+    "factors": {
+      "risk_of_bias":  { "downgrade": false, "not_assessed": false, "reason": "assessed domains show no high/critically_low rating" },
+      "inconsistency": { "downgrade": false, "not_assessed": true,  "reason": "no relation-graph data available for these papers" },
+      "imprecision":   { "downgrade": false, "not_assessed": false, "reason": "3/3 claims report an uncertainty interval" },
+      "indirectness":  { "downgrade": false, "not_assessed": false, "reason": "population/intervention/outcome/comparator consistent across claims" },
+      "publication_bias": { "downgrade": false, "not_assessed": true, … }
+    },
+    "downgrades_applied": 0,
+    "certainty": "high"
+  },
+  "markdown": "…/reviews/rct-only/review.md"
+}</span></pre>
+<p>All-RCT baseline, no downgrades: <strong>high</strong>. Two things to notice. First, inconsistency was never checked, because no relations exist for these papers yet. Second, "3/3 claims" includes the abstract-tier paper's claim: the claim-based factors read every paper in the set.</p>
+</li>
+<li>
+<h3>Read the per-paper tables</h3>
+<p>The same batch as it appears in <code>reviews/rct-only/review.md</code>:</p>
+<p class="term-label">review.md excerpt, scratch library</p>
+<pre class="code"><span class="a">### PMID 99000201</span>
+
+Checklist: **RoB2** · study type: rct
+
+| Domain                                 | Rating                   | Claims           | Note                                          |
+|----------------------------------------|--------------------------|------------------|-----------------------------------------------|
+| randomization_process                  | low                      | `c-3475cc137fd1` | study_design/evidence_span mentions randomization |
+| deviations_from_intended_interventions | insufficient_information | —                | claim schema does not capture protocol adherence/deviations |
+| missing_outcome_data                   | <span class="m">some_concerns</span>            | `c-3475cc137fd1` | … dropout/attrition/loss to follow-up (15% attrition) |
+| measurement_of_outcome                 | low                      | `c-3475cc137fd1` | outcome and effect_measure are both defined |
+| selection_of_reported_result           | insufficient_information | —                | claim schema does not capture pre-registration/… |
+
+<span class="a">### PMID 99000203</span>
+
+**Insufficient information:** extraction_tier='abstract' -- full text required for appraisal</pre>
+<p>The claim says "9 of 60 (15%) dropped out", so <code>missing_outcome_data</code> is some concerns and the note gives the proportion; at 20% or more it would be high. Every domain names the claims it rests on, so you can check each rating against the evidence text. (The file also has a Status column, left out here for width; every row is <code>model_draft</code>.)</p>
+</li>
+<li>
+<h3>Mix study designs</h3>
+<p>Now appraise both trials with the cohort and the meta-analysis:</p>
+<p class="term-label">review.md excerpt, scratch library</p>
+<pre class="code"><span class="a">## GRADE certainty</span>
+
+**very_low** (baseline low, 1 downgrade(s); study_types=['cohort', 'meta_analysis', 'rct'])
+
+| Factor           | Downgrade | Assessed | Reason                                              |
+|------------------|-----------|----------|-----------------------------------------------------|
+| risk_of_bias     | no        | yes      | assessed domains show no high/critically_low rating |
+| inconsistency    | no        | no       | no relation-graph data available for these papers   |
+| imprecision      | no        | yes      | 4/4 claims report an uncertainty interval           |
+| indirectness     | <span class="m">yes</span>       | yes      | claims disagree on: ['population', 'comparator']    |
+| publication_bias | no        | no       | not assessable from a curated single-library …      |
+
+<span class="a">### PMID 99000204</span>   Checklist: **Newcastle-Ottawa** · study type: cohort
+
+| selection        | 2/4 ★                  | `c-3a3dc78b7b64` |
+| comparability    | <span class="m">0/2 ★ (not assessable)</span> | —                |
+| outcome_exposure | 1/3 ★                  | `c-3a3dc78b7b64` |
+
+<span class="a">### PMID 99000205</span>   Checklist: **AMSTAR-2** · study type: meta_analysis
+
+| risk_of_bias_accounted_in_results | <span class="m">insufficient_information (critical)</span> | — |
+Overall confidence: **insufficient_information** — critical item(s) not confirmed:
+['risk_of_bias_accounted_in_results'] -- overall confidence not assessable until they are reviewed</pre>
+<p>Reading the result:</p>
+<ul>
+  <li><strong>Baseline low:</strong> not every claim is from an RCT.</li>
+  <li><strong>Indirectness:</strong> the cohort studies older adults against an inactive comparator, while the trials use healthy adults against stretching. Low minus one is <strong>very_low</strong>.</li>
+  <li><strong>No risk-of-bias downgrade:</strong> the cohort records no <code>adjustment_context</code>, so comparability is 0 stars but <em>not assessable</em>. Had the claim said <code>"none"</code> (an explicitly unadjusted analysis), that 0 would count as high risk and the rating would already be at the floor.</li>
+  <li><strong>AMSTAR-2 stays open:</strong> three critical items match, but "risk of bias considered in the results" isn't in the evidence text, so overall confidence is not claimed.</li>
+</ul>
+</li>
+  <li><strong>Risk of bias:</strong> the cohort records no <code>adjustment_context</code>, so comparability gets 0 stars, which counts as high risk.</li>
+  <li><strong>Indirectness:</strong> the cohort studies older adults against an inactive comparator, while the trials use healthy adults against stretching.</li>
+</ul>
+<p>Low minus two is floored at <strong>very_low</strong>. Meanwhile AMSTAR-2 reads high although <code>risk_of_bias_accounted_in_results</code>, a critical item, is only insufficient.</p>
+</li>
+<li>
+<h3>Review a domain yourself</h3>
+<p>Every rating starts as <code>model_draft</code>. Ask Claude to record your own judgement on a domain; it runs <code>verify.py review-appraisal</code> with a decision (<code>accept</code>, <code>edit</code> or <code>reject</code>), a reviewer name and a rationale. An edit also takes the replacement values:</p>
+<p class="term-label">output from a scratch library</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">verify.py review-appraisal --pmid 99000201 --checklist RoB2 --domain-key deviations_from_intended_interventions --decision edit --reviewer CE --rationale "methods section: per-protocol analysis only, 4 crossovers" --replacement-file edit.json</span>
+<span class="c"># edit.json: {"rating": "some_concerns"}</span>
+<span class="o">{
+  "correction_id": "cor-c55387424ce9",
+  "target_type": "appraisal",
+  "target_id": "99000201:RoB2:deviations_from_intended_interventions",
+  "decision": "edit",
+  "replacement_value": { "rating": "some_concerns" },
+  "rationale": "methods section: per-protocol analysis only, 4 crossovers",
+  "status": "active", …
+}</span>
+<span class="p">›</span> <span class="cmd">/ref:review 99000201 99000202 99000203 --batch rct-only --refresh</span>
+<span class="o">  "deviations_from_intended_interventions": {
+    "rating": "some_concerns", "review_status": "human_edited", "reviewer": "CE",
+    "note": "methods section: per-protocol analysis only, 4 crossovers",
+    "draft_note": "claim schema does not capture protocol adherence/deviations", … }
+  "certainty": "high"</span></pre>
+<p>In <code>review.md</code> the row now reads:</p>
+<pre class="code">| deviations_from_intended_interventions | some_concerns | — | human_edited (CE) | methods section: per-protocol analysis only, 4 crossovers |</pre>
+<p>An edit replaces the machine's note with your rationale, because the old note explained a rating that no longer stands; it is kept as <code>draft_note</code>. An accept or reject keeps the note and appends your rationale. The decision is stored in <code>papers/99000201/corrections.json</code>, so it survives every refresh and applies to any batch that includes the paper. Two things to notice:</p>
+<ul>
+  <li>The certainty stays <strong>high</strong>. Only a <code>high</code> RoB&nbsp;2 domain counts as high risk; <code>some_concerns</code> doesn't move GRADE.</li>
+  <li>The <code>all-designs</code> batch from step 3 still shows <code>model_draft</code> for this domain until it is refreshed too.</li>
+</ul>
+</li>
+</ol>
+<div class="note"><strong>GRADE itself has no review path.</strong> It belongs to the whole set rather than one paper, so it lives only in <code>grade.json</code>. To change it, change its inputs: review domains, fix claims, or resolve conflicts with <code>/ref:weave review</code>, then <code>--refresh</code>.</div>
+</section>
+
+<section id="files">
+<h2>What gets saved</h2>
+<pre class="tree">projects/&lt;slug&gt;/reviews/&lt;batch&gt;/     <span class="c"># or reviews/&lt;batch&gt;/ without --project</span>
+  <span class="a">manifest.json</span>             <span class="c"># selector, frozen PMID list, tier report, resolved_at</span>
+  appraisals/&lt;pmid&gt;.json    <span class="c"># one checklist result per paper</span>
+  grade.json                <span class="c"># baseline, five factors, certainty</span>
+  <span class="m">review.md</span>                 <span class="c"># everything above as readable tables, YAML frontmatter</span></pre>
+<p>A batch is frozen: running <code>/ref:review --batch &lt;label&gt;</code> again reuses it, even if the selector would now pick different papers. <code>--refresh</code> re-resolves the selector, re-drafts every domain, applies recorded reviews, and reports <code>added_pmids</code> and <code>removed_pmids</code>. The dashboard's Insights → Maturity view shows each batch's certainty; see <a href="dashboard-insights.html">Evidence insights</a>.</p>
+</section>
+
+<section id="limits">
+<h2>What the drafts cannot tell you</h2>
+<ul>
+  <li><strong>Methods quality.</strong> Blinding, allocation concealment, protocol deviations, selective reporting and follow-up completeness aren't in the claim schema. Read the methods sections.</li>
+  <li><strong>Absence of a signal.</strong> Literal matching only finds wording it expects. <code>insufficient_information</code> means "not found in the claims", never "not done".</li>
+  <li><strong>Most shortcomings.</strong> A draft rates high or <code>no</code> only when the evidence text states the problem in words the patterns know (quasi-random allocation, 20%+ attrition, an unregistered protocol). A paper that simply doesn't mention a problem is never rated down for it.</li>
+  <li><strong>Per-outcome certainty.</strong> One rating covers the whole batch. Split batches by outcome if the outcomes differ.</li>
+</ul>
+</section>
+
+<section id="recipes">
+<h2>Minimal recipes</h2>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:review --project &lt;slug&gt; --screened included --batch &lt;label&gt;</span>   <span class="c"># appraise the included papers</span>
+<span class="p">›</span> <span class="cmd">/ref:review --project &lt;slug&gt; --study &lt;id&gt; --batch &lt;label&gt;</span>         <span class="c"># one study's publications</span>
+<span class="c"># then ask Claude to accept / edit / reject a domain (verify.py review-appraisal)</span>
+<span class="p">›</span> <span class="cmd">/ref:review --project &lt;slug&gt; --batch &lt;label&gt; --refresh</span>             <span class="c"># re-draft with reviews applied</span>
+<span class="p">›</span> <span class="cmd">/ref:weave &lt;pmid…&gt;</span>                                                  <span class="c"># add relations so inconsistency can be assessed</span></pre>
+<p>Command reference: <a href="../commands/write.html#review"><code>/ref:review</code></a>; review decisions use the same <code>corrections.json</code> mechanism as <a href="../commands/organize.html#verify"><code>/ref:verify</code></a>. For screening and the PRISMA flow that usually come before appraisal, see <a href="systematic-review.html">Systematic review</a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="systematic-review.html"><small>Previous</small>Systematic review</a>
+  <a href="pi-report.html" style="text-align:right"><small>Next</small>PI report</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

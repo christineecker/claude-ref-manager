@@ -49,7 +49,7 @@ Extract one claim per distinct reported finding. For each claim, normalize:
 - `cohort_identity` — the named cohort/dataset if the paper identifies one
   (e.g. "NHANES 2015-2018"), else `"unknown"`
 - `adjustment_context` — what covariates/confounders were adjusted for, if
-  stated
+  stated; `"none"` if the paper says the analysis was unadjusted
 
 **Any field you cannot determine from the text is the literal string
 `"unknown"` — never omit the key, never guess.** Preserve the original

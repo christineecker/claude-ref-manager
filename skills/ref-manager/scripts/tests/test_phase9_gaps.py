@@ -197,6 +197,26 @@ class TestPopulationOutcomeGap(TempLibrary):
         self.assertNotIn(("adults", "systolic blood pressure"), missing)
 
 
+class TestSaveReport(TempLibrary):
+    def test_save_writes_json_and_markdown(self):
+        self.add_paper("1")
+        c1 = self.extract_claim("1", claim(outcome="systolic blood pressure"))
+        out = {"single_study_fragile": gaps.single_study_fragile(self.library_root, ["1"]),
+               "unresolved_conflicts": []}
+        saved = gaps.save_report(self.library_root, None, "pmids:1", out)
+        gdir = self.library_root / "gaps" / saved["gaps_id"]
+        self.assertEqual(saved["markdown"], str(gdir / "gaps.md"))
+        self.assertEqual(json.loads((gdir / "gaps.json").read_text())["gaps"], out)
+        md = (gdir / "gaps.md").read_text()
+        self.assertTrue(md.startswith('---\ntype: "gaps"\n'))
+        self.assertIn("## Single-study fragile claims (1)", md)
+        self.assertIn(f"claim `{c1['claim_id']}` (PMID 1)", md)
+        self.assertIn("## Unresolved conflicts (0)", md)
+        self.assertIn("None found.", md)
+        self.assertNotIn("Population", md)  # a query that wasn't run gets no section
+        self.assertIn("not an established gap in the literature", md)
+
+
 class TestPopulationOutcomeGapDashboardParity(TempLibrary):
     """GRAPH_VISUALIZATION_IMPLEMENTATION_PLAN.md Phase 3: the dashboard's JS
     port (app.js populationOutcomeGaps) run under node on the knowledge

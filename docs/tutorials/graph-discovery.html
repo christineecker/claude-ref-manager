@@ -277,7 +277,7 @@
 
 <li>
 <h3>Ask where the evidence is thin</h3>
-<p><code>/ref:gaps</code> runs four deterministic queries over a selector. <code>single_study_fragile</code> finds claims backed by one study. <code>unresolved_conflicts</code> finds unreviewed <code>potential_conflict</code> edges and stale <code>contradicts</code> edges. <code>co_mentioned_ungrouped</code> finds concepts named together in evidence text but never linked. <code>population_outcome_gap</code> needs <code>--intervention-concept</code>. Every finding cites the IDs it rests on. This run happened before the review in step 4:</p>
+<p><code>/ref:gaps</code> runs four deterministic queries over a selector. <code>single_study_fragile</code> finds claims backed by one study. <code>unresolved_conflicts</code> finds unreviewed <code>potential_conflict</code> edges and stale <code>contradicts</code> edges. <code>co_mentioned_ungrouped</code> finds concepts named together in evidence text but never linked. <code>population_outcome_gap</code> needs <code>--intervention-concept</code>. Every finding cites the IDs it rests on, and each run is also saved as <code>gaps/&lt;id&gt;/gaps.md</code> (skip with <code>--no-save</code>). This run happened before the review in step 4:</p>
 <p class="term-label">output from a scratch library</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps 38000101 38000102 38000103</span>
 <span class="o">{

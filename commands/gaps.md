@@ -13,14 +13,18 @@ Parse `$ARGUMENTS` for:
 - `--types <type...>` — restrict to specific gap types (`single_study_fragile`,
   `unresolved_conflicts`, `co_mentioned_ungrouped`, `population_outcome_gap`); default
   runs all applicable to the given arguments.
+- `--no-save` — skip persisting the report (by default it is saved as `gaps.json` +
+  `gaps.md` under `gaps/<id>/`, or `projects/<slug>/gaps/<id>/` with `--project`).
 
 Steps:
 1. Resolve the library root (fail loudly, pointing at `/ref:init`, if unconfigured).
 2. Print, then run:
    ```
-   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/gaps.py" --repo <library_root> <selector...> [--intervention-concept <slug>] [--types <type...>]
+   python3 "${CLAUDE_PLUGIN_ROOT}/skills/ref-manager/scripts/gaps.py" --repo <library_root> <selector...> [--intervention-concept <slug>] [--types <type...>] --save
    ```
 3. Print the script's own output verbatim, grouped by gap type. Every finding cites the
    specific `claim_id`/`relation_id`/`pmid` it rests on — never present a gap as an
    unevidenced summary. Missing edges describe this library's coverage, not an
    established gap in the literature (§5b) — say so when presenting results.
+   Omit `--save` from the command above if the user passed `--no-save`; otherwise tell the
+   user where the Markdown report was saved (the result's `markdown` path).

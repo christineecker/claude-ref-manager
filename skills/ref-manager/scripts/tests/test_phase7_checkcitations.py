@@ -191,6 +191,33 @@ class TestMismatchedCitation(TempLibrary):
         self.assertEqual(mismatch["existing_citation_pmid"], "920")
         self.assertNotIn("existing_citation_pmid", uncited)
 
+    def test_findings_md_rendered_alongside_json(self):
+        self.add_paper("921")
+        self.extract("921", [claim(evidence_span="Drug E showed no significant effect.",
+                                    direction="no significant difference")])
+        cid = self.claim_id_for("921")
+        paragraph = "Drug E cures the disease [^921]. Drug E is inexpensive."
+        candidates = [{"pmid": "921", "claim_id": cid, "kind": "claim", "text": "evidence"}]
+        findings = [
+            {"assertion_text": "Drug E cures the disease", "verdict": "overstated",
+             "evidence": [{"pmid": "921", "claim_id": cid}],
+             "existing_citation_pmid": "921", "citation_mismatch": True},
+            {"assertion_text": "Drug E is inexpensive.", "verdict": "unavailable", "evidence": []},
+        ]
+        result = check_citations.persist_check(self.library_root, None, paragraph, findings,
+                                                 candidates, None, export_bib=False)
+        md_path = self.library_root / "checks" / result["check_id"] / "findings.md"
+        self.assertEqual(result["markdown"], str(md_path))
+        md = md_path.read_text()
+        self.assertTrue(md.startswith('---\ntype: "citation-check"\n'))
+        self.assertIn(f"> {paragraph}", md)  # paragraph quoted verbatim
+        self.assertIn("## Overstated", md)
+        self.assertIn("## Unavailable", md)
+        self.assertNotIn("## Supported", md)  # empty verdict groups are omitted
+        self.assertIn(f"PMID 921, claim `{cid}`", md)
+        self.assertIn("Citation mismatch", md)
+        self.assertIn("does not establish a comprehensive literature check", md)
+
 
 class TestCaveat(TempLibrary):
     def test_report_carries_comprehensive_check_caveat(self):

@@ -166,6 +166,30 @@ class TestWhollyAbstractTierRefused(TempLibrary):
         self.assertIsNotNone(result["appraisals"]["1"].get("checklist"))
         self.assertTrue(result["appraisals"]["2"].get("insufficient_information"))
 
+    def test_review_md_rendered_and_backfilled_on_reuse(self):
+        self.add_paper("1", tier="full")
+        self.extract("1", [claim()], evidence_tier="full")
+        self.add_paper("2", tier="abstract")
+        self.extract("2", [claim()], evidence_tier="abstract")
+        resolution = self.resolve(pmids=["1", "2"])
+        result = appraise.run_review(self.library_root, "r3", None, resolution, False)
+        md_path = self.library_root / "reviews" / "r3" / "review.md"
+        self.assertEqual(result["markdown"], str(md_path))
+        md = md_path.read_text()
+        self.assertTrue(md.startswith('---\ntype: "review"\n'))
+        self.assertIn(f"**{result['grade']['certainty']}**", md)
+        for factor in result["grade"]["factors"]:
+            self.assertIn(f"| {factor} |", md)
+        self.assertIn("### PMID 1", md)
+        self.assertIn(f"Checklist: **{result['appraisals']['1']['checklist']}**", md)
+        self.assertIn("### PMID 2", md)
+        self.assertIn("**Insufficient information:**", md)
+
+        md_path.unlink()  # a review frozen before review.md existed
+        reused = appraise.run_review(self.library_root, "r3", None, None, False)
+        self.assertEqual(reused["status"], "reused_frozen_review")
+        self.assertEqual(md_path.read_text(), md)
+
 
 class TestChecklistSelectionByStudyType(TempLibrary):
     def _appraise_one(self, pmid, study_type, claims):
@@ -258,6 +282,111 @@ class TestAppraisalReviewDistinguishable(TempLibrary):
         self.assertEqual(redrawn["domains"]["randomization_process"]["review_status"], "human_confirmed")
         # untouched domain remains a draft
         self.assertEqual(redrawn["domains"]["measurement_of_outcome"]["review_status"], "model_draft")
+
+
+class TestRob2CanDraftHigh(TempLibrary):
+    def _rob2(self, pmid, **overrides):
+        self.add_paper(pmid, tier="full")
+        self.extract(pmid, [claim(**overrides)], evidence_tier="full", study_type="rct")
+        return appraise.draft_appraisal_for_pmid(self.library_root, pmid)["domains"]
+
+    def test_dropped_out_wording_is_recognised(self):
+        d = self._rob2("50", evidence_span="9 of 60 (15%) dropped out by week 12.")
+        self.assertEqual(d["missing_outcome_data"]["rating"], "some_concerns")
+        self.assertIn("15%", d["missing_outcome_data"]["note"])
+
+    def test_high_attrition_drafts_high(self):
+        d = self._rob2("51", evidence_span="Of 80 randomised, 24 of 80 were lost to follow-up.")
+        self.assertEqual(d["missing_outcome_data"]["rating"], "high")
+
+    def test_quasi_random_allocation_drafts_high(self):
+        d = self._rob2("52", study_design="quasi-randomised trial", evidence_span="allocated by date of birth")
+        self.assertEqual(d["randomization_process"]["rating"], "high")
+
+    def test_high_domain_downgrades_grade(self):
+        self._rob2("53", evidence_span="Attrition was 30% in the control arm.")
+        result = appraise.run_review(self.library_root, "hi", None, self.resolve(pmids=["53"]), False)
+        self.assertTrue(result["grade"]["factors"]["risk_of_bias"]["downgrade"])
+        self.assertEqual(result["grade"]["certainty"], "moderate")
+
+
+class TestNosAssessability(TempLibrary):
+    def _nos(self, pmid, **overrides):
+        self.add_paper(pmid, tier="full")
+        self.extract(pmid, [claim(**overrides)], evidence_tier="full", study_type="cohort")
+        return appraise.draft_appraisal_for_pmid(self.library_root, pmid)
+
+    def test_unknown_adjustment_is_not_assessable_and_not_high_risk(self):
+        a = self._nos("60", adjustment_context="unknown")
+        comp = a["domains"]["comparability"]
+        self.assertEqual(comp["stars_awarded"], 0)
+        self.assertFalse(comp["assessable"])
+        self.assertFalse(appraise.appraisal_signal(a)["high_risk"])
+
+    def test_explicitly_unadjusted_is_high_risk(self):
+        a = self._nos("61", adjustment_context="none")
+        comp = a["domains"]["comparability"]
+        self.assertTrue(comp["assessable"])
+        self.assertEqual(comp["stars_awarded"], 0)
+        self.assertTrue(appraise.appraisal_signal(a)["high_risk"])
+
+    def test_adjusted_gets_two_stars(self):
+        a = self._nos("62", adjustment_context="age, sex, BMI")
+        self.assertEqual(a["domains"]["comparability"]["stars_awarded"], 2)
+        self.assertFalse(appraise.appraisal_signal(a)["high_risk"])
+
+    def test_legacy_zero_star_record_still_reads_high_risk(self):
+        legacy = {"checklist": "Newcastle-Ottawa",
+                  "domains": {"comparability": {"stars_awarded": 0, "stars_max": 2}}}
+        self.assertTrue(appraise.appraisal_signal(legacy)["high_risk"])
+
+
+class TestAmstar2Overall(TempLibrary):
+    def _amstar(self, pmid, span):
+        self.add_paper(pmid, tier="full")
+        self.extract(pmid, [claim(evidence_span=span)], evidence_tier="full", study_type="meta_analysis")
+        return appraise.draft_appraisal_for_pmid(self.library_root, pmid)
+
+    def test_stated_shortcoming_rates_no_and_critically_low(self):
+        a = self._amstar("70", "The review protocol was not registered; a systematic search of five databases.")
+        self.assertEqual(a["items"]["protocol_registered_prior"]["rating"], "no")
+        self.assertEqual(a["overall_confidence"], "critically_low")
+        self.assertTrue(appraise.appraisal_signal(a)["high_risk"])
+
+    def test_unconfirmed_critical_item_is_not_high(self):
+        a = self._amstar("71", "Registered in PROSPERO; a systematic search; risk of bias assessed with RoB 2.")
+        self.assertEqual(a["items"]["risk_of_bias_accounted_in_results"]["rating"], "insufficient_information")
+        self.assertEqual(a["overall_confidence"], "insufficient_information")
+        self.assertIn("risk_of_bias_accounted_in_results", a["overall_note"])
+
+    def test_all_critical_confirmed_can_be_high(self):
+        a = self._amstar("72", "Registered in PROSPERO; a systematic search; risk of bias assessed with RoB 2; "
+                               "risk of bias was considered when interpreting the results; Egger's test.")
+        self.assertEqual(a["overall_confidence"], "high")
+
+
+class TestHumanEditReplacesStaleNote(TempLibrary):
+    def test_edit_rationale_becomes_note_and_shows_in_review_md(self):
+        self.add_paper("80", tier="full")
+        self.extract("80", [claim()], evidence_tier="full", study_type="rct")
+        verify.review_appraisal(self.library_root, "80", "RoB2", "deviations_from_intended_interventions",
+                                 "edit", "CE", "per-protocol analysis only", {"rating": "some_concerns"})
+        d = appraise.draft_appraisal_for_pmid(self.library_root, "80")["domains"]["deviations_from_intended_interventions"]
+        self.assertEqual(d["note"], "per-protocol analysis only")
+        self.assertIn("does not capture", d["draft_note"])
+        self.assertEqual(d["reviewer"], "CE")
+        result = appraise.run_review(self.library_root, "ed", None, self.resolve(pmids=["80"]), False)
+        md = Path(result["markdown"]).read_text()
+        self.assertIn("| some_concerns | — | human_edited (CE) | per-protocol analysis only |", md)
+
+    def test_accept_keeps_note_and_appends_rationale(self):
+        self.add_paper("81", tier="full")
+        self.extract("81", [claim()], evidence_tier="full", study_type="rct")
+        verify.review_appraisal(self.library_root, "81", "RoB2", "randomization_process",
+                                 "accept", "CE", "checked the methods", None)
+        result = appraise.run_review(self.library_root, "ac", None, self.resolve(pmids=["81"]), False)
+        md = Path(result["markdown"]).read_text()
+        self.assertIn("human_confirmed (CE) | study_design/evidence_span mentions randomization — reviewer: checked the methods |", md)
 
 
 class TestPrismaStillWorksAfterExtension(TempLibrary):

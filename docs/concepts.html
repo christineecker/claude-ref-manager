@@ -89,8 +89,9 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
       tables/&lt;batch&gt;/             <span class="c"># /ref:compare: table.json, manifest.json, <span class="m">edits.json</span></span>
       summaries/&lt;batch&gt;/          <span class="c"># /ref:summarize: summary.md, evidence.json, manifest.json</span>
       briefs/&lt;key&gt;/               <span class="c"># /ref:brief: &lt;snapshot_id&gt;/ (answer.md, evidence.json, manifest.json), latest.json, <span class="m">edits.json</span></span>
-      reviews/&lt;batch&gt;/            <span class="c"># /ref:review: appraisals/&lt;pmid&gt;.json, grade.json, manifest.json</span>
-      checks/&lt;id&gt;/                <span class="c"># /ref:check-citations: input.md, findings.json, manifest.json (+ references.bib/.csl.json)</span>
+      reviews/&lt;batch&gt;/            <span class="c"># /ref:review: appraisals/&lt;pmid&gt;.json, grade.json, manifest.json, review.md</span>
+      checks/&lt;id&gt;/                <span class="c"># /ref:check-citations: input.md, findings.json, findings.md, manifest.json (+ references.bib/.csl.json)</span>
+      gaps/&lt;id&gt;/                  <span class="c"># /ref:gaps: gaps.json, gaps.md</span>
       prisma/&lt;snapshot&gt;/          <span class="c"># /ref:review --prisma: flow.md, flow.csv, manifest.json; latest.json</span>
   <span class="a">people/</span>&lt;slug&gt;.json              <span class="c"># name variants, ORCID, confirmed/candidate/rejected matches</span>
   <span class="a">labs/</span>                           <span class="c"># created, no command writes lab records yet</span>
@@ -115,7 +116,7 @@ config written to …/scratchpad/concepts-api/.config/ref-manager/config.json</s
     &lt;batch&gt;/                      <span class="c"># /ref:export: references.bib, references.csl.json, manifest.json</span>
     <span class="a">papers/</span>&lt;batch&gt;/                <span class="c"># /ref:export-papers: references.bib, PDFs, manifest.json</span>
     papers/note_pushes.json       <span class="c"># per-paper pushed-note hashes (D28)</span></pre>
-<p class="muted">Set-valued artifacts written without <code>--project</code> land at the library root instead (<code>tables/</code>, <code>summaries/</code>, <code>briefs/</code>, <code>reviews/</code>, <code>checks/</code>); <code>init</code> does not pre-create those. For the per-paper directory drawn as a figure, see <a href="figures/paper-repo-anatomy.html">Paper directory anatomy</a>.</p>
+<p class="muted">Set-valued artifacts written without <code>--project</code> land at the library root instead (<code>tables/</code>, <code>summaries/</code>, <code>briefs/</code>, <code>reviews/</code>, <code>checks/</code>, <code>gaps/</code>); <code>init</code> does not pre-create those. The <code>.md</code> reports (<code>review.md</code>, <code>findings.md</code>, <code>gaps.md</code>) are readable renders of the JSON next to them, with YAML frontmatter; the JSON stays the source of truth. For the per-paper directory drawn as a figure, see <a href="figures/paper-repo-anatomy.html">Paper directory anatomy</a>.</p>
 </section>
 
 <!-- ============================================================ -->

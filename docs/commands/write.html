@@ -129,7 +129,7 @@
     <text x="340" y="242" fill-opacity=".6">RoB 2 · NOS · AMSTAR-2</text>
     <text x="340" y="257" fill-opacity=".6">set-level GRADE</text>
     <text x="340" y="272" fill-opacity=".6">drafts until reviewed</text>
-    <text x="340" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">grade.json</text>
+    <text x="340" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">grade.json · .md</text>
 
     <rect x="482" y="182" width="144" height="150" rx="8" fill="var(--card)" stroke="currentColor" stroke-dasharray="4 3"/>
     <text x="494" y="204" font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500">review --prisma</text>
@@ -153,7 +153,7 @@
     <text x="802" y="242" fill-opacity=".6">supported · overstated</text>
     <text x="802" y="257" fill-opacity=".6">conflicting · insuff.</text>
     <text x="802" y="272" fill-opacity=".6">unavailable</text>
-    <text x="802" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">findings.json</text>
+    <text x="802" y="316" font-family="IBM Plex Mono,monospace" font-size="10.5" fill-opacity=".55">findings.json · .md</text>
   </g>
 
   <!-- notes under -->
@@ -427,9 +427,11 @@
     <li>Rates each domain deterministically from claim fields, with <code>claim_ids</code> and a <code>note</code>. No LLM is involved. Most domains land on <code>insufficient_information</code> because the claim schema doesn't record things like blinding or allocation concealment; that is the honest answer, not a bug.</li>
     <li>Computes set-level GRADE: a baseline from study types, then each downgrade factor listed with <code>downgrade</code>, <code>not_assessed</code>, and <code>reason</code>. Nothing is silently omitted.</li>
     <li>Every rating starts as <code>model_draft</code>. Record a human decision per domain with <code>verify.py review-appraisal</code> (<a href="organize.html#verify">/ref:verify</a>); a refreshed review then shows <code>human_confirmed</code>, <code>human_edited</code> or <code>human_rejected</code>. GRADE itself has no per-paper home and lives in <code>grade.json</code>.</li>
+    <li>Renders everything into <code>review.md</code>: a GRADE factor table and one table per paper (rating, claims, review status, note), labelled as drafts. Reusing a frozen review written before <code>review.md</code> existed creates it.</li>
+    <li>The rule behind every domain, item and GRADE factor is set out in the <a href="../tutorials/appraisals.html">Appraising evidence</a> tutorial.</li>
   </ol>
   <h4>Reads &amp; writes · appraised mode</h4>
-  <p class="writes">Reads claim registries, <code>meta.json</code>, <code>corrections.json</code> review decisions, relation records. Writes <code>projects/&lt;slug&gt;/reviews/&lt;batch&gt;/{manifest.json, grade.json, appraisals/&lt;pmid&gt;.json}</code>, or <code>reviews/&lt;batch&gt;/</code> without <code>--project</code>. A refusal writes nothing.</p>
+  <p class="writes">Reads claim registries, <code>meta.json</code>, <code>corrections.json</code> review decisions, relation records. Writes <code>projects/&lt;slug&gt;/reviews/&lt;batch&gt;/{manifest.json, grade.json, appraisals/&lt;pmid&gt;.json, review.md}</code>, or <code>reviews/&lt;batch&gt;/</code> without <code>--project</code>. A refusal writes nothing.</p>
 
   <h4>Arguments · --prisma</h4>
   <dl class="args">
@@ -513,10 +515,10 @@
     <li>Retrieves candidates like <a href="find.html#ask">/ref:ask</a> (query expansion, then <code>ask_retrieve.py</code>), and adds the active claims of any cited PMID that retrieval missed.</li>
     <li>The Claude session itself splits the paragraph and gives each assertion one verdict: <code>supported</code>, <code>overstated</code>, <code>conflicting</code>, <code>insufficient</code>, or <code>unavailable</code>. An existing citation that doesn't back its sentence gets <code>citation_mismatch: true</code>. No subagent is used, since this verifies text rather than writing it.</li>
     <li>The script validates the findings: each <code>assertion_text</code> must be an exact substring of your paragraph, every evidence PMID and claim ID must be in the candidate set, and <code>unavailable</code> must carry no evidence.</li>
-    <li>Persists the paragraph verbatim, the findings, and verdict counts, and always prints the coverage caveat.</li>
+    <li>Persists the paragraph verbatim, the findings, and verdict counts, renders them into <code>findings.md</code> (paragraph quoted unchanged, assertions grouped by verdict with PMIDs and claim IDs), and always prints the coverage caveat.</li>
   </ol>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Writes <code>checks/&lt;check_id&gt;/{input.md, findings.json, manifest.json}</code> (or under <code>projects/&lt;slug&gt;/checks/</code>), plus <code>references.bib</code> and <code>references.csl.json</code> with <code>--export-bib</code>. Check IDs are opaque (<code>check-…</code>); each check is a one-off snapshot.</p>
+  <p class="writes">Writes <code>checks/&lt;check_id&gt;/{input.md, findings.json, findings.md, manifest.json}</code> (or under <code>projects/&lt;slug&gt;/checks/</code>), plus <code>references.bib</code> and <code>references.csl.json</code> with <code>--export-bib</code>. Check IDs are opaque (<code>check-…</code>); each check is a one-off snapshot.</p>
   <h4>Example</h4>
   <p class="term-label">illustrative output</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:check-citations "Cortical thickness is reduced in autistic adults [^10000001]. This causes social difficulties." --project thesis-ch3</span>

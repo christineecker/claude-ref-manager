@@ -344,14 +344,15 @@
 </article>
 
 <article class="cmd" id="gaps">
-  <div class="cmd-head"><h3>/ref:gaps</h3><div class="chips"><span class="tag phase">phase 9</span><span class="tag ro">read-only</span></div></div>
+  <div class="cmd-head"><h3>/ref:gaps</h3><div class="chips"><span class="tag phase">phase 9</span></div></div>
   <p class="summary">Run deterministic structural gap queries over a selected set of papers, with every finding pointing at the claims, relations or PMIDs it rests on.</p>
-  <div class="synopsis">/ref:gaps &lt;selector&gt; [--intervention-concept &lt;slug&gt;] [--types &lt;type…&gt;]</div>
+  <div class="synopsis">/ref:gaps &lt;selector&gt; [--intervention-concept &lt;slug&gt;] [--types &lt;type…&gt;] [--no-save]</div>
   <h4>Arguments</h4>
   <dl class="args">
     <dt>selector</dt><dd>Required: bare <code>&lt;pmid…&gt;</code>, <code>--project</code>, <code>--study</code>, <code>--search</code>, <code>--from-file</code>, and the rest of the shared grammar.</dd>
     <dt>--intervention-concept</dt><dd>Needed only for <code>population_outcome_gap</code>; omit to skip that query.</dd>
     <dt>--types</dt><dd>Any of <code>single_study_fragile</code>, <code>unresolved_conflicts</code>, <code>co_mentioned_ungrouped</code>, <code>population_outcome_gap</code>. Default: all applicable.</dd>
+    <dt>--no-save</dt><dd>Only print the result. By default the report is also saved as <code>gaps.json</code> + <code>gaps.md</code>.</dd>
   </dl>
   <h4>What happens</h4>
   <ol>
@@ -362,7 +363,7 @@
   </ol>
   <p class="writes">No LLM judgment. Missing edges describe this library's coverage, not an established gap in the literature, and results should be presented that way.</p>
   <h4>Reads &amp; writes</h4>
-  <p class="writes">Reads <code>claim_registry.json</code>, <code>graph/concepts.jsonl</code>, <code>graph/relations.jsonl</code>, <code>studies/studies.jsonl</code>. Writes nothing.</p>
+  <p class="writes">Reads <code>claim_registry.json</code>, <code>graph/concepts.jsonl</code>, <code>graph/relations.jsonl</code>, <code>studies/studies.jsonl</code>. Writes <code>gaps/&lt;gaps_id&gt;/{gaps.json, gaps.md}</code> (or under <code>projects/&lt;slug&gt;/gaps/</code> with <code>--project</code>) unless <code>--no-save</code>. <code>gaps.md</code> has YAML frontmatter and one section per gap type, each line keeping its claim/relation ID and PMID. Gaps IDs are opaque (<code>gaps-…</code>); each run is a new snapshot.</p>
   <h4>Example</h4>
   <p class="term-label">output from a scratch library</p>
 <pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps 38000001 38000002 38000003 --intervention-concept drug-x</span>
@@ -390,10 +391,12 @@
     ],
     "co_mentioned_ungrouped": [],
     "population_outcome_gap": []
-  }
+  },
+  "gaps_id": "gaps-3f1c09a2b7de",
+  "markdown": "…/gaps/gaps-3f1c09a2b7de/gaps.md"
 }</span></pre>
   <h4>Under the hood</h4>
-  <p class="writes"><code>gaps.py --repo &lt;root&gt; &lt;selector…&gt; [--intervention-concept &lt;slug&gt;] [--types …]</code>.</p>
+  <p class="writes"><code>gaps.py --repo &lt;root&gt; &lt;selector…&gt; [--intervention-concept &lt;slug&gt;] [--types …] --save</code> (<code>--save</code> dropped for <code>--no-save</code>).</p>
   <h4>See also</h4>
   <p class="writes"><a href="#weave">/ref:weave</a> · <a href="#hypothesize">/ref:hypothesize</a> · <a href="organize.html#study">/ref:study</a> · <a href="find.html#related">/ref:related</a> · <a href="../tutorials/dashboard-insights.html">Evidence insights (gap grid)</a></p>
 </article>

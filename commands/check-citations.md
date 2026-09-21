@@ -50,4 +50,5 @@ Steps:
 7. Print the script's own output verbatim, including its `caveat` line — always relay it to
    the user: available library coverage does not establish a comprehensive literature
    check. Present the findings grouped by verdict; never present an edited version of the
-   user's paragraph as if it were their original text.
+   user's paragraph as if it were their original text. Tell the user the report was also
+   saved as Markdown at the result's `markdown` path (`findings.md`, next to `findings.json`).

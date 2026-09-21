@@ -38,6 +38,9 @@ an opaque ID (§3d: report/table/brief IDs are minted at commit, never
 typed) -- there's no recurring "key" the way /ref:brief has one, since a
 citation check is inherently a one-off snapshot of one paragraph, not a
 standing question you refresh over time.
+
+findings.md is a human-readable render of findings.json + manifest.json,
+written alongside them; the JSON files stay the source of truth.
 """
 from __future__ import annotations
 
@@ -50,6 +53,7 @@ from lib_atomic import atomic_write_json, atomic_write_text, now_iso
 from lib_ids import gen_opaque_id
 from lib_cite import build_exports
 from lib_schema import validate_citation_check_finding, SchemaError
+from okf_emit import _fm
 from validate_citations import extract_citations
 
 COVERAGE_CAVEAT = (
@@ -83,6 +87,40 @@ def merge_cited_pmid_candidates(paragraph: str, candidates: list[dict], claims_l
             candidates.append(c)
         have.add(pmid)
     return candidates
+
+
+VERDICTS = ("supported", "overstated", "conflicting", "insufficient", "unavailable")
+
+
+def render_markdown(manifest: dict, paragraph: str, findings: list[dict]) -> str:
+    """Human-readable findings.md, derived from findings.json (which stays the
+    source of truth). The paragraph is quoted verbatim, never edited."""
+    fm = _fm({
+        "type": "citation-check", "check_id": manifest["check_id"], "project": manifest["project"],
+        "created_at": manifest["created_at"], "selector": manifest["selector_expression"],
+        "verdict_counts": manifest["verdict_counts"], "referenced_pmids": manifest["referenced_pmids"],
+    })
+    lines = [f"# Citation check `{manifest['check_id']}`", "", "## Input paragraph", ""]
+    lines += [f"> {line}" if line else ">" for line in paragraph.rstrip("\n").split("\n")]
+    lines += ["", "## Summary", ""]
+    lines += [f"- {v}: {manifest['verdict_counts'][v]}" for v in VERDICTS]
+    for v in VERDICTS:
+        group = [f for f in findings if f["verdict"] == v]
+        if not group:
+            continue
+        lines += ["", f"## {v.capitalize()}"]
+        for f in group:
+            lines += ["", f"- **Assertion:** \"{f['assertion_text']}\""]
+            if f.get("citation_mismatch"):
+                lines.append(f"  - **Citation mismatch:** cited [^{f.get('existing_citation_pmid')}] "
+                             "does not support this assertion")
+            for ev in f["evidence"]:
+                ref = f"PMID {ev['pmid']}" + (f", claim `{ev['claim_id']}`" if ev.get("claim_id") else "")
+                lines.append(f"  - {ref}" + (f" — {ev['note']}" if ev.get("note") else ""))
+            if f.get("note"):
+                lines.append(f"  - Note: {f['note']}")
+    lines += ["", "---", "", f"*{manifest['caveat']}*"]
+    return fm + "\n" + "\n".join(lines) + "\n"
 
 
 def persist_check(
@@ -137,7 +175,7 @@ def persist_check(
         "referenced_pmids": referenced_pmids,
         "verdict_counts": {
             v: sum(1 for f in findings if f["verdict"] == v)
-            for v in ("supported", "overstated", "conflicting", "insufficient", "unavailable")
+            for v in VERDICTS
         },
         "caveat": COVERAGE_CAVEAT,
     }
@@ -151,8 +189,10 @@ def persist_check(
         manifest["bibliography_exported"] = False
 
     atomic_write_json(cdir / "manifest.json", manifest)
+    atomic_write_text(cdir / "findings.md", render_markdown(manifest, paragraph, findings))
 
-    return {"check_id": check_id, "manifest": manifest, "findings": findings, "caveat": COVERAGE_CAVEAT}
+    return {"check_id": check_id, "manifest": manifest, "findings": findings, "caveat": COVERAGE_CAVEAT,
+            "markdown": str(cdir / "findings.md")}
 
 
 def show_check(library_root: Path, project: str | None, check_id: str) -> dict:

@@ -56,6 +56,14 @@ from study import study_for_pmid  # noqa: E402
 import lib_selector  # noqa: E402
 from lib_schema import clean_claim_value  # noqa: E402
 from lib_verify_link import active_claims  # noqa: E402
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso  # noqa: E402
+from lib_ids import gen_opaque_id  # noqa: E402
+from okf_emit import _fm  # noqa: E402
+
+COVERAGE_CAVEAT = (
+    "Missing edges describe this library's coverage, not an established gap in "
+    "the literature (§5b)."
+)
 
 
 def _active_claims(library_root: Path, pmids: list[str]) -> list[dict]:
@@ -193,6 +201,58 @@ def population_outcome_gap(library_root: Path, pmids: list[str], intervention_co
     return findings
 
 
+def _claim_refs(claim_ids: list[str]) -> str:
+    return ", ".join(f"`{c}`" for c in claim_ids) or "—"
+
+
+def render_markdown(report: dict) -> str:
+    """Human-readable gaps.md, derived from the same dict gaps.json holds.
+    Every line keeps the claim_id/relation_id/pmid it rests on."""
+    gaps = report["gaps"]
+    fm = _fm({
+        "type": "gaps", "gaps_id": report["gaps_id"], "project": report["project"],
+        "created_at": report["created_at"], "selector": report["selector_expression"],
+        "counts": {k: len(v) for k, v in gaps.items()},
+    })
+    lines = [f"# Gaps `{report['gaps_id']}`", "", f"Selector: `{report['selector_expression']}`"]
+    sections = {
+        "single_study_fragile": ("Single-study fragile claims", lambda g: (
+            f"- claim `{g['claim_id']}` (PMID {g['pmid']}) — intervention: {g.get('intervention') or '—'}; "
+            f"outcome: {g.get('outcome') or '—'}")),
+        "unresolved_conflicts": ("Unresolved conflicts", lambda g: (
+            f"- relation `{g['relation_id']}` ({g['type']}{', stale' if g.get('stale') else ''}): "
+            f"`{g['subject_concept_id']}` ↔ `{g['object_concept_id']}` — claims "
+            + (", ".join(f"`{sc['claim_id']}` (PMID {sc['pmid']})" for sc in g["supporting_claims"]) or "—"))),
+        "co_mentioned_ungrouped": ("Co-mentioned concepts with no relation", lambda g: (
+            f"- `{g['concept_a']}` + `{g['concept_b']}` — co-mentioned in claim `{g['claim_id']}` (PMID {g['pmid']})")),
+        "population_outcome_gap": ("Population × outcome gaps", lambda g: (
+            f"- `{g['intervention_concept_id']}`: no claim for population **{g['missing_population']}** × "
+            f"outcome **{g['missing_outcome']}** (population evidenced by {_claim_refs(g['population_evidenced_by'])}; "
+            f"outcome evidenced by {_claim_refs(g['outcome_evidenced_by'])})")),
+    }
+    for key, (title, fmt) in sections.items():
+        if key not in gaps:
+            continue
+        lines += ["", f"## {title} ({len(gaps[key])})", ""]
+        lines += [fmt(g) for g in gaps[key]] or ["None found."]
+    lines += ["", "---", "", f"*{COVERAGE_CAVEAT}*"]
+    return fm + "\n" + "\n".join(lines) + "\n"
+
+
+def save_report(library_root: Path, project: str | None, selector_expression: str, gaps: dict) -> dict:
+    """Persist one gaps run as gaps/<id>/ (or projects/<slug>/gaps/<id>/),
+    same project-scoped-vs-fallback layout as check_citations.py."""
+    gaps_id = gen_opaque_id("gaps-")
+    base = (library_root / "projects" / project / "gaps") if project else (library_root / "gaps")
+    gdir = base / gaps_id
+    gdir.mkdir(parents=True, exist_ok=True)
+    report = {"gaps_id": gaps_id, "project": project, "created_at": now_iso(),
+              "selector_expression": selector_expression, "gaps": gaps}
+    atomic_write_json(gdir / "gaps.json", report)
+    atomic_write_text(gdir / "gaps.md", render_markdown(report))
+    return {"gaps_id": gaps_id, "markdown": str(gdir / "gaps.md")}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     lib_selector.add_selector_args(ap)
@@ -202,6 +262,8 @@ def main() -> int:
                      choices=["single_study_fragile", "unresolved_conflicts",
                               "co_mentioned_ungrouped", "population_outcome_gap"],
                      help="restrict to specific gap types; default runs all applicable")
+    ap.add_argument("--save", action="store_true",
+                     help="also persist gaps.json + gaps.md under gaps/<id>/ (or projects/<slug>/gaps/<id>/)")
     args = ap.parse_args()
 
     library_root = Path(args.repo).expanduser().resolve()
@@ -219,7 +281,10 @@ def main() -> int:
     if args.intervention_concept and (want is None or "population_outcome_gap" in want):
         out["population_outcome_gap"] = population_outcome_gap(library_root, pmids, args.intervention_concept)
 
-    print(json.dumps({"selector_expression": resolution["selector_expression"], "gaps": out}, indent=2))
+    result = {"selector_expression": resolution["selector_expression"], "gaps": out}
+    if args.save:
+        result.update(save_report(library_root, args.project, resolution["selector_expression"], out))
+    print(json.dumps(result, indent=2))
     return 0
 
 

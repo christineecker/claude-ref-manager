@@ -74,6 +74,8 @@ Steps:
    shown explicitly — never silently omitted. A paper whose own appraisal is
    `{"insufficient_information": true, ...}` (abstract-tier within an otherwise
    full-tier set) is reported as such, not silently dropped from the table.
+   The same content is saved as `review.md` in the batch directory (the result's
+   `markdown` path) — tell the user where it is.
 5. Present every domain rating as a DRAFT — label it plainly as machine-derived.
    To record a human review decision on one domain (accept/edit/reject with a
    rationale), run:

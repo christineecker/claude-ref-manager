@@ -961,7 +961,7 @@ options:
 <article class="cmd" id="cli-gaps">
   <div class="cmd-head"><h3>gaps.py</h3></div>
   <p class="summary">Structural gap queries: single-study claims, unresolved conflicts, co-mentioned but ungrouped concepts, population/outcome gaps.</p>
-  <p class="writes">Called by <a href="commands/graph.html#gaps"><code>/ref:gaps</code></a> · stdout: JSON document</p>
+  <p class="writes">Called by <a href="commands/graph.html#gaps"><code>/ref:gaps</code></a> · stdout: JSON document · with <code>--save</code>: <code>gaps/&lt;id&gt;/{gaps.json, gaps.md}</code></p>
   <details><summary><code>gaps.py --help</code></summary><pre class="code">usage: gaps.py [-h] [--project PROJECT] [--question QUESTION]
                [--screened {included,excluded,pending}] [--read]
                [--queue QUEUE] [--query QUERY] [--run RUN] [--search SEARCH]
@@ -969,6 +969,7 @@ options:
                [--tier {abstract,full,any}] [--exclude [EXCLUDE ...]]
                --repo REPO [--intervention-concept INTERVENTION_CONCEPT]
                [--types [{single_study_fragile,unresolved_conflicts,co_mentioned_ungrouped,population_outcome_gap} ...]]
+               [--save]
                [pmids ...]
 
 positional arguments:
@@ -994,7 +995,9 @@ options:
                         required for the population_outcome_gap query
   --types [{single_study_fragile,unresolved_conflicts,co_mentioned_ungrouped,population_outcome_gap} ...]
                         restrict to specific gap types; default runs all
-                        applicable</pre></details>
+                        applicable
+  --save                also persist gaps.json + gaps.md under gaps/&lt;id&gt;/ (or
+                        projects/&lt;slug&gt;/gaps/&lt;id&gt;/)</pre></details>
 </article>
 <article class="cmd" id="cli-hypothesize">
   <div class="cmd-head"><h3>hypothesize.py</h3></div>
@@ -1433,7 +1436,7 @@ options:
     <tr><td>test_list.py</td><td>36</td><td>OK</td></tr>
     <tr><td>test_phase0.py</td><td>15</td><td>OK</td></tr>
     <tr><td>test_phase1.py</td><td>14</td><td>OK</td></tr>
-    <tr><td>test_phase10_summarize_review.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_phase10_summarize_review.py</td><td>29</td><td>OK</td></tr>
     <tr><td>test_phase11_audit.py</td><td>15</td><td>OK</td></tr>
     <tr><td>test_phase2.py</td><td>20</td><td>OK</td></tr>
     <tr><td>test_phase3_acquire.py</td><td>41</td><td>OK</td></tr>
@@ -1443,10 +1446,10 @@ options:
     <tr><td>test_phase5_compare.py</td><td>19</td><td>OK</td></tr>
     <tr><td>test_phase5_prisma.py</td><td>7</td><td>OK</td></tr>
     <tr><td>test_phase6_ask.py</td><td>16</td><td>OK</td></tr>
-    <tr><td>test_phase7_checkcitations.py</td><td>12</td><td>OK</td></tr>
+    <tr><td>test_phase7_checkcitations.py</td><td>13</td><td>OK</td></tr>
     <tr><td>test_phase8_graph.py</td><td>17</td><td>OK</td></tr>
     <tr><td>test_phase8_okf.py</td><td>7</td><td>OK</td></tr>
-    <tr><td>test_phase9_gaps.py</td><td>15</td><td>OK</td></tr>
+    <tr><td>test_phase9_gaps.py</td><td>16</td><td>OK</td></tr>
     <tr><td>test_phase9_related.py</td><td>7</td><td>OK</td></tr>
     <tr><td>test_project_templates.py</td><td>9</td><td>OK</td></tr>
     <tr><td>test_repair_state.py</td><td>7</td><td>OK</td></tr>

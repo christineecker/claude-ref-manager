@@ -57,9 +57,11 @@ import re
 import sys
 from pathlib import Path
 
-from lib_atomic import atomic_write_json, now_iso
+from lib_atomic import atomic_write_json, atomic_write_text, now_iso
+from okf_emit import _fm
 from lib_selector import resolve_from_args, add_selector_args, SelectorError, paper_meta
 from lib_verify_link import load_corrections, active_claims
+from lib_schema import clean_claim_value
 from relation import list_relations
 
 
@@ -82,11 +84,40 @@ def _domain(rating: str, claim_ids: list[str], note: str) -> dict:
     return {"rating": rating, "claim_ids": claim_ids, "note": note, "review_status": "model_draft"}
 
 
+# Signals that can push a RoB 2 domain to "high" (a draft must be able to say
+# high, or an RCT could never trigger GRADE's risk-of-bias downgrade).
+NON_RANDOM = r"quasi[- ]?random|non[- ]?randomi[sz]|not randomi[sz]|alternat(e|ing) allocation|allocated by (date|birth|record|day)"
+ATTRITION = r"drop(ped|s)?[\s-]?outs?|attrition|lost to follow|loss to follow|withdrew|discontinued"
+HIGH_ATTRITION_PCT = 20.0  # RoB 2 fixes no threshold; 20% is the common rule of thumb
+
+
+def _attrition_pct(text: str) -> float | None:
+    """Largest attrition proportion stated near an attrition phrase:
+    "15%" or "9 of 60". None when no number is given."""
+    best = None
+    for m in re.finditer(ATTRITION, text, re.I):
+        window = text[max(0, m.start() - 60):m.end() + 60]
+        for pct in re.findall(r"(\d+(?:\.\d+)?)\s*%", window):
+            best = max(best or 0.0, float(pct))
+        for num, den in re.findall(r"(\d+)\s*(?:of|/|out of)\s*(\d+)", window):
+            if int(den) > 0 and int(num) <= int(den):
+                best = max(best or 0.0, 100.0 * int(num) / int(den))
+    return best
+
+
 def rob2_appraisal(claims: list[dict]) -> dict:
     domains = {}
 
-    rand = [c for c in claims if re.search(r"randomi[sz]", (c.get("study_design") or "") + " " + (c.get("evidence_span") or ""), re.I)]
-    if rand:
+    def design_text(c):
+        return (c.get("study_design") or "") + " " + (c.get("evidence_span") or "")
+
+    non_random = [c for c in claims if re.search(NON_RANDOM, design_text(c), re.I)]
+    rand = [c for c in claims if re.search(r"randomi[sz]", design_text(c), re.I)]
+    if non_random:
+        domains["randomization_process"] = _domain(
+            "high", [c["claim_id"] for c in non_random],
+            "study_design/evidence_span describes non-random or quasi-random allocation")
+    elif rand:
         domains["randomization_process"] = _domain(
             "low", [c["claim_id"] for c in rand],
             "study_design/evidence_span mentions randomization")
@@ -99,11 +130,19 @@ def rob2_appraisal(claims: list[dict]) -> dict:
         "insufficient_information", [],
         "claim schema does not capture protocol adherence/deviations")
 
-    attrition = [c for c in claims if re.search(r"dropout|attrition|lost to follow", c.get("evidence_span") or "", re.I)]
+    attrition = [c for c in claims if re.search(ATTRITION, c.get("evidence_span") or "", re.I)]
     if attrition:
-        domains["missing_outcome_data"] = _domain(
-            "some_concerns", [c["claim_id"] for c in attrition],
-            "evidence_span mentions dropout/attrition/loss to follow-up")
+        pcts = [p for p in (_attrition_pct(c.get("evidence_span") or "") for c in attrition) if p is not None]
+        worst = max(pcts) if pcts else None
+        if worst is not None and worst >= HIGH_ATTRITION_PCT:
+            domains["missing_outcome_data"] = _domain(
+                "high", [c["claim_id"] for c in attrition],
+                f"evidence_span reports {worst:.0f}% attrition (>= {HIGH_ATTRITION_PCT:.0f}%)")
+        else:
+            detail = f"{worst:.0f}% attrition" if worst is not None else "attrition, no proportion stated"
+            domains["missing_outcome_data"] = _domain(
+                "some_concerns", [c["claim_id"] for c in attrition],
+                f"evidence_span mentions dropout/attrition/loss to follow-up ({detail})")
     else:
         domains["missing_outcome_data"] = _domain(
             "insufficient_information", [],
@@ -128,34 +167,55 @@ def rob2_appraisal(claims: list[dict]) -> dict:
 
 # --------------------------------------------------- Newcastle-Ottawa (cohort/case-control)
 
+UNADJUSTED = r"^(none|no adjustment|not adjusted|unadjusted|crude)\b"
+
+
+def _known(c: dict, field: str) -> bool:
+    return clean_claim_value(c.get(field)) is not None
+
+
 def nos_appraisal(claims: list[dict]) -> dict:
+    """Each category carries `assessable`: False when its stars are 0 only
+    because the claims don't record the signal. Only an assessable 0-star
+    category (e.g. an explicitly unadjusted analysis) is a real finding --
+    appraisal_signal() reads just those as high risk."""
     domains = {}
 
-    defined_pop = [c for c in claims if c.get("population", "unknown") != "unknown"]
-    defined_cohort = [c for c in claims if c.get("cohort_identity", "unknown") != "unknown"]
+    defined_pop = [c for c in claims if _known(c, "population")]
+    defined_cohort = [c for c in claims if _known(c, "cohort_identity")]
     sel_ids = [c["claim_id"] for c in (defined_pop or defined_cohort)]
     stars = (1 if defined_pop else 0) + (1 if defined_cohort else 0)
     domains["selection"] = {
-        "stars_awarded": stars, "stars_max": 4, "claim_ids": sel_ids,
+        "stars_awarded": stars, "stars_max": 4, "claim_ids": sel_ids, "assessable": stars > 0,
         "note": ("population and/or cohort_identity are defined (partial signal only -- "
                  "remaining selection sub-items, e.g. non-exposed cohort selection/ascertainment "
-                 "of exposure, are not captured by the claim schema)"),
+                 "of exposure, are not captured by the claim schema)" if stars
+                 else "population and cohort_identity unknown for every active claim -- not assessable"),
         "review_status": "model_draft",
     }
 
-    adjusted = [c for c in claims if c.get("adjustment_context", "unknown") != "unknown"]
-    domains["comparability"] = {
-        "stars_awarded": 2 if adjusted else 0, "stars_max": 2,
-        "claim_ids": [c["claim_id"] for c in adjusted],
-        "note": ("adjustment_context names confounders adjusted for" if adjusted
-                 else "adjustment_context is unknown for every active claim -- comparability not assessable"),
-        "review_status": "model_draft",
-    }
+    # The extractor writes the literal "unknown" when a field isn't stated, so
+    # "none" here means the paper says it didn't adjust -- read the raw value
+    # before clean_claim_value() folds "none" into the placeholders.
+    unadjusted = [c for c in claims
+                  if isinstance(c.get("adjustment_context"), str)
+                  and re.search(UNADJUSTED, c["adjustment_context"].strip(), re.I)]
+    adjusted = [c for c in claims if _known(c, "adjustment_context") and c not in unadjusted]
+    if adjusted:
+        comparability = {"stars_awarded": 2, "claim_ids": [c["claim_id"] for c in adjusted], "assessable": True,
+                         "note": "adjustment_context names confounders adjusted for"}
+    elif unadjusted:
+        comparability = {"stars_awarded": 0, "claim_ids": [c["claim_id"] for c in unadjusted], "assessable": True,
+                         "note": "adjustment_context states the analysis was unadjusted"}
+    else:
+        comparability = {"stars_awarded": 0, "claim_ids": [], "assessable": False,
+                         "note": "adjustment_context is unknown for every active claim -- comparability not assessable"}
+    domains["comparability"] = {**comparability, "stars_max": 2, "review_status": "model_draft"}
 
-    outcome_defined = [c for c in claims if c.get("outcome", "unknown") != "unknown" and c.get("effect_measure", "unknown") != "unknown"]
+    outcome_defined = [c for c in claims if _known(c, "outcome") and _known(c, "effect_measure")]
     domains["outcome_exposure"] = {
         "stars_awarded": 1 if outcome_defined else 0, "stars_max": 3,
-        "claim_ids": [c["claim_id"] for c in outcome_defined],
+        "claim_ids": [c["claim_id"] for c in outcome_defined], "assessable": bool(outcome_defined),
         "note": ("outcome and effect_measure are defined (partial signal only -- assessment of "
                  "outcome/adequacy of follow-up length and completeness are not captured)"
                  if outcome_defined else "outcome/effect_measure unknown -- not assessable"),
@@ -167,23 +227,37 @@ def nos_appraisal(claims: list[dict]) -> dict:
 
 # ------------------------------------------------------- AMSTAR-2 (meta-analysis)
 
+# (key, critical, "yes" pattern, "no" pattern). The "no" pattern is checked
+# first: a stated shortcoming beats a passing mention of the same topic.
 AMSTAR2_ITEMS = (
-    ("protocol_registered_prior", True, r"PROSPERO|protocol.{0,20}regist"),
-    ("adequate_literature_search", True, r"systematic search|PRISMA|search strategy"),
-    ("study_selection_duplicate", False, r"independent(ly)?.{0,20}(screen|select)|duplicate.{0,20}(screen|select)"),
-    ("list_of_excluded_studies", False, r"excluded stud"),
-    ("risk_of_bias_assessment_included_studies", True, r"risk of bias|quality assess"),
-    ("risk_of_bias_accounted_in_results", True, r"risk of bias.{0,40}(interpret|discuss|result)"),
-    ("publication_bias_assessed", False, r"funnel plot|publication bias|Egger"),
+    ("protocol_registered_prior", True, r"PROSPERO|protocol.{0,20}regist",
+     r"(no|without( a)?) (a priori |prior |pre-?registered )?protocol|not (prospectively )?registered|unregistered"),
+    ("adequate_literature_search", True, r"systematic search|PRISMA|search strategy",
+     r"single (electronic )?database|only one database|no grey literature|English[- ]language (studies |articles )?only"),
+    ("study_selection_duplicate", False, r"independent(ly)?.{0,20}(screen|select)|duplicate.{0,20}(screen|select)",
+     r"(single|one) (reviewer|author) (screened|selected)|screened by (a single|one) (reviewer|author)"),
+    ("list_of_excluded_studies", False, r"excluded stud",
+     r"(no|without( a)?) list of excluded|excluded studies (were )?not (listed|reported)"),
+    ("risk_of_bias_assessment_included_studies", True, r"risk of bias|quality assess",
+     r"(risk of bias|quality) (was |were )?not (formally )?assessed|did not assess (the )?(risk of bias|quality)|no (risk of bias|quality) assessment"),
+    ("risk_of_bias_accounted_in_results", True, r"risk of bias.{0,40}(interpret|discuss|result)",
+     r"(did not|without) (consider|account for|discuss)(ing)? (the )?risk of bias"),
+    ("publication_bias_assessed", False, r"funnel plot|publication bias|Egger",
+     r"publication bias (was |were )?not (formally )?assessed|did not assess publication bias|too few studies (to|for) (assess|funnel)"),
 )
 
 
 def amstar2_appraisal(claims: list[dict]) -> dict:
     items = {}
-    for key, critical, pattern in AMSTAR2_ITEMS:
-        hits = [c["claim_id"] for c in claims if re.search(pattern, c.get("evidence_span") or "", re.I)]
-        if hits:
-            items[key] = {"rating": "yes", "critical": critical, "claim_ids": hits,
+    for key, critical, yes_pattern, no_pattern in AMSTAR2_ITEMS:
+        spans = [(c["claim_id"], c.get("evidence_span") or "") for c in claims]
+        no_hits = [cid for cid, s in spans if re.search(no_pattern, s, re.I)]
+        yes_hits = [cid for cid, s in spans if re.search(yes_pattern, s, re.I)]
+        if no_hits:
+            items[key] = {"rating": "no", "critical": critical, "claim_ids": no_hits,
+                          "note": f"evidence_span states a shortcoming for {key}", "review_status": "model_draft"}
+        elif yes_hits:
+            items[key] = {"rating": "yes", "critical": critical, "claim_ids": yes_hits,
                           "note": f"evidence_span matches expected signal for {key}", "review_status": "model_draft"}
         else:
             items[key] = {"rating": "insufficient_information", "critical": critical, "claim_ids": [],
@@ -191,21 +265,30 @@ def amstar2_appraisal(claims: list[dict]) -> dict:
                                   "does not otherwise capture this AMSTAR-2 item", "review_status": "model_draft"}
 
     assessed = [i for i in items.values() if i["rating"] != "insufficient_information"]
+    critical_no = [k for k, i in items.items() if i["critical"] and i["rating"] == "no"]
+    critical_unknown = [k for k, i in items.items() if i["critical"] and i["rating"] == "insufficient_information"]
+    noncritical_no = [k for k, i in items.items() if not i["critical"] and i["rating"] == "no"]
     if not assessed:
         overall = "insufficient_information"
         overall_note = "every item is insufficient_information -- overall confidence not assessable from library data"
+    elif critical_no:
+        overall = "critically_low"
+        overall_note = f"critical item(s) rated no: {critical_no}"
+    elif critical_unknown:
+        # Standard AMSTAR-2 can't rate above critically_low without knowing
+        # every critical item, so a missing one leaves the rating open rather
+        # than letting it default to high.
+        overall = "insufficient_information"
+        overall_note = (f"critical item(s) not confirmed: {critical_unknown} -- overall confidence "
+                        "not assessable until they are reviewed")
     else:
-        critical_no = [i for i in items.values() if i["critical"] and i["rating"] == "no"]
-        noncritical_no = [i for i in items.values() if not i["critical"] and i["rating"] == "no"]
-        if critical_no:
-            overall = "critically_low"
-        elif len(noncritical_no) > 1:
+        if len(noncritical_no) > 1:
             overall = "low"
         elif len(noncritical_no) == 1:
             overall = "moderate"
         else:
             overall = "high"
-        overall_note = "derived from confirmed (non-insufficient) items only, standard AMSTAR-2 logic"
+        overall_note = "every critical item confirmed; standard AMSTAR-2 logic over the non-critical items"
 
     return {"checklist": "AMSTAR-2", "items": items, "overall_confidence": overall, "overall_note": overall_note}
 
@@ -240,10 +323,19 @@ def merge_appraisal_review(library_root: Path, pmid: str, draft: dict) -> dict:
                 entry["review_status"] = "human_confirmed"
             elif latest["decision"] == "edit":
                 entry["review_status"] = "human_edited"
-                if latest.get("replacement_value"):
-                    entry.update(latest["replacement_value"])
+                replacement = latest.get("replacement_value") or {}
+                if "note" not in replacement:
+                    # the machine note explained the draft rating, which the
+                    # edit has replaced -- keep it, but out of the `note` slot
+                    entry["draft_note"] = entry.get("note")
+                    entry["note"] = latest.get("rationale") or entry.get("note")
+                entry.update(replacement)
+                if "stars_awarded" in replacement:
+                    entry["assessable"] = True  # a human scored it
             elif latest["decision"] == "reject":
                 entry["review_status"] = "human_rejected"
+            entry["review_rationale"] = latest.get("rationale")
+            entry["reviewer"] = latest.get("reviewer")
 
     if "domains" in draft:
         _apply(draft["domains"], draft.get("checklist", ""))
@@ -299,11 +391,13 @@ def appraisal_signal(a: dict) -> dict:
     assessed = False
     for d in a.get("domains", {}).values():
         if "stars_awarded" in d:  # NOS star-rated domain
-            if d["stars_max"] > 0:
+            # 0 stars is high risk only when assessable -- a 0 that just means
+            # "the claims don't record this" is not evidence of bias. Records
+            # written before `assessable` existed read as assessable.
+            if d["stars_max"] > 0 and d.get("assessable", True):
+                assessed = True
                 if d["stars_awarded"] == 0:
                     high = True
-                else:
-                    assessed = True
         else:  # RoB2 rating domain
             rating = d.get("rating")
             if rating and rating != "insufficient_information":
@@ -407,6 +501,77 @@ def grade_certainty(library_root: Path, pmids: list[str], appraisals: dict[str, 
     }
 
 
+# --------------------------------------------------------------- markdown render
+
+def _cell(value) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+# JSON is stored with sorted keys, so render in each checklist's own order
+# (a fresh and a reloaded review then produce the same review.md).
+RENDER_ORDER = (
+    *ROB2_DOMAINS, "selection", "comparability", "outcome_exposure",
+    *(item[0] for item in AMSTAR2_ITEMS),
+    "risk_of_bias", "inconsistency", "imprecision", "indirectness", "publication_bias",
+)
+
+
+def _ordered(d: dict) -> list[tuple[str, dict]]:
+    rank = {k: i for i, k in enumerate(RENDER_ORDER)}
+    return sorted(d.items(), key=lambda kv: (rank.get(kv[0], len(rank)), kv[0]))
+
+
+def _appraisal_markdown(pmid: str, a: dict) -> list[str]:
+    lines = [f"### PMID {pmid}", ""]
+    if a.get("checklist") is None:
+        why = a.get("reason") or a.get("note") or "no checklist applied"
+        label = "Insufficient information" if a.get("insufficient_information") else "Not appraised"
+        return lines + [f"**{label}:** {why}", ""]
+    lines.append(f"Checklist: **{a['checklist']}** · study type: {a.get('study_type', 'unknown')}")
+    lines += ["", "| Domain | Rating | Claims | Status | Note |", "|---|---|---|---|---|"]
+    for key, d in _ordered({**a.get("domains", {}), **a.get("items", {})}):
+        rating = f"{d['stars_awarded']}/{d['stars_max']} ★" if "stars_awarded" in d else d.get("rating", "—")
+        if "stars_awarded" in d and not d.get("assessable", True):
+            rating += " (not assessable)"
+        if d.get("critical"):
+            rating += " (critical)"
+        claims = ", ".join(f"`{c}`" for c in d.get("claim_ids", [])) or "—"
+        status = d.get("review_status", "—")
+        if d.get("reviewer"):
+            status += f" ({d['reviewer']})"
+        note = d.get("note", "")
+        if d.get("review_rationale") and d.get("review_rationale") != note:
+            note = f"{note} — reviewer: {d['review_rationale']}" if note else f"reviewer: {d['review_rationale']}"
+        lines.append(f"| {_cell(key)} | {_cell(rating)} | {claims} | {_cell(status)} | {_cell(note)} |")
+    if "overall_confidence" in a:
+        lines += ["", f"Overall confidence: **{a['overall_confidence']}** — {a.get('overall_note', '')}"]
+    return lines + [""]
+
+
+def render_markdown(manifest: dict, appraisals: dict, grade: dict) -> str:
+    """Human-readable review.md, derived from manifest.json, appraisals/*.json
+    and grade.json (which stay the source of truth)."""
+    fm = _fm({
+        "type": "review", "batch": manifest["batch"], "project": manifest["project"],
+        "resolved_at": manifest["resolved_at"], "selector": manifest["selector_expression"],
+        "certainty": grade["certainty"], "pmids": manifest["pmids"],
+    })
+    lines = [f"# Review `{manifest['batch']}`", "", f"Selector: `{manifest['selector_expression']}`", "",
+             "> All ratings are machine-derived drafts unless marked human_confirmed/human_edited/"
+             "human_rejected (see `/ref:verify review-appraisal`).", "",
+             "## GRADE certainty", "",
+             f"**{grade['certainty']}** (baseline {grade['baseline']}, {grade['downgrades_applied']} downgrade(s); "
+             f"{grade['baseline_reason']})", "",
+             "| Factor | Downgrade | Assessed | Reason |", "|---|---|---|---|"]
+    for name, f in _ordered(grade["factors"]):
+        lines.append(f"| {_cell(name)} | {'yes' if f['downgrade'] else 'no'} | "
+                     f"{'no' if f['not_assessed'] else 'yes'} | {_cell(f['reason'])} |")
+    lines += ["", "## Per-paper appraisals", ""]
+    for pmid in manifest["pmids"]:
+        lines += _appraisal_markdown(pmid, appraisals[pmid])
+    return fm + "\n" + "\n".join(lines)
+
+
 # --------------------------------------------------------------- freeze/persist
 
 def _batch_dir(library_root: Path, batch: str, project: str | None) -> Path:
@@ -424,8 +589,10 @@ def run_review(library_root: Path, batch: str, project: str | None,
         manifest = json.loads(manifest_path.read_text())
         appraisals = {p: json.loads((bdir / "appraisals" / f"{p}.json").read_text()) for p in manifest["pmids"]}
         grade = json.loads((bdir / "grade.json").read_text())
+        if not (bdir / "review.md").exists():  # backfill reviews frozen before review.md existed
+            atomic_write_text(bdir / "review.md", render_markdown(manifest, appraisals, grade))
         return {"status": "reused_frozen_review", "batch": batch, "manifest": manifest,
-                "appraisals": appraisals, "grade": grade}
+                "appraisals": appraisals, "grade": grade, "markdown": str(bdir / "review.md")}
 
     if resolution is None:
         raise SelectorError("no selector resolution available for a new/refreshed review")
@@ -460,9 +627,11 @@ def run_review(library_root: Path, batch: str, project: str | None,
         "report": resolution["report"],
     }
     atomic_write_json(manifest_path, manifest)
+    atomic_write_text(bdir / "review.md", render_markdown(manifest, appraisals, grade))
 
     status = "created" if not prior_pmids else "refreshed"
-    result = {"status": status, "batch": batch, "manifest": manifest, "appraisals": appraisals, "grade": grade}
+    result = {"status": status, "batch": batch, "manifest": manifest, "appraisals": appraisals, "grade": grade,
+              "markdown": str(bdir / "review.md")}
     if prior_pmids:
         result["added_pmids"] = sorted(set(pmids) - set(prior_pmids))
         result["removed_pmids"] = sorted(set(prior_pmids) - set(pmids))

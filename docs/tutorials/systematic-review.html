@@ -397,7 +397,7 @@
     "certainty": …
   }
 }</span></pre>
-<div class="note warn"><strong>Every rating is a draft.</strong> Ratings are derived deterministically from claim fields, and most methodological domains land on <code>insufficient_information</code> because the claim schema doesn't capture blinding or allocation concealment. To record your own judgement on a domain, ask Claude to review it. It runs <code>verify.py review-appraisal … --decision accept|edit|reject --rationale "…"</code>, and a <code>--refresh</code> then shows <code>human_confirmed</code>, <code>human_edited</code> or <code>human_rejected</code>. The GRADE rating belongs to the whole set, lives in <code>grade.json</code>, and has no per-paper review path.</div>
+<div class="note warn"><strong>Every rating is a draft.</strong> Ratings are derived deterministically from claim fields, and most methodological domains land on <code>insufficient_information</code> because the claim schema doesn't capture blinding or allocation concealment. To record your own judgement on a domain, ask Claude to review it. It runs <code>verify.py review-appraisal … --decision accept|edit|reject --rationale "…"</code>, and a <code>--refresh</code> then shows <code>human_confirmed</code>, <code>human_edited</code> or <code>human_rejected</code>. The GRADE rating belongs to the whole set, lives in <code>grade.json</code>, and has no per-paper review path. For what each checklist domain and GRADE factor is based on, see <a href="appraisals.html">Appraising evidence</a>.</div>
 <div class="note"><strong>See it in the dashboard.</strong> <code>/ref:dashboard</code> → Insights → <em>Maturity</em> lists every batch covering papers in scope: its GRADE certainty, baseline, downgrades and the five factors, and each paper's checklist result and review status. It includes domain reviews recorded after the batch froze, without a <code>--refresh</code>. The same view shows, per intervention concept, papers, outcome breadth, population × outcome coverage, full-text share and open conflicts. See <a href="dashboard-insights.html">Evidence insights</a>.</div>
 </li>
 
@@ -421,13 +421,13 @@
       <span class="a">prisma-0c8322f37193/manifest.json    # query specs, data cutoff, full flow</span>
       prisma-0c8322f37193/flow.md · flow.csv
     reviews/wm-appraisal/                <span class="c"># only once the set has full-tier papers</span>
-      manifest.json · grade.json · appraisals/&lt;pmid&gt;.json</pre>
+      manifest.json · grade.json · appraisals/&lt;pmid&gt;.json · review.md</pre>
 <p>Next, the <a href="pi-report.html">PI report tutorial</a> uses the same review machinery for identity and funding evidence. For selectors and frozen sets, see <a href="../concepts.html">Concepts</a>. The full command reference is at <a href="../commands/organize.html#screen"><code>/ref:screen</code></a> and <a href="../commands/write.html#review"><code>/ref:review</code></a>.</p>
 </section>
 
 <nav class="pager" aria-label="Tutorial pages">
   <a href="thesis-chapter.html"><small>Previous</small>Thesis chapter</a>
-  <a href="pi-report.html"><small>Next</small>PI report</a>
+  <a href="appraisals.html"><small>Next</small>Appraising evidence</a>
 </nav>
 
 </main>

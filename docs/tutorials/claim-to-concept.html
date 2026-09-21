@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>From claim to concept graph · ref-manager docs</title>
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/docs.css">
+<style>
+.svg-wrap svg .node{fill:var(--card);stroke:currentColor;stroke-opacity:.5;stroke-width:1.5}
+.svg-wrap svg .store{fill:var(--amber-soft);stroke:var(--amber);stroke-width:1.5}
+.svg-wrap svg .llm{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.svg-wrap svg .human{fill:none;stroke:currentColor;stroke-width:1.5;stroke-dasharray:4 3}
+.svg-wrap svg .t{font:500 12.5px "IBM Plex Mono",ui-monospace,monospace;fill:currentColor}
+.svg-wrap svg .s{font:400 11px "IBM Plex Sans",system-ui,sans-serif;fill:currentColor;fill-opacity:.65}
+.svg-wrap svg .l{font:400 11px "IBM Plex Mono",ui-monospace,monospace;fill:currentColor;fill-opacity:.65}
+.svg-wrap svg .band{font:500 10.5px "IBM Plex Mono",ui-monospace,monospace;fill:currentColor;fill-opacity:.6;letter-spacing:1px}
+.svg-wrap svg .rule{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4;fill:none}
+.svg-wrap svg .edge{stroke:currentColor;stroke-width:1.5;fill:none}
+.svg-wrap svg .edge.h{stroke-dasharray:5 3}
+.svg-wrap svg .c{font:500 10.5px "IBM Plex Mono",ui-monospace,monospace;fill:var(--accent)}
+.cmdkey{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--accent)}
+.sw.plain{border-color:currentColor;background:var(--card)}
+.sw.hu{border-style:dashed;border-color:currentColor}
+table.sel td:first-child{white-space:normal}
+table.sel td:nth-child(2){color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <a class="brand" href="../index.html"><img src="../assets/icon.svg" alt=""><span>ref-manager</span></a>
+  <nav>
+    <a href="../index.html">Overview</a>
+    <a href="../getting-started.html">Get started</a>
+    <a href="../workflows.html">Workflows</a>
+    <a href="index.html" aria-current="page">Tutorials</a>
+    <a href="../commands/index.html">Commands</a>
+    <a href="../concepts.html">Concepts</a>
+    <a href="../api.html">API</a>
+  </nav>
+</div></div>
+
+<div class="shell">
+<main>
+
+<header class="page">
+  <p class="eyebrow">Tutorial</p>
+  <h1>From claim to concept graph</h1>
+  <p class="lede">How one paper becomes claims, how claim text lands on stable concept nodes, and how those nodes get typed edges and a regenerable OKF bundle. Read the diagram first, then follow the commands that drive each step. Everything here is taken from <code>agents/ref-extractor.md</code> and the scripts <code>concept.py</code>, <code>relation.py</code> and <code>okf_emit.py</code>.</p>
+</header>
+
+<section id="pipeline">
+<h2>The pipeline</h2>
+<p>Only the extractor is an LLM step, and it can only return JSON. Everything after it is validation, exact matching and deterministic comparison. Teal labels on the diagram name the slash command that drives each step.</p>
+<figure>
+<div class="svg-wrap">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 810" role="img" aria-label="Pipeline: a paper goes to the ref-extractor subagent, which returns claims; the calling command validates them; each claim field is matched against concepts by find_concept, which adds an alias, creates a concept, or refuses on collision; concept pairs feed propose_relation, which writes potential_conflict edges to relations.jsonl, only a human review can make one contradicts; okf_emit regenerates the okf bundle from concepts, relations, papers, people and grants.">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 1 L10 5 L0 9 Z" fill="currentColor"/>
+          </marker>
+          <marker id="arrh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 1 L10 5 L0 9 Z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- band captions + separators -->
+        <text class="band" x="20" y="28">EXTRACT</text>
+        <text class="band" x="20" y="176">MAP TO CONCEPTS</text>
+        <line class="rule" x1="20" y1="150" x2="960" y2="150"/>
+        <text class="band" x="20" y="376">WEAVE AND EMIT</text>
+        <line class="rule" x1="20" y1="350" x2="960" y2="350"/>
+
+        <!-- row 1 -->
+        <rect class="node" x="20" y="50" width="160" height="64" rx="4"/>
+        <text class="t" x="34" y="74">Paper</text>
+        <text class="s" x="34" y="92">PMID + abstract</text>
+        <text class="s" x="34" y="105">full text if present</text>
+
+        <rect class="llm" x="250" y="50" width="200" height="64" rx="4"/>
+        <text class="t" x="264" y="74">ref-extractor</text>
+        <text class="s" x="264" y="92">subagent, one per PMID</text>
+        <text class="s" x="264" y="105">returns JSON only</text>
+
+        <rect class="node" x="520" y="50" width="190" height="64" rx="4"/>
+        <text class="t" x="534" y="74">Claims</text>
+        <text class="s" x="534" y="92">PICO fields, direction,</text>
+        <text class="s" x="534" y="105">effect, evidence_span</text>
+
+        <rect class="node" x="770" y="50" width="170" height="64" rx="4"/>
+        <text class="t" x="784" y="74">Calling command</text>
+        <text class="s" x="784" y="92">validates schema,</text>
+        <text class="s" x="784" y="105">assigns claim IDs</text>
+
+        <line class="edge" x1="180" y1="82" x2="248" y2="82" marker-end="url(#arr)"/>
+        <line class="edge" x1="450" y1="82" x2="518" y2="82" marker-end="url(#arr)"/>
+        <line class="edge" x1="710" y1="82" x2="768" y2="82" marker-end="url(#arr)"/>
+        <text class="l" x="184" y="74">text</text>
+        <text class="l" x="468" y="74">JSON</text>
+        <text class="l" x="722" y="74">commit</text>
+
+        <!-- claim -> find_concept -->
+        <line class="edge" x1="855" y1="114" x2="855" y2="198" marker-end="url(#arr)"/>
+        <text class="l" x="865" y="160">each PICO field</text>
+
+        <!-- row 2 -->
+        <rect class="node" x="740" y="200" width="200" height="64" rx="4"/>
+        <text class="t" x="754" y="224">find_concept()</text>
+        <text class="s" x="754" y="242">exact match on name</text>
+        <text class="s" x="754" y="255">or alias, case-folded</text>
+
+        <path class="edge" d="M740 232 H710"/>
+        <path class="edge" d="M710 212 V332"/>
+        <line class="edge" x1="710" y1="212" x2="682" y2="212" marker-end="url(#arr)"/>
+        <line class="edge" x1="710" y1="272" x2="682" y2="272" marker-end="url(#arr)"/>
+        <line class="edge h" x1="710" y1="332" x2="682" y2="332" marker-end="url(#arrh)"/>
+
+        <rect class="node" x="430" y="190" width="250" height="44" rx="4"/>
+        <text class="t" x="444" y="209">Match: add_alias()</text>
+        <text class="s" x="444" y="224">new surface form, provenance kept</text>
+
+        <rect class="node" x="430" y="250" width="250" height="44" rx="4"/>
+        <text class="t" x="444" y="269">No match: create_concept()</text>
+        <text class="s" x="444" y="284">mints a slug, refuses duplicates</text>
+
+        <rect class="human" x="430" y="310" width="250" height="44" rx="4"/>
+        <text class="t" x="444" y="329">Collision: refused</text>
+        <text class="s" x="444" y="344">alias hits another concept: merge</text>
+
+        <!-- concepts store -->
+        <rect class="store" x="60" y="190" width="250" height="110" rx="4"/>
+        <text class="t" x="74" y="214">graph/concepts.jsonl</text>
+        <text class="s" x="74" y="234">stable slug IDs</text>
+        <text class="s" x="74" y="248">aliases accumulate, each with</text>
+        <text class="s" x="74" y="262">claim:&lt;pmid&gt;:&lt;id&gt; provenance</text>
+        <text class="s" x="74" y="284">MI + myocardial infarction = one node</text>
+        <line class="edge" x1="430" y1="212" x2="312" y2="212" marker-end="url(#arr)"/>
+        <line class="edge" x1="430" y1="272" x2="312" y2="272" marker-end="url(#arr)"/>
+
+        <!-- concepts -> propose_relation -->
+        <line class="edge" x1="185" y1="300" x2="185" y2="408" marker-end="url(#arr)"/>
+        <text class="l" x="195" y="332">claim pairs on</text>
+        <text class="l" x="195" y="345">one concept pair</text>
+
+        <!-- row 3 -->
+        <rect class="node" x="40" y="410" width="240" height="80" rx="4"/>
+        <text class="t" x="54" y="432">propose_relation()</text>
+        <text class="s" x="54" y="450">deterministic, no LLM</text>
+        <text class="s" x="54" y="464">only ever proposes</text>
+        <text class="s" x="54" y="478">potential_conflict</text>
+
+        <rect class="store" x="370" y="410" width="210" height="80" rx="4"/>
+        <text class="t" x="384" y="432">graph/relations.jsonl</text>
+        <text class="s" x="384" y="450">typed edges, supporting</text>
+        <text class="s" x="384" y="464">claims, review_state,</text>
+        <text class="s" x="384" y="478">stale flag</text>
+        <line class="edge" x1="280" y1="450" x2="368" y2="450" marker-end="url(#arr)"/>
+        <text class="l" x="291" y="442">writes</text>
+
+        <rect class="human" x="370" y="530" width="210" height="64" rx="4"/>
+        <text class="t" x="384" y="553">review_relation()</text>
+        <text class="s" x="384" y="571">human decision + rationale</text>
+        <text class="s" x="384" y="584">only route to contradicts</text>
+        <line class="edge h" x1="475" y1="528" x2="475" y2="492" marker-end="url(#arrh)"/>
+        <text class="l" x="485" y="514">records</text>
+
+        <rect class="node" x="635" y="410" width="145" height="80" rx="4"/>
+        <text class="t" x="649" y="432">okf_emit.py</text>
+        <text class="s" x="649" y="450">regenerates; same</text>
+        <text class="s" x="649" y="464">inputs give byte-</text>
+        <text class="s" x="649" y="478">identical output</text>
+        <line class="edge" x1="580" y1="450" x2="633" y2="450" marker-end="url(#arr)"/>
+        <text class="l" x="588" y="442">reads</text>
+
+        <rect class="store" x="635" y="530" width="145" height="64" rx="4"/>
+        <text class="t" x="649" y="553">papers, people,</text>
+        <text class="t" x="649" y="569">grants</text>
+        <text class="s" x="649" y="584">also read by emit</text>
+        <line class="edge" x1="707" y1="528" x2="707" y2="492" marker-end="url(#arr)"/>
+
+        <rect class="store" x="830" y="410" width="130" height="80" rx="4"/>
+        <text class="t" x="844" y="432">okf/</text>
+        <text class="s" x="844" y="450">concepts, papers,</text>
+        <text class="s" x="844" y="464">people, grants,</text>
+        <text class="s" x="844" y="478">index, log</text>
+        <line class="edge" x1="780" y1="450" x2="828" y2="450" marker-end="url(#arr)"/>
+        <text class="l" x="788" y="442">writes</text>
+
+        <!-- concepts also feed emit: dashed route above the row -->
+        <path class="edge" d="M310 250 H340 V392 H707 V408" stroke-dasharray="2 4" marker-end="url(#arr)"/>
+        <text class="l" x="350" y="386">concept names + aliases</text>
+      
+<g class="cmds">
+<text class="c" x="20" y="44">/ref:add · /ref:fetch</text>
+<text class="c" x="250" y="44">/ref:extract</text>
+<text class="c" x="770" y="44">/ref:extract</text>
+<text class="c" x="740" y="194">/ref:weave &lt;pmid&gt;</text>
+<text class="c" x="60" y="184">/ref:concept</text>
+<text class="c" x="40" y="404">/ref:weave &lt;pmid&gt;</text>
+<text class="c" x="635" y="404">/ref:weave</text>
+<text class="c" x="370" y="609">/ref:weave review &lt;id&gt; &lt;type&gt;</text>
+</g>
+<line class="rule" x1="20" y1="628" x2="960" y2="628"/>
+<text class="band" x="20" y="650">QUERY</text>
+<text class="l" x="20" y="670">read from graph/, claims, passages and okf/</text>
+<line class="edge" x1="181" y1="682" x2="921" y2="682" stroke-dasharray="2 4"/>
+<text class="c" x="20" y="694">/ref:weave neighbors</text>
+<line class="edge" x1="181" y1="682" x2="181" y2="698" marker-end="url(#arr)"/>
+<rect class="node" x="20" y="700" width="175" height="92" rx="4"/>
+<text class="t" x="34" y="722">neighbors</text>
+<text class="s" x="34" y="742">every edge touching a concept,</text>
+<text class="s" x="34" y="757">outgoing and incoming,</text>
+<text class="s" x="34" y="772">with its claim evidence</text>
+<text class="c" x="205" y="694">/ref:gaps</text>
+<line class="edge" x1="366" y1="682" x2="366" y2="698" marker-end="url(#arr)"/>
+<rect class="node" x="205" y="700" width="175" height="92" rx="4"/>
+<text class="t" x="219" y="722">gaps.py</text>
+<text class="s" x="219" y="742">fragile claims, open conflicts,</text>
+<text class="s" x="219" y="757">ungrouped pairs, population</text>
+<text class="s" x="219" y="772">x outcome holes</text>
+<text class="c" x="390" y="694">/ref:hypothesize</text>
+<line class="edge" x1="551" y1="682" x2="551" y2="698" marker-end="url(#arr)"/>
+<rect class="node" x="390" y="700" width="175" height="92" rx="4"/>
+<text class="t" x="404" y="722">hypothesize.py</text>
+<text class="s" x="404" y="742">ranked A-C candidates with</text>
+<text class="s" x="404" y="757">full A-B / B-C chains and</text>
+<text class="s" x="404" y="772">a PubMed check per pair</text>
+<text class="c" x="575" y="694">/ref:ask · /ref:brief</text>
+<line class="edge" x1="736" y1="682" x2="736" y2="698" marker-end="url(#arr)"/>
+<rect class="llm" x="575" y="700" width="175" height="92" rx="4"/>
+<text class="t" x="589" y="722">ref-synthesizer</text>
+<text class="s" x="589" y="742">FTS5 over claims + passages,</text>
+<text class="s" x="589" y="757">one synthesis call, citations</text>
+<text class="s" x="589" y="772">validated against evidence</text>
+<text class="c" x="760" y="694">okf plugin</text>
+<line class="edge" x1="921" y1="682" x2="921" y2="698" marker-end="url(#arr)"/>
+<rect class="node" x="760" y="700" width="175" height="92" rx="4"/>
+<text class="t" x="774" y="722">OKF MCP tools</text>
+<text class="s" x="774" y="742">search_concepts, read_concept,</text>
+<text class="s" x="774" y="757">get_neighbors over the</text>
+<text class="s" x="774" y="772">generated okf/ bundle</text>
+</svg>
+</div>
+<div class="legend">
+  <span><i class="sw solid"></i>LLM subagent</span>
+  <span><i class="sw plain"></i>script or command step</span>
+  <span><i class="sw amber"></i>stored data</span>
+  <span><i class="sw hu"></i>needs a human decision</span>
+  <span><b class="cmdkey">/ref:…</b>slash command that runs the step</span>
+</div>
+<figcaption>Paper to claims to concepts to relations to <code>okf/</code>. A wrong link can be traced to a matching rule or to a recorded human decision.</figcaption>
+</figure>
+</section>
+
+<section id="claims">
+<h2>Step 1: claims</h2>
+<p><a href="../commands/acquire.html#extract"><code>/ref:extract</code></a> fans out one <code>ref-extractor</code> subagent per PMID, in parallel. Each gets <code>pmid</code>, <code>title</code>, <code>abstract</code> and <code>full_text</code> (or <code>null</code> for abstract-tier papers), and returns one JSON object: a study type plus one claim per reported finding. The subagent has no access to atomic writes, locks or ID allocation; the calling command validates the schema, assigns stable claim IDs and commits.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Group</th><th>Fields</th></tr></thead>
+<tbody>
+<tr><td>PICO</td><td><code>population</code> <code>intervention</code> <code>comparator</code> <code>outcome</code> <code>timepoint</code></td></tr>
+<tr><td>Result</td><td><code>direction</code> <code>effect_value</code> <code>effect_measure</code> <code>uncertainty_interval</code></td></tr>
+<tr><td>Context</td><td><code>study_design</code> <code>cohort_identity</code> <code>adjustment_context</code></td></tr>
+<tr><td>Provenance</td><td><code>locator</code> <code>evidence_span</code> (direct quote) <code>evidence_tier</code> (<code>abstract</code> or <code>full</code>)</td></tr>
+</tbody></table></div>
+<div class="note"><strong>Unknown means unknown.</strong> Any field the text does not support is the literal string <code>"unknown"</code>. Keys are never omitted and values never guessed. An empty <code>claims</code> list is a valid answer. For the full claim contract see <a href="extracting-claims.html">Extracting claims</a>.</div>
+</section>
+
+<section id="mapping">
+<h2>Step 2: map claim text to concepts</h2>
+<p>Concepts are not extracted by the subagent. It emits free text; the calling command, <a href="../commands/graph.html#weave"><code>/ref:weave &lt;pmid&gt;</code></a>, maps each field to a concept inline, because mapping needs judgment and no subagent exists for it. Before minting anything it must call <code>find_concept()</code>: an exact match on name or alias, case-folded and whitespace-normalized. There is no fuzzy matching. <a href="../commands/graph.html#concept"><code>/ref:concept</code></a> edits the same store by hand.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Outcome</th><th>What happens</th></tr></thead>
+<tbody>
+<tr><td>match</td><td><code>add_alias()</code> records the new surface form with provenance <code>claim:&lt;pmid&gt;:&lt;claim_id&gt;</code> or <code>manual</code>. "MI" and "myocardial infarction" become one node.</td></tr>
+<tr><td>no match</td><td><code>create_concept()</code> mints a slug ID. It refuses if any concept already matches.</td></tr>
+<tr><td>collision</td><td>The alias already resolves to a different concept. <code>add_alias()</code> raises; merging is a human decision.</td></tr>
+</tbody></table></div>
+<p>Rows live in <code>graph/concepts.jsonl</code>:</p>
+<pre class="code">{<span class="a">"concept_id"</span>: "&lt;slug&gt;", <span class="a">"name"</span>: "&lt;canonical name&gt;",
+ <span class="a">"aliases"</span>: ["..."],
+ <span class="a">"alias_provenance"</span>: {"&lt;alias&gt;": {"source": "claim:&lt;pmid&gt;:&lt;claim_id&gt;", "added_at": "..."}},
+ <span class="a">"created_at"</span>: "...", <span class="a">"updated_at"</span>: "..."}</pre>
+</section>
+
+<section id="relations">
+<h2>Step 3: propose relations</h2>
+<p>Still inside <code>/ref:weave &lt;pmid&gt;</code>, <code>propose_relation()</code> compares two claims already mapped to a concept pair. It is a pure function with no LLM. Only claims from different PMIDs are candidates; a paper's claims are never woven against themselves. Edges go to <code>graph/relations.jsonl</code> with <code>subject_concept_id</code>, <code>object_concept_id</code>, <code>type</code>, <code>supporting_claims</code>, <code>source_version_ids</code>, <code>review_state</code> and <code>stale</code>.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Rule</th><th>Behaviour</th></tr></thead>
+<tbody>
+<tr><td>opposite direction</td><td>Only <code>increase</code> against <code>decrease</code> counts. Null results against either are inconclusive, not oppositional.</td></tr>
+<tr><td>comparable context</td><td>Comparator, effect measure, timepoint and population must match exactly (case and whitespace normalized). <code>"unknown"</code> on either side is a mismatch, never a pass.</td></tr>
+<tr><td>auto-proposed type</td><td>Only <code>potential_conflict</code>.</td></tr>
+<tr><td><code>contradicts</code></td><td>Requires a recorded review decision and rationale.</td></tr>
+<tr><td><code>stale</code></td><td>Set when a supporting claim is superseded. The concept page shows it until the relation is reconfirmed.</td></tr>
+</tbody></table></div>
+<div class="note warn"><strong>Under-link on purpose.</strong> A false "not comparable" is recoverable by a manual relation. A false "these conflict" is not.</div>
+<p>To promote or demote an edge yourself, use the review form. <code>contradicts</code> is refused without a non-empty rationale:</p>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave review &lt;relation-id&gt; contradicts --rationale "same comparator, 12-week follow-up in both"</span></pre>
+</section>
+
+<section id="okf">
+<h2>Step 4: the OKF view</h2>
+<p><code>okf_emit.py</code> generates <code>okf/</code> from the JSONL and JSON sources: <code>concepts/&lt;id&gt;.md</code>, <code>papers/&lt;citekey&gt;.md</code>, <code>people/</code>, <code>grants/</code>, <code>index.md</code> and <code>log.md</code>. It is an OKF v0.2 bundle: markdown with YAML frontmatter, <code>type</code> required, cross-links as bundle-relative markdown links. Never hand-edit it. Edit the sources and rerun <code>/ref:weave</code>; unchanged inputs give byte-identical output. Run it with no PMIDs to regenerate the views only.</p>
+</section>
+
+<section id="query">
+<h2>Step 5: query the graph</h2>
+<p>The graph is read through five routes. Four are deterministic scripts; only <code>/ref:ask</code> and <code>/ref:brief</code> add an LLM step, and their citations are checked against the evidence they were given.</p>
+<div class="tbl-wrap"><table class="sel">
+<thead><tr><th>Ask with</th><th>Question it answers</th><th>What it produces</th></tr></thead>
+<tbody>
+<tr><td><a href="../commands/graph.html#weave"><code>/ref:weave neighbors &lt;slug&gt;</code></a></td><td>What supports, conflicts with or contradicts this concept?</td><td>JSON <code>{concept_id, outgoing, incoming}</code>: every relation touching the concept, split by direction, each with its supporting-claim trail. A local scan of <code>relations.jsonl</code>, not the OKF tool.</td></tr>
+<tr><td><code>/ref:gaps &lt;selector&gt;</code><br><span class="muted">[--intervention-concept &lt;slug&gt;] [--types …]</span></td><td>Where is the evidence thin or unresolved?</td><td>Findings grouped by type: <code>single_study_fragile</code>, <code>unresolved_conflicts</code>, <code>co_mentioned_ungrouped</code>, <code>population_outcome_gap</code>. Each cites its <code>claim_id</code>, <code>relation_id</code> or <code>pmid</code>. A gap describes this library's coverage, not the literature.</td></tr>
+<tr><td><code>/ref:hypothesize --concept &lt;slug&gt;</code></td><td>Which A-C links are untested, given A-B and B-C edges from different papers?</td><td>Candidates ranked by count of independent A-B / B-C chains, each with its full evidence chain, plus the exact PubMed query, timestamp and result PMIDs. Zero hits reads "not found by this search", never "novel". A reading list, not validated claims.</td></tr>
+<tr><td><code>/ref:ask &lt;question&gt;</code> [selector]<br><span class="muted">/ref:brief saves a refreshable answer</span></td><td>What does my library say about this question?</td><td>An answer, a coverage note and unresolved questions, with a citation check (<code>all_resolved</code>) and an explicit <code>insufficient_coverage</code> report. <code>/ref:ask</code> persists nothing.</td></tr>
+<tr><td>OKF MCP tools<br><span class="muted">okf plugin</span></td><td>What is on this concept's page, and who links to it?</td><td>Markdown concept pages: aliases, relations with <code>review_state</code>, and a STALE mark when a supporting claim was superseded.</td></tr>
+</tbody></table></div>
+<p>The dashboard reads the same records visually: its Insights tab centres an interactive graph on a paper or concept and lets you review conflicts. See <a href="dashboard-insights.html">Evidence insights</a>.</p>
+</section>
+
+<section id="examples">
+<h2>Worked examples</h2>
+<p>One small graph, queried four ways. The concepts are <code>tdcs</code>, <code>working-memory</code>, <code>attention</code> and <code>adhd</code>; the PMIDs <code>38000101</code> to <code>38000103</code> are placeholders. Outputs labelled <em>scratch library</em> are real runs from the scripts, taken from the <a href="graph-discovery.html">Graph discovery</a> tutorial and trimmed with <code>…</code>. The graph they run over:</p>
+<pre class="code"><span class="a">tdcs</span> <span class="m">--contradicts--&gt;</span> <span class="a">working-memory</span>   <span class="c"># was potential_conflict; 38000101 vs 38000102</span>
+<span class="a">tdcs</span> --supports--&gt; <span class="a">attention</span>              <span class="c"># 38000103</span>
+<span class="a">attention</span> --supports--&gt; <span class="a">adhd</span>          <span class="c"># 38000102</span>
+<span class="a">working-memory</span> --extends--&gt; <span class="a">adhd</span>    <span class="c"># 38000101</span>
+<span class="c"># no direct tdcs -&gt; adhd edge</span></pre>
+
+<h3>1. What touches this concept?</h3>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:weave neighbors working-memory</span>
+<span class="o">{
+  "concept_id": "working-memory",
+  "outgoing": [ { "relation_id": "rel-754640c3886b", "type": "extends", "object_concept_id": "adhd", … } ],
+  "incoming": [ { "relation_id": "rel-de5834755e5b", "type": "contradicts", "subject_concept_id": "tdcs", … } ]
+}</span></pre>
+<p>Read it as: working memory extends ADHD evidence, and <code>tdcs</code> contradicts it. Each row carries its <code>supporting_claims</code>, so the next step is to open those claims, not to trust the edge label.</p>
+
+<h3>2. Where is the evidence thin?</h3>
+<p class="term-label">output from a scratch library (run before the review)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:gaps 38000101 38000102 38000103</span>
+<span class="o">{
+  "gaps": {
+    "single_study_fragile": [],
+    "unresolved_conflicts": [
+      { "gap_type": "unresolved_conflict", "relation_id": "rel-de5834755e5b",
+        "type": "potential_conflict", "stale": false,
+        "subject_concept_id": "tdcs", "object_concept_id": "working-memory",
+        "supporting_claims": [ { "claim_id": "c-0001", "pmid": "38000101" }, { "claim_id": "c-0002", "pmid": "38000102" } ] }
+    ],
+    "co_mentioned_ungrouped": []
+  }
+}</span></pre>
+<p>One open conflict, with the claim IDs it rests on. The empty lists only mean the scratch library has no extracted claim registries, not that the evidence is robust. Resolve the conflict with <code>/ref:weave review rel-de5834755e5b contradicts --rationale "…"</code>.</p>
+
+<h3>3. What has nobody tested?</h3>
+<p class="term-label">output from a scratch library (trimmed)</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:hypothesize --concept tdcs</span>
+<span class="c"># 1. graph traversal, no network</span>
+<span class="o">[ { "concept_a": "tdcs", "concept_c": "adhd", "chain_count": 2,
+    "chains": [
+      { "concept_b": "working-memory", "a_b_type": "contradicts", "b_c_type": "extends", … },
+      { "concept_b": "attention", "a_b_type": "supports", "b_c_type": "supports", … } ] } ]</span>
+<span class="c"># 2. Claude searches PubMed per candidate; query, time and PMIDs are recorded</span>
+<span class="o">  "pubmed_check": { "query": "\"transcranial direct current stimulation\" AND \"attention-deficit/hyperactivity disorder\"", "result_pmids": [] },
+  "pubmed_note": "Not found by this search … Not proof of novelty: a different query might find something this one didn't."</span></pre>
+<p><code>adhd</code> is a candidate because two independent two-hop chains reach it and there is no direct edge from <code>tdcs</code>. The empty <code>result_pmids</code> reads "not found by this search". It is a reading list, not a finding.</p>
+
+<h3>4. What does the library say?</h3>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:ask "Does tDCS improve working memory in adults with ADHD?" --project tdcs-review</span>
+<span class="c"># retrieval report first: truncation and insufficient_coverage stated plainly</span>
+<span class="c"># then one synthesis call: answer + coverage note + unresolved questions</span>
+<span class="c"># then the citation check: all_resolved true, or the citations that did not resolve</span></pre>
+<p>This one needs a subagent, so there is no scratch run to show. Note the answer would have to report the open <code>tdcs</code> vs <code>working-memory</code> conflict from example 2 rather than pick a side.</p>
+</section>
+
+<section id="recipes">
+<h2>Minimal recipes</h2>
+<p class="term-label">illustrative output</p>
+<pre class="term"><span class="p">›</span> <span class="cmd">/ref:extract 99000001 99000002</span>            <span class="c"># claims from two papers</span>
+<span class="p">›</span> <span class="cmd">/ref:weave 99000001 99000002</span>              <span class="c"># map to concepts, propose relations, regenerate okf/</span>
+<span class="p">›</span> <span class="cmd">/ref:weave neighbors &lt;concept-slug&gt;</span>       <span class="c"># what supports / conflicts with / contradicts it</span>
+<span class="p">›</span> <span class="cmd">/ref:weave</span>                                 <span class="c"># no PMIDs: regenerate the derived views only</span>
+<span class="p">›</span> <span class="cmd">/ref:gaps --project &lt;slug&gt;</span>                <span class="c"># fragile claims and open conflicts</span>
+<span class="p">›</span> <span class="cmd">/ref:hypothesize --concept &lt;slug&gt;</span>      <span class="c"># ranked A-C candidates</span>
+<span class="p">›</span> <span class="cmd">/ref:ask "&lt;question&gt;"</span>                     <span class="c"># cited answer from the library</span></pre>
+<p>Next: read and review conflicts interactively in <a href="dashboard-insights.html">Evidence insights</a>, or find fragile evidence with <a href="graph-discovery.html">Graph discovery</a>. Data-model detail is in <a href="../concepts.html#relations">Concepts</a>.</p>
+</section>
+
+<nav class="pager" aria-label="Tutorial pages">
+  <a href="dashboard-insights.html"><small>Previous</small>Evidence insights</a>
+  <a href="../commands/index.html" style="text-align:right"><small>Next</small>Command reference</a>
+</nav>
+
+</main>
+</div>
+
+<footer class="site">ref-manager documentation covers the implemented phases 0–11. Design detail lives in <code>PLAN.md</code>; planned v2 work is in <code>PLAN-v2.md</code> and <a href="../figures/knowledge-layer-v2.html">its overview figure</a>.</footer>
+</body>
+</html>

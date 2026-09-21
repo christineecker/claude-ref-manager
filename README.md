@@ -85,6 +85,7 @@ Latest commits, regenerated automatically by
 Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 
 <!-- changelog:start -->
+- 2026-09-21 · [`2323999`](https://github.com/christineecker/claude-ref-manager/commit/2323999) docs(teachme): add lesson 0005 on weave and the concept graph
 - 2026-09-18 · [`c2b552a`](https://github.com/christineecker/claude-ref-manager/commit/c2b552a) feat: dashboard nav redesign — rail+sidebar shell, projects/queries, reports, question links
 - 2026-09-18 · [`0d47cbc`](https://github.com/christineecker/claude-ref-manager/commit/0d47cbc) refactor: nest triage under queries/<slug>/; rename query commands
 - 2026-09-18 · [`879ef7b`](https://github.com/christineecker/claude-ref-manager/commit/879ef7b) refactor: rename /ref:import to /ref:add-sources; add claim docs
@@ -99,5 +100,4 @@ Run `python .github/scripts/update_readme_log.py` to refresh it locally.
 - 2026-09-17 · [`32f3cd1`](https://github.com/christineecker/claude-ref-manager/commit/32f3cd1) ci: move workflow actions to Node 24 releases and test on Node 24
 - 2026-09-17 · [`426c5e9`](https://github.com/christineecker/claude-ref-manager/commit/426c5e9) ci: install pandoc and uv for the conversion tests
 - 2026-09-17 · [`929dab8`](https://github.com/christineecker/claude-ref-manager/commit/929dab8) feat: dashboard graph visualization (plan phases 1-5)
-- 2026-09-17 · [`1b65776`](https://github.com/christineecker/claude-ref-manager/commit/1b65776) docs: graph visualization implementation plan (v2)
 <!-- changelog:end -->
